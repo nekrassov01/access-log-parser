@@ -14,15 +14,6 @@ Usage
 For example, to parse Amazon S3 access logs:
 
 ```go
-package main
-
-import (
-	"regexp"
-	"strings"
-
-	"github.com/nekrassov01/access-log-parser"
-)
-
 const sep = " "
 
 var (
