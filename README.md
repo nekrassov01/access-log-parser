@@ -109,8 +109,8 @@ func main() {
 	p := parser.New(fields, patterns, nil, nil)
 
 	// Parses from a string passed
-	log := `aaaa bbbb cccc`
-	res, err := p.ParseString(log, []int{1, 2})
+	log := `dummy string`
+	res, err := p.ParseString(log, nil)
 
 	// Read and parse logs from a file
 	res, err := p.ParseFile("path/to/logfile.log", []int{1, 2})
@@ -121,6 +121,30 @@ func main() {
 	// Read logs from a zip file. Default is to read all zip entries, but glob patterns can be applied
 	res, err := p.ParseZipEntries("path/to/logfile.log.zip", nil, "*.log")
 }
+```
+
+Output format
+-------------
+
+```go
+type Result struct {
+	Data     []string `json:"data"`
+	Metadata string   `json:"metadata"`
+}
+
+type Metadata struct {
+    Total     int           `json:"total"`
+	Matched   int           `json:"matched"`
+	Unmatched int           `json:"unmatched"`
+	Skipped   int           `json:"skipped"`
+	Source    string        `json:"source"`
+	Errors    []ErrorRecord `json:"errors"`
+}
+
+type ErrorRecord struct {
+		Index  int    `json:"index"`
+		Record string `json:"record"`
+	}
 ```
 
 Customize
