@@ -133,7 +133,7 @@ type Result struct {
 }
 
 type Metadata struct {
-    Total     int           `json:"total"`
+	Total     int           `json:"total"`
 	Matched   int           `json:"matched"`
 	Unmatched int           `json:"unmatched"`
 	Skipped   int           `json:"skipped"`
@@ -142,9 +142,9 @@ type Metadata struct {
 }
 
 type ErrorRecord struct {
-		Index  int    `json:"index"`
-		Record string `json:"record"`
-	}
+	Index  int    `json:"index"`
+	Record string `json:"record"`
+}
 ```
 
 Customize
