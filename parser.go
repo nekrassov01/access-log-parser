@@ -19,17 +19,17 @@ import (
 const Version = "0.0.1"
 
 // Parser is a structure that defines how to parse the access log.
-// Fields represent the field names of the log entry.
-// Patterns represent the list of regular expression patterns used for matching log lines.
-// LineHandler is a custom function that processes and formats the matched log lines.
-// If not provided at initialization, DefaultLineHandler will be used.
+// Fields represents the field names of the log entries.
+// Patterns represents a list of regex patterns used for matching log lines, which are matched in order.
+// LineHandler is a custom function that processes the matched log lines.
+// If not provided at instantiation, DefaultLineHandler is used.
 // MetadataHandler is a custom function that processes and formats metadata.
-// If not provided at initialization, DefaultMetadataHandler will be used.
+// If not provided at instantiation, DefaultMetadataHandler is used.
 type Parser struct {
 	Fields          []string         `json:"fields"`
 	Patterns        []*regexp.Regexp `json:"patterns"`
-	LineHandler     LineHandler
-	MetadataHandler MetadataHandler
+	LineHandler     LineHandler      `json:"-"`
+	MetadataHandler MetadataHandler  `json:"-"`
 }
 
 // ErrorRecord represents a record that didn't match any of the provided patterns.
@@ -43,11 +43,11 @@ type ErrorRecord struct {
 
 // Metadata represents metadata about the parsed records.
 // Total is the total number of log entries processed.
-// Matched is the number of log entries that successfully matched the patterns.
+// Matched is the number of log entries that successfully matched a pattern.
 // Unmatched is the number of log entries that did not match any pattern.
-// Skipped is the number of log entries that were skipped based on user-defined criteria.
-// Source is the source from which the logs were read, e.g., a filename.
-// Errors reprensent the list of error records that detail any issues encountered during parsing.
+// Skipped is the number of log entries skipped by the method argument.
+// Source is the source from which the log was read.
+// Errors is the details of the unmatched record.
 type Metadata struct {
 	Total     int           `json:"total"`
 	Matched   int           `json:"matched"`
@@ -138,7 +138,7 @@ func (p *Parser) parse(input io.Reader, skipLines []int) ([]string, *Metadata, e
 	return data, metadata, nil
 }
 
-// Parse reads from the input, processes each line and returns parsed data and metadata.
+// Parse parses the provided io.Reader input and returns a Result.
 func (p *Parser) Parse(input io.Reader, skipLines []int) (*Result, error) {
 	data, meta, err := p.parse(input, skipLines)
 	if err != nil {
@@ -147,12 +147,12 @@ func (p *Parser) Parse(input io.Reader, skipLines []int) (*Result, error) {
 	return p.createResult(data, meta)
 }
 
-// ParseString processes the provided string input and returns a Result.
+// ParseString parses the provided string input and returns a Result.
 func (p *Parser) ParseString(input string, skipLines []int) (*Result, error) {
 	return p.Parse(strings.NewReader(input), skipLines)
 }
 
-// ParseFile processes the content of a file and returns a Result.
+// ParseFile parsers the content of a file and returns a Result.
 func (p *Parser) ParseFile(input string, skipLines []int) (*Result, error) {
 	if input == "" {
 		return nil, fmt.Errorf("empty path detected")
@@ -170,7 +170,7 @@ func (p *Parser) ParseFile(input string, skipLines []int) (*Result, error) {
 	return p.createResult(data, meta)
 }
 
-// ParseGzip processes the content of a gzipped file and returns a Result.
+// ParseGzip parsers the content of a gzipped file and returns a Result.
 func (p *Parser) ParseGzip(input string, skipLines []int) (*Result, error) {
 	if input == "" {
 		return nil, fmt.Errorf("empty path detected")
@@ -193,7 +193,7 @@ func (p *Parser) ParseGzip(input string, skipLines []int) (*Result, error) {
 	return p.createResult(data, meta)
 }
 
-// ParseZipEntries processes the content of files inside a zip archive that match a glob pattern and returns results.
+// ParseZipEntries parses the contents of entries in the zip archive that match the glob pattern and returns the result.
 func (p *Parser) ParseZipEntries(input string, skipLines []int, globPattern string) ([]*Result, error) {
 	z, err := zip.OpenReader(input)
 	if err != nil {
@@ -227,7 +227,7 @@ func (p *Parser) ParseZipEntries(input string, skipLines []int, globPattern stri
 	return res, nil
 }
 
-// createResult constructs a Result from the parsed data and metadata.
+// createResult is a helper function that constructs a Result from parsed data and metadata.
 func (p *Parser) createResult(data []string, metadata *Metadata) (*Result, error) {
 	meta, err := p.MetadataHandler(metadata)
 	if err != nil {
@@ -240,7 +240,7 @@ func (p *Parser) createResult(data []string, metadata *Metadata) (*Result, error
 }
 
 // DefaultLineHandler is the default handler that converts matched log entries to NDJSON format.
-// It is used when no specific LineHandler is provided during Parser initialization.
+// It is used if no specific LineHandler is provided when the Parser is instantiated.
 func DefaultLineHandler(matches []string, fields []string, index int) (string, error) {
 	var buf bytes.Buffer
 	buf.WriteString(fmt.Sprintf("{\"index\":%d", index))
@@ -258,7 +258,7 @@ func DefaultLineHandler(matches []string, fields []string, index int) (string, e
 }
 
 // DefaultMetadataHandler is the default handler that converts parsed log metadata to NDJSON format.
-// It is used when no specific MetadataHandler is provided during Parser initialization.
+// It is used if no specific MetadataHandler is provided when the Parser is instantiated.
 func DefaultMetadataHandler(m *Metadata) (string, error) {
 	b, err := json.Marshal(m)
 	if err != nil {
