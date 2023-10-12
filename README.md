@@ -103,14 +103,10 @@ var (
 	}
 )
 
-// Example function to instantiate Parser with fields and patterns set
-// The default is to return each matched line in NDJSON (newline-separated JSON) format
-func NewS3LogsJSONParser() *parser.Parser {
-	return parser.New(fields, patterns, nil, nil)
-}
-
 func main() {
-	p := NewS3LogsJSONParser()
+	// Instantiate Parser with fields and patterns set
+	// The default is to return each matched line in NDJSON (newline-separated JSON) format
+	p := parser.New(fields, patterns, nil, nil)
 
 	// Parses from a string passed
 	log := `aaaa bbbb cccc`
@@ -133,9 +129,7 @@ Customize
 Processing of each matched line and metadata output can be overridden when Parser instantiation.
 
 ```go
-func NewS3LogsCustomParser() *parser.Parser {
-	return parser.New(fields, patterns, customLineHandler, customMetadataHandler)
-}
+p := parser.New(fields, patterns, customLineHandler, customMetadataHandler)
 ```
 
 If you want to pretty-print json, you can wrap the default handler:
@@ -165,9 +159,7 @@ func prettyJSONMetadataHandler(m *parser.Metadata) (string, error) {
 	return prettyJSON(s)
 }
 
-func NewS3LogsPrettyJSONParser() *parser.Parser {
-	return parser.New(fields, patterns, prettyJSONLineHandler, prettyJSONMetadataHandler)
-}
+p := parser.New(fields, patterns, prettyJSONLineHandler, prettyJSONMetadataHandler)
 ```
 
 Author
