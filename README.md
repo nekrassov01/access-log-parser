@@ -1,12 +1,17 @@
 access-log-parser
 =================
 
+[![CI](https://github.com/nekrassov01/access-log-parser/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/nekrassov01/access-log-parser/actions/workflows/test.yml)
+[![codecov](https://codecov.io/gh/nekrassov01/access-log-parser/graph/badge.svg?token=RIV62CQILM)](https://codecov.io/gh/nekrassov01/access-log-parser)
+[![Go Reference](https://pkg.go.dev/badge/github.com/nekrassov01/access-log-parser.svg)](https://pkg.go.dev/github.com/nekrassov01/access-log-parser)
+[![Go Report Card](https://goreportcard.com/badge/github.com/nekrassov01/access-log-parser)](https://goreportcard.com/report/github.com/nekrassov01/access-log-parser)
+
 Simple access log parser utilities written in Go
 
 Usage
 -----
 
-The case of parsing Amazon S3 access logs
+For example, to parse Amazon S3 access logs:
 
 ```go
 package main
@@ -47,59 +52,54 @@ var (
 		"host_header",
 		"tls_version",
 		"access_point_arn",
-        "acl_required"
+		"acl_required"
 	}
 
 	patternV1 = []string{
-		`^([!-~]+)`,
-		`([!-~]+)`,
-		`(\[[ -~]+ [0-9+]+\])`,
-		`([!-~]+)`,
-		`([!-~]+)`,
-		`([!-~]+)`,
-		`([!-~]+)`,
-		`([!-~]+)`,
-		`"([ -~]+)"`,
-		`(\d{1,3})`,
-		`([!-~]+)`,
-		`([\d\-.]+)`,
-		`([\d\-.]+)`,
-		`([\d\-.]+)`,
-		`([\d\-.]+)`,
-		`"([ -~]+)"`,
-		`"([ -~]+)"`,
-		`([!-~]+)`,
+		`^([!-~]+)`,            // bucket_owner
+		`([!-~]+)`,             // bucket
+		`(\[[ -~]+ [0-9+]+\])`, // time
+		`([!-~]+)`,             // remote_ip
+		`([!-~]+)`,             // requester
+		`([!-~]+)`,             // request_id
+		`([!-~]+)`,             // operation
+		`([!-~]+)`,             // key
+		`"([ -~]+)"`,           // request_uri
+		`(\d{1,3})`,            // http_status
+		`([!-~]+)`,             // error_code
+		`([\d\-.]+)`,           // bytes_sent
+		`([\d\-.]+)`,           // object_size
+		`([\d\-.]+)`,           // total_time
+		`([\d\-.]+)`,           //turn_around_time
+		`"([ -~]+)"`,           // referer
+		`"([ -~]+)"`,           // user_agent
+		`([!-~]+)`,             // version_id
 	}
 
 	patternV2 = append(
-		patternV1,
-		[]string{
-			`([!-~]+)`,
-			`([!-~]+)`,
-			`([!-~]+)`,
-			`([!-~]+)`,
-			`([!-~]+)`,
+		patternV1, []string{
+			`([!-~]+)`, // host_id
+			`([!-~]+)`, // signature_version
+			`([!-~]+)`, // cipher_suite
+			`([!-~]+)`, // authentication_type
+			`([!-~]+)`, // host_header
 		}...,
 	)
 
 	patternV3 = append(
-		patternV2,
-		[]string{
-			`([!-~]+)`,
+		patternV2, []string{
+			`([!-~]+)`, // tls_version
 		}...,
 	)
 
 	patternV4 = append(
-	patternV3,
-		[]string{
-			`([!-~]+)$`,
+		patternV3, []string{
+			`([!-~]+)$`, // access_point_arn
 		}...,
 	)
-
 	s3PatternV5 = append(
-		patternV4,
-		[]string{
-			`([!-~]+)$`,
+		patternV4, []string{
+			`([!-~]+)$`, // acl_required
 		}...,
 	)
 
@@ -109,10 +109,11 @@ var (
 		regexp.MustCompile(strings.Join(patternV3, sep)),
 		regexp.MustCompile(strings.Join(patternV2, sep)),
 		regexp.MustCompile(strings.Join(patternV1, sep)),
-    }
+	}
 )
 
-// Function to instantiate a parser by setting fields and patterns
+// Example function to instantiate Parser with fields and patterns set
+// The default is to return each matched line in NDJSON (newline-separated JSON) format
 func NewS3LogsJSONParser() *parser.Parser {
 	return parser.New(fields, patterns, nil, nil)
 }
@@ -120,13 +121,17 @@ func NewS3LogsJSONParser() *parser.Parser {
 func main() {
 	p := NewS3LogsJSONParser()
 
-    // Read and parse logs from a file
+	// Parses from a string passed
+	log := `aaaa bbbb cccc`
+	res, err := p.ParseString(log, []int{1, 2})
+
+	// Read and parse logs from a file
 	res, err := p.ParseFile("path/to/logfile.log", []int{1, 2})
 
-    // Read and parse logs forom gzip file
+	// Read and parse logs directly from the gzip file
 	res, err := p.ParseGzip("path/to/logfile.log.gz", []int{1, 2})
 
-    // Read logs from a ZIP file. Defaults to all ZIP entries, but the glob pattern can be applied
+	// Read logs from a zip file. Default is to read all zip entries, but glob patterns can be applied
 	res, err := p.ParseZipEntries("path/to/logfile.log.zip", nil, "*.log")
 }
 ```
@@ -134,15 +139,15 @@ func main() {
 Customize
 ---------
 
-Processing for each matched line and outputting metadata can be overridden during Parser initialization.
+Processing of each matched line and metadata output can be overridden when Parser instantiation.
 
 ```go
-func NewS3LogsJSONParser() *parser.Parser {
+func NewS3LogsCustomParser() *parser.Parser {
 	return parser.New(fields, patterns, customLineHandler, customMetadataHandler)
 }
 ```
 
-If you want to pretty-print json, just wrap the default handler:
+If you want to pretty-print json, you can wrap the default handler:
 
 ```go
 func prettyJSON(s string) (string, error) {
@@ -167,6 +172,10 @@ func prettyJSONMetadataHandler(m *parser.Metadata) (string, error) {
 		return "", err
 	}
 	return prettyJSON(s)
+}
+
+func NewS3LogsPrettyJSONParser() *parser.Parser {
+	return parser.New(fields, patterns, prettyJSONLineHandler, prettyJSONMetadataHandler)
 }
 ```
 
