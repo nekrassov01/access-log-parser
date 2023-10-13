@@ -113,7 +113,7 @@ func main() {
 	res, err := p.ParseString(log, nil)
 
 	// Read and parse logs from a file
-	// All ParseXXX methods can skip a line by specifying a line number
+	// All ParseXXX methods can skip lines by specifying the line numbers
 	res, err := p.ParseFile("path/to/logfile.log", []int{1, 2})
 
 	// Read and parse logs directly from the gzip file
