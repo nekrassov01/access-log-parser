@@ -113,6 +113,7 @@ func main() {
 	res, err := p.ParseString(log, nil)
 
 	// Read and parse logs from a file
+	// All ParseXXX methods can skip a line by specifying a line number
 	res, err := p.ParseFile("path/to/logfile.log", []int{1, 2})
 
 	// Read and parse logs directly from the gzip file
@@ -127,11 +128,16 @@ Output format
 -------------
 
 ```go
+// Result represents processed data. The Data field contains
+// string representations serialized by the designated handler or
+// a default handler if none is specified
 type Result struct {
 	Data     []string `json:"data"`
 	Metadata string   `json:"metadata"`
 }
 
+// Metadata contains aggregate information about the processed data
+// and the lines that did not match
 type Metadata struct {
 	Total     int           `json:"total"`
 	Matched   int           `json:"matched"`
@@ -141,6 +147,7 @@ type Metadata struct {
 	Errors    []ErrorRecord `json:"errors"`
 }
 
+// ErrorRecord represents a record that did not match
 type ErrorRecord struct {
 	Index  int    `json:"index"`
 	Record string `json:"record"`
