@@ -12,14 +12,8 @@ import (
 	"testing"
 )
 
-const sep = " "
-
 var (
 	fields                            []string
-	patternV1                         []string
-	patternV2                         []string
-	patternV3                         []string
-	patternV4                         []string
 	patterns                          []*regexp.Regexp
 	allMatchInput                     string
 	allMatchData                      []string
@@ -86,7 +80,8 @@ func setup() {
 		"access_point_arn",
 	}
 
-	patternV1 = []string{
+	sep := " "
+	basePattern := []string{
 		`^([!-~]+)`,            // bucket_owner
 		`([!-~]+)`,             // bucket
 		`(\[[ -~]+ [0-9+]+\])`, // time
@@ -105,38 +100,49 @@ func setup() {
 		`"([ -~]+)"`,           // referer
 		`"([ -~]+)"`,           // user_agent
 		`([!-~]+)`,             // version_id
-	}
 
-	patternV2 = append(
-		patternV1,
-		[]string{
+	}
+	additions := [][]string{
+		{
 			`([!-~]+)`, // host_id
 			`([!-~]+)`, // signature_version
 			`([!-~]+)`, // cipher_suite
 			`([!-~]+)`, // authentication_type
 			`([!-~]+)`, // host_header
-		}...,
-	)
-
-	patternV3 = append(
-		patternV2,
-		[]string{
 			`([!-~]+)`, // tls_version
-		}...,
-	)
+			`([!-~]+)`, // access_point_arn
+			`([!-~]+)`, // acl_required
+		},
+		{
+			`([!-~]+)`, // host_id
+			`([!-~]+)`, // signature_version
+			`([!-~]+)`, // cipher_suite
+			`([!-~]+)`, // authentication_type
+			`([!-~]+)`, // host_header
+			`([!-~]+)`, // tls_version
+			`([!-~]+)`, // access_point_arn
+		},
 
-	patternV4 = append(
-		patternV3,
-		[]string{
-			`([!-~]+)$`, // access_point_arn
-		}...,
-	)
-
-	patterns = []*regexp.Regexp{
-		regexp.MustCompile(strings.Join(patternV4, sep)),
-		regexp.MustCompile(strings.Join(patternV3, sep)),
-		regexp.MustCompile(strings.Join(patternV2, sep)),
-		regexp.MustCompile(strings.Join(patternV1, sep)),
+		{
+			`([!-~]+)`, // host_id
+			`([!-~]+)`, // signature_version
+			`([!-~]+)`, // cipher_suite
+			`([!-~]+)`, // authentication_type
+			`([!-~]+)`, // host_header
+			`([!-~]+)`, // tls_version
+		},
+		{
+			`([!-~]+)`, // host_id
+			`([!-~]+)`, // signature_version
+			`([!-~]+)`, // cipher_suite
+			`([!-~]+)`, // authentication_type
+			`([!-~]+)`, // host_header
+		},
+		{},
+	}
+	patterns = make([]*regexp.Regexp, len(additions))
+	for i, addition := range additions {
+		patterns[i] = regexp.MustCompile(strings.Join(append(basePattern, addition...), sep))
 	}
 
 	allMatchInput = `a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a awsrandombucket43 [16/Feb/2019:11:23:45 +0000] 192.0.2.132 a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a 3E57427F3EXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket43?versioning HTTP/1.1" 200 - 113 - 7 - "-" "S3Console/0.4" - s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234= SigV2 ECDHE-RSA-AES128-GCM-SHA256 AuthHeader awsrandombucket43.s3.us-west-1.amazonaws.com TLSV1.1 -
