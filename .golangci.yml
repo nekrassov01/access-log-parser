@@ -4,23 +4,30 @@ linters:
   enable:
     - dogsled
     - dupl
+    - errorlint
+    - gocritic
+    - gocyclo
     - gofmt
     - gofumpt
     - gosec
+    - lll
+    - makezero
     - misspell
     - nakedret
+    - predeclared
     - revive
     - stylecheck
-    - unconvert
-    - unparam
-    - whitespace
     - tagliatelle
     - thelper
     - tparallel
     - unconvert
+    - unparam
+    - unused
     - wastedassign
+    - whitespace
 issues:
   exclude-rules:
     - linters:
         - dupl
+        - lll
       path: _test\.go
