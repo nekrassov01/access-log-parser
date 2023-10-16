@@ -207,7 +207,7 @@ func (p *Parser) ParseZipEntries(input string, skipLines []int, globPattern stri
 	for _, f := range z.File {
 		matched, err := filepath.Match(globPattern, f.Name)
 		if err != nil {
-			return nil, fmt.Errorf("does not match glob pattern: %w", err)
+			return nil, fmt.Errorf("invalid glob pattern: %w", err)
 		}
 		if !matched {
 			continue

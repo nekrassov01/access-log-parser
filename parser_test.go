@@ -1886,7 +1886,7 @@ func TestParser_ParseZipEntries(t *testing.T) {
 			},
 			want: want{
 				got: nil,
-				err: fmt.Errorf("does not match glob pattern: syntax error in pattern"),
+				err: fmt.Errorf("invalid glob pattern: syntax error in pattern"),
 			},
 		},
 	}
