@@ -32,7 +32,7 @@ golangci-lint:
 
 .PHONY: govulncheck
 govulncheck: deps
-	$(GOBIN)/govulncheck ./...
+	$(GOBIN)/govulncheck -test -json ./...
 
 .PHONY: show-version
 show-version: deps
