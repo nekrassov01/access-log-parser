@@ -195,6 +195,9 @@ func (p *Parser) ParseGzip(input string, skipLines []int) (*Result, error) {
 
 // ParseZipEntries parses the contents of entries in the zip archive that match the glob pattern and returns the result.
 func (p *Parser) ParseZipEntries(input string, skipLines []int, globPattern string) ([]*Result, error) {
+	if input == "" {
+		return nil, fmt.Errorf("empty path detected")
+	}
 	z, err := zip.OpenReader(input)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open zip file: %w", err)

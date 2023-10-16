@@ -1721,7 +1721,7 @@ func TestParser_ParseZipEntries(t *testing.T) {
 			},
 			want: want{
 				got: nil,
-				err: fmt.Errorf("cannot open zip file: open : %s", fileNotFoundMessage),
+				err: fmt.Errorf("empty path detected"),
 			},
 		},
 		{
