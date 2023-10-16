@@ -12,7 +12,7 @@ BIN_GOBUMP := github.com/x-motemen/gobump/cmd/gobump@latest
 export GO111MODULE=on
 
 .PHONY: check
-check: test vet golangci-lint govulncheck
+check: test bench vet golangci-lint govulncheck
 
 .PHONY: deps
 deps:
@@ -27,7 +27,7 @@ ifndef HAS_GOBUMP
 endif
 
 .PHONY: golangci-lint
-golangci-lint:
+golangci-lint: deps
 	golangci-lint run ./... -v --tests
 
 .PHONY: govulncheck
@@ -46,19 +46,23 @@ endif
 ifneq ($(shell git rev-parse --abbrev-ref HEAD),main)
 	$(error current branch is not main)
 endif
-	@gobump up -w .
+	$(GOBIN)/gobump up -w .
 	git commit -am "bump up version to $(VERSION)"
 	git tag "v$(VERSION)"
 	git push origin main
 	git push origin "refs/tags/v$(VERSION)"
 
-.PHONY: vet
-vet:
-	go vet ./...
-
 .PHONY: test
 test:
 	go test -race -cover -v ./... -coverprofile=cover.out -covermode=atomic
+
+.PHONY: bench
+bench:
+	go test -bench . -benchmem
+
+.PHONY: vet
+vet:
+	go vet ./...
 
 .PHONY: cover
 cover:
