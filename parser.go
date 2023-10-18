@@ -4,7 +4,6 @@ package parser
 import (
 	"archive/zip"
 	"bufio"
-	"bytes"
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
@@ -245,19 +244,25 @@ func (p *Parser) createResult(data []string, metadata *Metadata) (*Result, error
 // DefaultLineHandler is the default handler that converts matched log entries to NDJSON format.
 // It is used if no specific LineHandler is provided when the Parser is instantiated.
 func DefaultLineHandler(matches []string, fields []string, index int) (string, error) {
-	var buf bytes.Buffer
-	buf.WriteString(fmt.Sprintf("{\"index\":%d", index))
+	var builder strings.Builder
+	_, err := builder.WriteString(fmt.Sprintf("{\"index\":%d", index))
+	if err != nil {
+		return "", fmt.Errorf("cannot use builder to write strings: %w", err)
+	}
 	for i, match := range matches[1:] {
 		if i < len(fields) {
 			b, err := json.Marshal(match)
 			if err != nil {
 				return "", fmt.Errorf("cannot marshal matched string \"%s\" as json: %w", match, err)
 			}
-			buf.WriteString(fmt.Sprintf(",\"%s\":%s", fields[i], b))
+			_, err = builder.WriteString(fmt.Sprintf(",\"%s\":%s", fields[i], b))
+			if err != nil {
+				return "", fmt.Errorf("cannot use builder to write strings: %w", err)
+			}
 		}
 	}
-	buf.WriteString("}")
-	return buf.String(), nil
+	builder.WriteString("}")
+	return builder.String(), nil
 }
 
 // DefaultMetadataHandler is the default handler that converts parsed log metadata to NDJSON format.
