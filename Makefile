@@ -57,7 +57,7 @@ golangci-lint: deps-lint
 
 .PHONY: govulncheck
 govulncheck: deps-govulncheck
-	$(GOBIN)/govulncheck -test -json ./...
+	$(GOBIN)/govulncheck -test ./...
 
 .PHONY: show-version
 show-version: deps-gobump
@@ -73,12 +73,6 @@ endif
 
 .PHONY: publish
 publish: deps-gobump check-git
-ifneq ($(shell git status --porcelain),)
-	$(error git workspace is dirty)
-endif
-ifneq ($(shell git rev-parse --abbrev-ref HEAD),main)
-	$(error current branch is not main)
-endif
 	$(GOBIN)/gobump up -w .
 	git commit -am "bump up version to $(VERSION)"
 	git tag "v$(VERSION)"
