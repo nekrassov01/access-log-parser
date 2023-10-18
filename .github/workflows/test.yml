@@ -51,6 +51,7 @@ jobs:
         with:
           go-version-input: ${{ matrix.go }}
           go-package: ./...
+          cache: false
 
       - name: Run tests
         run: |
