@@ -15,7 +15,7 @@ import (
 )
 
 // Version of access-log-parser.
-const Version = "0.0.4"
+const Version = "0.0.5"
 
 // Parser is a structure that defines how to parse the access log.
 // Fields represents the field names of the log entries.
