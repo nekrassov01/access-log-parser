@@ -12,7 +12,7 @@ BIN_GOBUMP := github.com/x-motemen/gobump/cmd/gobump@latest
 export GO111MODULE=on
 
 .PHONY: check
-check: test bench vet ccover golangci-lint govulncheck
+check: test bench vet cover golangci-lint govulncheck
 
 .PHONY: deps
 deps: deps-lint deps-govulncheck deps-gobump
