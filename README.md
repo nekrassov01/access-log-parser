@@ -15,7 +15,7 @@ Usage
 func main() {
 	// Instantiate Parser with fields and patterns set
 	// The default is to return each matched line in NDJSON (newline-separated JSON) format
-	p := parser.New(fields, patterns, nil, nil)
+	p := parser.New(fields, patterns)
 
 	// Parses from a string passed
 	log := `dummy string`
@@ -69,7 +69,7 @@ Customize
 Processing of each matched line and metadata output can be overridden when Parser instantiation.
 
 ```go
-p := parser.New(fields, patterns, customLineHandler, customMetadataHandler)
+p := parser.New(fields, patterns, WithLineHandler(customLineHandler), WithMetadataHandler(customMetadataHandler))
 ```
 
 If you want to pretty-print json, you can wrap the default handler:
@@ -99,7 +99,7 @@ func prettyJSONMetadataHandler(m *parser.Metadata) (string, error) {
 	return prettyJSON(s)
 }
 
-p := parser.New(fields, patterns, prettyJSONLineHandler, prettyJSONMetadataHandler)
+p := parser.New(fields, patterns, WithLineHandler(prettyJSONLineHandler), WithMetadataHandler(prettyJSONMetadataHandler))
 ```
 
 Author

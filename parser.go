@@ -68,20 +68,35 @@ type LineHandler func(matches []string, fields []string, index int) (string, err
 // MetadataHandler is a type for functions that process metadata.
 type MetadataHandler func(metadata *Metadata) (string, error)
 
+// Option is an option to replace the behavior of LineHandler and MetadataHandler.
+type Option func(*Parser)
+
+// WithLineHandler overrides the behavior of DefaultLineHandler.
+func WithLineHandler(handler LineHandler) Option {
+	return func(p *Parser) {
+		p.LineHandler = handler
+	}
+}
+
+// WithMetadataHandler overrides the behavior of DefaultMetadataHandler.
+func WithMetadataHandler(handler MetadataHandler) Option {
+	return func(p *Parser) {
+		p.MetadataHandler = handler
+	}
+}
+
 // New creates a new parser with the specified configurations.
-func New(fields []string, patterns []*regexp.Regexp, lineHandler LineHandler, metadataHandler MetadataHandler) *Parser {
-	if lineHandler == nil {
-		lineHandler = DefaultLineHandler
-	}
-	if metadataHandler == nil {
-		metadataHandler = DefaultMetadataHandler
-	}
-	return &Parser{
+func New(fields []string, patterns []*regexp.Regexp, opts ...Option) *Parser {
+	p := &Parser{
 		Fields:          fields,
 		Patterns:        patterns,
-		LineHandler:     lineHandler,
-		MetadataHandler: metadataHandler,
+		LineHandler:     DefaultLineHandler,
+		MetadataHandler: DefaultMetadataHandler,
 	}
+	for _, opt := range opts {
+		opt(p)
+	}
+	return p
 }
 
 // parse reads from the input, processes each line and returns parsed data and metadata.

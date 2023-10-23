@@ -351,7 +351,14 @@ func TestNew(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := New(tt.args.fields, tt.args.patterns, tt.args.lineHandler, tt.args.metadataHandler)
+			opts := []Option{}
+			if tt.args.lineHandler != nil {
+				opts = append(opts, WithLineHandler(tt.args.lineHandler))
+			}
+			if tt.args.metadataHandler != nil {
+				opts = append(opts, WithMetadataHandler(tt.args.metadataHandler))
+			}
+			p := New(tt.args.fields, tt.args.patterns, opts...)
 			if !reflect.DeepEqual(p.Fields, tt.want.parser.Fields) {
 				t.Errorf("got: %v, want: %v", p.Fields, tt.want.parser.Fields)
 			}
