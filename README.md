@@ -102,6 +102,11 @@ func prettyJSONMetadataHandler(m *parser.Metadata) (string, error) {
 p := parser.New(fields, patterns, WithLineHandler(prettyJSONLineHandler), WithMetadataHandler(prettyJSONMetadataHandler))
 ```
 
+Sample
+-------
+
+[__alpen__](https://github.com/nekrassov01/alpen/blob/main/app.go#L353-L395) is an application for parsing and encoding access logs of AWS services.
+
 Author
 ------
 
