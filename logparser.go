@@ -1,5 +1,5 @@
 // Package parser provides utilities for parsing access logs and converting them to structured formats.
-package parser
+package logparser
 
 import (
 	"archive/zip"
@@ -17,15 +17,14 @@ import (
 // Version of access-log-parser.
 const Version = "0.0.6"
 
-// Parser is a structure that defines how to parse the access log.
-// Fields represents the field names of the log entries.
-// Patterns represents a list of regex patterns used for matching log lines, which are matched in order.
+// Parser is a struct that defines how to parse the access log.
+// Patterns represents a list of regular expression patterns used for matching log lines,
+// which are matched in order. Each field must have a named capture group.
 // LineHandler is a custom function that processes the matched log lines.
-// If not provided at instantiation, DefaultLineHandler is used.
+// If not provided at instantiation, DefaultLineHandler will be used.
 // MetadataHandler is a custom function that processes and formats metadata.
-// If not provided at instantiation, DefaultMetadataHandler is used.
+// If not provided at instantiation, DefaultMetadataHandler will be used.
 type Parser struct {
-	Fields          []string         `json:"fields"`
 	Patterns        []*regexp.Regexp `json:"patterns"`
 	LineHandler     LineHandler      `json:"-"`
 	MetadataHandler MetadataHandler  `json:"-"`
@@ -56,7 +55,7 @@ type Metadata struct {
 	Errors    []ErrorRecord `json:"errors"`
 }
 
-// Result represents the parsed log data and metadata.
+// Result represents serialized result data and metadata.
 type Result struct {
 	Data     []string `json:"data"`
 	Metadata string   `json:"metadata"`
@@ -68,7 +67,7 @@ type LineHandler func(matches []string, fields []string, index int) (string, err
 // MetadataHandler is a type for functions that process metadata.
 type MetadataHandler func(metadata *Metadata) (string, error)
 
-// Option is an option to replace the behavior of LineHandler and MetadataHandler.
+// Option provides an option to override the handler behavior of Parser.
 type Option func(*Parser)
 
 // WithLineHandler overrides the behavior of DefaultLineHandler.
@@ -85,11 +84,9 @@ func WithMetadataHandler(handler MetadataHandler) Option {
 	}
 }
 
-// New creates a new parser with the specified configurations.
-func New(fields []string, patterns []*regexp.Regexp, opts ...Option) *Parser {
+// NewParser creates a new parser with the specified options.
+func NewParser(opts ...Option) *Parser {
 	p := &Parser{
-		Fields:          fields,
-		Patterns:        patterns,
 		LineHandler:     DefaultLineHandler,
 		MetadataHandler: DefaultMetadataHandler,
 	}
@@ -99,15 +96,45 @@ func New(fields []string, patterns []*regexp.Regexp, opts ...Option) *Parser {
 	return p
 }
 
+// AddPattern sets the regex pattern for Parser. Parser holds slice of patterns,
+// so use AddPatterns if you want to set multiple patterns at once.
+func (p *Parser) AddPattern(pattern *regexp.Regexp) error {
+	if len(pattern.SubexpNames()) <= 1 {
+		return fmt.Errorf("invalid pattern detected: capture group not found")
+	}
+	for j, name := range pattern.SubexpNames() {
+		if j != 0 && name == "" {
+			return fmt.Errorf("invalid pattern detected: non-named capture group detected")
+		}
+	}
+	p.Patterns = append(p.Patterns, pattern)
+	return nil
+}
+
+// AddPatterns sets multiple regex patterns at once.
+// If an error is detected, all patterns are cleared.
+func (p *Parser) AddPatterns(patterns []*regexp.Regexp) error {
+	for _, pattern := range patterns {
+		if err := p.AddPattern(pattern); err != nil {
+			p.Patterns = nil
+			return err
+		}
+	}
+	return nil
+}
+
 // parse reads from the input, processes each line and returns parsed data and metadata.
 func (p *Parser) parse(input io.Reader, skipLines []int) ([]string, *Metadata, error) {
+	if len(p.Patterns) == 0 {
+		return nil, nil, fmt.Errorf("cannot parse input: no patterns provided")
+	}
 	var data []string
 	var errors []ErrorRecord
 	i := 1
 	matched := 0
 	skipped := 0
 	unmatched := 0
-	m := make(map[int]bool)
+	m := make(map[int]bool, len(skipLines))
 	for _, skipLine := range skipLines {
 		m[skipLine] = true
 	}
@@ -118,24 +145,35 @@ func (p *Parser) parse(input io.Reader, skipLines []int) ([]string, *Metadata, e
 			skipped++
 			continue
 		}
-		var matches []string
 		r := scanner.Text()
+		var matchedPattern *regexp.Regexp
+		var matches []string
 		for _, pattern := range p.Patterns {
-			if matches = pattern.FindStringSubmatch(r); matches != nil {
+			matches = pattern.FindStringSubmatch(r)
+			if matches != nil {
+				matchedPattern = pattern
 				break
 			}
 		}
-		if matches == nil {
+		if matchedPattern == nil {
 			errors = append(errors, ErrorRecord{Index: i, Record: r})
 			unmatched++
-		} else {
-			line, err := p.LineHandler(matches, p.Fields, i)
-			if err != nil {
-				return nil, nil, err
-			}
-			data = append(data, line)
-			matched++
+			i++
+			continue
 		}
+		names := matchedPattern.SubexpNames()
+		fields := make([]string, 0, len(names)-1)
+		values := make([]string, 0, len(names)-1)
+		for j, name := range names[1:] {
+			fields = append(fields, name)
+			values = append(values, matches[j+1])
+		}
+		line, err := p.LineHandler(values, fields, i)
+		if err != nil {
+			return nil, nil, err
+		}
+		data = append(data, line)
+		matched++
 		i++
 	}
 	if err := scanner.Err(); err != nil {
@@ -152,7 +190,8 @@ func (p *Parser) parse(input io.Reader, skipLines []int) ([]string, *Metadata, e
 	return data, metadata, nil
 }
 
-// Parse parses the provided io.Reader input and returns a Result.
+// Parse parses the provided io.Reader and returns a Result.
+// Use this if you want to use an abstracted Reader.
 func (p *Parser) Parse(input io.Reader, skipLines []int) (*Result, error) {
 	data, meta, err := p.parse(input, skipLines)
 	if err != nil {
@@ -264,7 +303,7 @@ func DefaultLineHandler(matches []string, fields []string, index int) (string, e
 	if err != nil {
 		return "", fmt.Errorf("cannot use builder to write strings: %w", err)
 	}
-	for i, match := range matches[1:] {
+	for i, match := range matches {
 		if i < len(fields) {
 			b, err := json.Marshal(match)
 			if err != nil {

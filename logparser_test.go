@@ -1,4 +1,4 @@
-package parser
+package logparser
 
 import (
 	"fmt"
@@ -13,36 +13,40 @@ import (
 )
 
 var (
-	fields                            []string
-	patterns                          []*regexp.Regexp
-	allMatchInput                     string
-	allMatchData                      []string
-	allMatchMetadata                  *Metadata
-	allMatchMetadataSerialized        string
-	containsUnmatchInput              string
-	containsUnmatchData               []string
-	containsUnmatchMetadata           *Metadata
-	containsUnmatchMetadataSerialized string
-	containsSkipLines                 []int
-	containsSkipData                  []string
-	containsSkipMetadata              *Metadata
-	containsSkipMetadataSerialized    string
-	allUnmatchInput                   string
-	allUnmatchMetadata                *Metadata
-	allUnmatchMetadataSerialized      string
-	allSkipLines                      []int
-	allSkipMetadata                   *Metadata
-	allSkipMetadataSerialized         string
-	emptyMetadata                     *Metadata
-	emptyMetadataSerialized           string
-	mixedSkipLines                    []int
-	mixedData                         []string
-	mixedMetadata                     *Metadata
-	mixedMetadataSerialized           string
-	fileNotFoundMessage               string
-	fileNotFoundMessageWindows        string
-	isDirMessage                      string
-	isDirMessageWindows               string
+	pattern                               *regexp.Regexp
+	capturedGroupNotContainsPattern       *regexp.Regexp
+	nonNamedCapturedGroupContainsPattern  *regexp.Regexp
+	patterns                              []*regexp.Regexp
+	capturedGroupNotContainsPatterns      []*regexp.Regexp
+	nonNamedCapturedGroupContainsPatterns []*regexp.Regexp
+	allMatchInput                         string
+	allMatchData                          []string
+	allMatchMetadata                      *Metadata
+	allMatchMetadataSerialized            string
+	containsUnmatchInput                  string
+	containsUnmatchData                   []string
+	containsUnmatchMetadata               *Metadata
+	containsUnmatchMetadataSerialized     string
+	containsSkipLines                     []int
+	containsSkipData                      []string
+	containsSkipMetadata                  *Metadata
+	containsSkipMetadataSerialized        string
+	allUnmatchInput                       string
+	allUnmatchMetadata                    *Metadata
+	allUnmatchMetadataSerialized          string
+	allSkipLines                          []int
+	allSkipMetadata                       *Metadata
+	allSkipMetadataSerialized             string
+	emptyMetadata                         *Metadata
+	emptyMetadataSerialized               string
+	mixedSkipLines                        []int
+	mixedData                             []string
+	mixedMetadata                         *Metadata
+	mixedMetadataSerialized               string
+	fileNotFoundMessage                   string
+	fileNotFoundMessageWindows            string
+	isDirMessage                          string
+	isDirMessageWindows                   string
 )
 
 func TestMain(m *testing.M) {
@@ -52,98 +56,74 @@ func TestMain(m *testing.M) {
 }
 
 func setup() {
-	fields = []string{
-		"bucket_owner",
-		"bucket",
-		"time",
-		"remote_ip",
-		"requester",
-		"request_id",
-		"operation",
-		"key",
-		"request_uri",
-		"http_status",
-		"error_code",
-		"bytes_sent",
-		"object_size",
-		"total_time",
-		"turn_around_time",
-		"referer",
-		"user_agent",
-		"version_id",
-		"host_id",
-		"signature_version",
-		"cipher_suite",
-		"authentication_type",
-		"host_header",
-		"tls_version",
-		"access_point_arn",
-	}
-
 	sep := " "
 	basePattern := []string{
-		`^([!-~]+)`,            // bucket_owner
-		`([!-~]+)`,             // bucket
-		`(\[[ -~]+ [0-9+]+\])`, // time
-		`([!-~]+)`,             // remote_ip
-		`([!-~]+)`,             // requester
-		`([!-~]+)`,             // request_id
-		`([!-~]+)`,             // operation
-		`([!-~]+)`,             // key
-		`"([ -~]+)"`,           // request_uri
-		`(\d{1,3})`,            // http_status
-		`([!-~]+)`,             // error_code
-		`([\d\-.]+)`,           // bytes_sent
-		`([\d\-.]+)`,           // object_size
-		`([\d\-.]+)`,           // total_time
-		`([\d\-.]+)`,           // turn_around_time
-		`"([ -~]+)"`,           // referer
-		`"([ -~]+)"`,           // user_agent
-		`([!-~]+)`,             // version_id
-
+		`^(?P<bucket_owner>[!-~]+)`,
+		`(?P<bucket>[!-~]+)`,
+		`(?P<time>\[[ -~]+ [0-9+]+\])`,
+		`(?P<remote_ip>[!-~]+)`,
+		`(?P<requester>[!-~]+)`,
+		`(?P<request_id>[!-~]+)`,
+		`(?P<operation>[!-~]+)`,
+		`(?P<key>[!-~]+)`,
+		`"(?P<request_uri>[ -~]+)"`,
+		`(?P<http_status>\d{1,3})`,
+		`(?P<error_code>[!-~]+)`,
+		`(?P<bytes_sent>[\d\-.]+)`,
+		`(?P<object_size>[\d\-.]+)`,
+		`(?P<total_time>[\d\-.]+)`,
+		`(?P<turn_around_time>[\d\-.]+)`,
+		`"(?P<referer>[ -~]+)"`,
+		`"(?P<user_agent>[ -~]+)"`,
+		`(?P<version_id>[!-~]+)`,
 	}
 	additions := [][]string{
 		{
-			`([!-~]+)`, // host_id
-			`([!-~]+)`, // signature_version
-			`([!-~]+)`, // cipher_suite
-			`([!-~]+)`, // authentication_type
-			`([!-~]+)`, // host_header
-			`([!-~]+)`, // tls_version
-			`([!-~]+)`, // access_point_arn
-			`([!-~]+)`, // acl_required
+			`(?P<host_id>[!-~]+)`,
+			`(?P<signature_version>[!-~]+)`,
+			`(?P<cipher_suite>[!-~]+)`,
+			`(?P<authentication_type>[!-~]+)`,
+			`(?P<host_header>[!-~]+)`,
+			`(?P<tls_version>[!-~]+)`,
+			`(?P<access_point_arn>[!-~]+)`,
+			`(?P<acl_required>[!-~]+)`,
 		},
 		{
-			`([!-~]+)`, // host_id
-			`([!-~]+)`, // signature_version
-			`([!-~]+)`, // cipher_suite
-			`([!-~]+)`, // authentication_type
-			`([!-~]+)`, // host_header
-			`([!-~]+)`, // tls_version
-			`([!-~]+)`, // access_point_arn
-		},
-
-		{
-			`([!-~]+)`, // host_id
-			`([!-~]+)`, // signature_version
-			`([!-~]+)`, // cipher_suite
-			`([!-~]+)`, // authentication_type
-			`([!-~]+)`, // host_header
-			`([!-~]+)`, // tls_version
+			`(?P<host_id>[!-~]+)`,
+			`(?P<signature_version>[!-~]+)`,
+			`(?P<cipher_suite>[!-~]+)`,
+			`(?P<authentication_type>[!-~]+)`,
+			`(?P<host_header>[!-~]+)`,
+			`(?P<tls_version>[!-~]+)`,
+			`(?P<access_point_arn>[!-~]+)`,
 		},
 		{
-			`([!-~]+)`, // host_id
-			`([!-~]+)`, // signature_version
-			`([!-~]+)`, // cipher_suite
-			`([!-~]+)`, // authentication_type
-			`([!-~]+)`, // host_header
+			`(?P<host_id>[!-~]+)`,
+			`(?P<signature_version>[!-~]+)`,
+			`(?P<cipher_suite>[!-~]+)`,
+			`(?P<authentication_type>[!-~]+)`,
+			`(?P<host_header>[!-~]+)`,
+			`(?P<tls_version>[!-~]+)`,
+		},
+		{
+			`(?P<host_id>[!-~]+)`,
+			`(?P<signature_version>[!-~]+)`,
+			`(?P<cipher_suite>[!-~]+)`,
+			`(?P<authentication_type>[!-~]+)`,
+			`(?P<host_header>[!-~]+)`,
 		},
 		{},
 	}
+
+	pattern = regexp.MustCompile(strings.Join(basePattern, sep))
+	capturedGroupNotContainsPattern = regexp.MustCompile("[!-~]+")
+	nonNamedCapturedGroupContainsPattern = regexp.MustCompile("(?P<field1>[!-~]+) ([!-~]+) (?P<field3>[!-~]+)")
 	patterns = make([]*regexp.Regexp, len(additions))
 	for i, addition := range additions {
 		patterns[i] = regexp.MustCompile(strings.Join(append(basePattern, addition...), sep))
 	}
+	capturedGroupNotContainsPatterns = append(append(capturedGroupNotContainsPatterns, patterns...), capturedGroupNotContainsPattern)
+	nonNamedCapturedGroupContainsPatterns = append(append(nonNamedCapturedGroupContainsPatterns, patterns...), nonNamedCapturedGroupContainsPattern)
 
 	allMatchInput = `a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a awsrandombucket43 [16/Feb/2019:11:23:45 +0000] 192.0.2.132 a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a 3E57427F3EXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket43?versioning HTTP/1.1" 200 - 113 - 7 - "-" "S3Console/0.4" - s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234= SigV2 ECDHE-RSA-AES128-GCM-SHA256 AuthHeader awsrandombucket43.s3.us-west-1.amazonaws.com TLSV1.1 -
 3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23 awsrandombucket59 [24/Feb/2019:07:45:11 +0000] 192.0.2.45 3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23 891CE47D2EXAMPLE REST.GET.LOGGING_STATUS - "GET /awsrandombucket59?logging HTTP/1.1" 200 - 242 - 11 - "-" "S3Console/0.4" - 9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234= SigV2 ECDHE-RSA-AES128-GCM-SHA256 AuthHeader awsrandombucket59.s3.us-west-1.amazonaws.com TLSV1.1
@@ -301,8 +281,6 @@ func TestNew(t *testing.T) {
 		return "", nil
 	}
 	type args struct {
-		fields          []string
-		patterns        []*regexp.Regexp
 		lineHandler     LineHandler
 		metadataHandler MetadataHandler
 	}
@@ -317,15 +295,12 @@ func TestNew(t *testing.T) {
 		{
 			name: "use default handlers",
 			args: args{
-				fields:          fields,
-				patterns:        patterns,
 				lineHandler:     nil,
 				metadataHandler: nil,
 			},
 			want: want{
 				parser: &Parser{
-					Fields:          fields,
-					Patterns:        patterns,
+					Patterns:        nil,
 					LineHandler:     DefaultLineHandler,
 					MetadataHandler: DefaultMetadataHandler,
 				},
@@ -334,15 +309,12 @@ func TestNew(t *testing.T) {
 		{
 			name: "use custom handlers",
 			args: args{
-				fields:          fields,
-				patterns:        patterns,
 				lineHandler:     customLineHandler,
 				metadataHandler: customMetadataHandler,
 			},
 			want: want{
 				parser: &Parser{
-					Fields:          fields,
-					Patterns:        patterns,
+					Patterns:        nil,
 					LineHandler:     customLineHandler,
 					MetadataHandler: customMetadataHandler,
 				},
@@ -358,18 +330,140 @@ func TestNew(t *testing.T) {
 			if tt.args.metadataHandler != nil {
 				opts = append(opts, WithMetadataHandler(tt.args.metadataHandler))
 			}
-			p := New(tt.args.fields, tt.args.patterns, opts...)
-			if !reflect.DeepEqual(p.Fields, tt.want.parser.Fields) {
-				t.Errorf("got: %v, want: %v", p.Fields, tt.want.parser.Fields)
-			}
-			if !reflect.DeepEqual(p.Patterns, tt.want.parser.Patterns) {
-				t.Errorf("got: %v, want: %v", p.Patterns, tt.want.parser.Patterns)
-			}
+			p := NewParser(opts...)
 			if reflect.ValueOf(p.LineHandler).Pointer() != reflect.ValueOf(tt.want.parser.LineHandler).Pointer() {
 				t.Errorf("got: %v, want: %v", p.LineHandler, tt.want.parser.LineHandler)
 			}
 			if reflect.ValueOf(p.MetadataHandler).Pointer() != reflect.ValueOf(tt.want.parser.MetadataHandler).Pointer() {
 				t.Errorf("got: %v, want: %v", p.MetadataHandler, tt.want.parser.MetadataHandler)
+			}
+		})
+	}
+}
+
+func TestAddPattern(t *testing.T) {
+	type args struct {
+		pattern *regexp.Regexp
+	}
+	type want struct {
+		parser *Parser
+		err    error
+	}
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			name: "success",
+			args: args{
+				pattern: pattern,
+			},
+			want: want{
+				parser: &Parser{
+					Patterns: []*regexp.Regexp{pattern},
+				},
+				err: nil,
+			},
+		},
+		{
+			name: "caputure group not found",
+			args: args{
+				pattern: capturedGroupNotContainsPattern,
+			},
+			want: want{
+				parser: &Parser{
+					Patterns: nil,
+				},
+				err: fmt.Errorf("invalid pattern detected: capture group not found"),
+			},
+		},
+		{
+			name: "non-named caputure group detected",
+			args: args{
+				pattern: nonNamedCapturedGroupContainsPattern,
+			},
+			want: want{
+				parser: &Parser{
+					Patterns: nil,
+				},
+				err: fmt.Errorf("invalid pattern detected: non-named capture group detected"),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser()
+			err := p.AddPattern(tt.args.pattern)
+			if err != nil && err.Error() != tt.want.err.Error() {
+				t.Fatalf("got: %v, want: %v", err.Error(), tt.want.err.Error())
+			}
+			if !reflect.DeepEqual(p.Patterns, tt.want.parser.Patterns) {
+				t.Errorf("got: %v, want: %v", p.Patterns, tt.want.parser.Patterns)
+			}
+		})
+	}
+}
+
+func TestAddPatterns(t *testing.T) {
+	type args struct {
+		patterns []*regexp.Regexp
+	}
+	type want struct {
+		parser *Parser
+		err    error
+	}
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			name: "success",
+			args: args{
+				patterns: patterns,
+			},
+			want: want{
+				parser: &Parser{
+					Patterns: patterns,
+				},
+				err: nil,
+			},
+		},
+		{
+			name: "caputure group not found",
+			args: args{
+				patterns: capturedGroupNotContainsPatterns,
+			},
+			want: want{
+				parser: &Parser{
+					Patterns: nil,
+				},
+				err: fmt.Errorf("invalid pattern detected: capture group not found"),
+			},
+		},
+		{
+			name: "non-named caputure group detected",
+			args: args{
+				patterns: nonNamedCapturedGroupContainsPatterns,
+			},
+			want: want{
+				parser: &Parser{
+					Patterns: nil,
+				},
+				err: fmt.Errorf("invalid pattern detected: non-named capture group detected"),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser()
+			err := p.AddPatterns(tt.args.patterns)
+			if err != nil && err.Error() != tt.want.err.Error() {
+				t.Fatalf("got: %v, want: %v", err.Error(), tt.want.err.Error())
+			}
+			if !reflect.DeepEqual(p.Patterns, tt.want.parser.Patterns) {
+				t.Errorf("got: %v, want: %v", p.Patterns, tt.want.parser.Patterns)
 			}
 		})
 	}
@@ -400,7 +494,6 @@ func TestParser_parse(t *testing.T) {
 		{
 			name: "all match",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -418,7 +511,6 @@ func TestParser_parse(t *testing.T) {
 		{
 			name: "contains unmatch",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -436,7 +528,6 @@ func TestParser_parse(t *testing.T) {
 		{
 			name: "contains skip flag",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -454,7 +545,6 @@ func TestParser_parse(t *testing.T) {
 		{
 			name: "all unmatch",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -472,7 +562,6 @@ func TestParser_parse(t *testing.T) {
 		{
 			name: "all skip",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -490,7 +579,6 @@ func TestParser_parse(t *testing.T) {
 		{
 			name: "mixed",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -508,7 +596,6 @@ func TestParser_parse(t *testing.T) {
 		{
 			name: "nil input",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -526,7 +613,6 @@ func TestParser_parse(t *testing.T) {
 		{
 			name: "line handler returns error",
 			parser: parser{
-				Fields:   fields,
 				Patterns: patterns,
 				LineHandler: func(matches []string, fields []string, index int) (string, error) {
 					return "", fmt.Errorf("error")
@@ -546,7 +632,6 @@ func TestParser_parse(t *testing.T) {
 		{
 			name: "metadata handler returns error",
 			parser: parser{
-				Fields:      fields,
 				Patterns:    patterns,
 				LineHandler: DefaultLineHandler,
 				MetadataHandler: func(metadata *Metadata) (string, error) {
@@ -567,7 +652,6 @@ func TestParser_parse(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &Parser{
-				Fields:          tt.parser.Fields,
 				Patterns:        tt.parser.Patterns,
 				LineHandler:     tt.parser.LineHandler,
 				MetadataHandler: tt.parser.MetadataHandler,
@@ -610,7 +694,6 @@ func TestParser_Parse(t *testing.T) {
 		{
 			name: "all match",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -630,7 +713,6 @@ func TestParser_Parse(t *testing.T) {
 		{
 			name: "contains unmatch",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -650,7 +732,6 @@ func TestParser_Parse(t *testing.T) {
 		{
 			name: "contains skip flag",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -670,7 +751,6 @@ func TestParser_Parse(t *testing.T) {
 		{
 			name: "all unmatch",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -690,7 +770,6 @@ func TestParser_Parse(t *testing.T) {
 		{
 			name: "all skip",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -710,7 +789,6 @@ func TestParser_Parse(t *testing.T) {
 		{
 			name: "mixed",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -730,7 +808,6 @@ func TestParser_Parse(t *testing.T) {
 		{
 			name: "nil input",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -750,7 +827,6 @@ func TestParser_Parse(t *testing.T) {
 		{
 			name: "line handler returns error",
 			parser: parser{
-				Fields:   fields,
 				Patterns: patterns,
 				LineHandler: func(matches []string, fields []string, index int) (string, error) {
 					return "", fmt.Errorf("error")
@@ -769,7 +845,6 @@ func TestParser_Parse(t *testing.T) {
 		{
 			name: "metadata handler returns error",
 			parser: parser{
-				Fields:      fields,
 				Patterns:    patterns,
 				LineHandler: DefaultLineHandler,
 				MetadataHandler: func(metadata *Metadata) (string, error) {
@@ -789,7 +864,6 @@ func TestParser_Parse(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &Parser{
-				Fields:          tt.parser.Fields,
 				Patterns:        tt.parser.Patterns,
 				LineHandler:     tt.parser.LineHandler,
 				MetadataHandler: tt.parser.MetadataHandler,
@@ -829,7 +903,6 @@ func TestParser_ParseString(t *testing.T) {
 		{
 			name: "all match",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -849,7 +922,6 @@ func TestParser_ParseString(t *testing.T) {
 		{
 			name: "contains unmatch",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -869,7 +941,6 @@ func TestParser_ParseString(t *testing.T) {
 		{
 			name: "contains skip flag",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -889,7 +960,6 @@ func TestParser_ParseString(t *testing.T) {
 		{
 			name: "all unmatch",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -909,7 +979,6 @@ func TestParser_ParseString(t *testing.T) {
 		{
 			name: "all skip",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -929,7 +998,6 @@ func TestParser_ParseString(t *testing.T) {
 		{
 			name: "mixed",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -949,7 +1017,6 @@ func TestParser_ParseString(t *testing.T) {
 		{
 			name: "nil input",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -969,7 +1036,6 @@ func TestParser_ParseString(t *testing.T) {
 		{
 			name: "line handler returns error",
 			parser: parser{
-				Fields:   fields,
 				Patterns: patterns,
 				LineHandler: func(matches []string, fields []string, index int) (string, error) {
 					return "", fmt.Errorf("error")
@@ -988,7 +1054,6 @@ func TestParser_ParseString(t *testing.T) {
 		{
 			name: "metadata handler returns error",
 			parser: parser{
-				Fields:      fields,
 				Patterns:    patterns,
 				LineHandler: DefaultLineHandler,
 				MetadataHandler: func(metadata *Metadata) (string, error) {
@@ -1008,7 +1073,6 @@ func TestParser_ParseString(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &Parser{
-				Fields:          tt.parser.Fields,
 				Patterns:        tt.parser.Patterns,
 				LineHandler:     tt.parser.LineHandler,
 				MetadataHandler: tt.parser.MetadataHandler,
@@ -1052,7 +1116,6 @@ func TestParser_ParseFile(t *testing.T) {
 		{
 			name: "all match",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1072,7 +1135,6 @@ func TestParser_ParseFile(t *testing.T) {
 		{
 			name: "contains unmatch",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1092,7 +1154,6 @@ func TestParser_ParseFile(t *testing.T) {
 		{
 			name: "contains skip flag",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1112,7 +1173,6 @@ func TestParser_ParseFile(t *testing.T) {
 		{
 			name: "all unmatch",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1132,7 +1192,6 @@ func TestParser_ParseFile(t *testing.T) {
 		{
 			name: "all skip",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1152,7 +1211,6 @@ func TestParser_ParseFile(t *testing.T) {
 		{
 			name: "mixed",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1172,7 +1230,6 @@ func TestParser_ParseFile(t *testing.T) {
 		{
 			name: "nil input",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1189,7 +1246,6 @@ func TestParser_ParseFile(t *testing.T) {
 		{
 			name: "line handler returns error",
 			parser: parser{
-				Fields:   fields,
 				Patterns: patterns,
 				LineHandler: func(matches []string, fields []string, index int) (string, error) {
 					return "", fmt.Errorf("error")
@@ -1208,7 +1264,6 @@ func TestParser_ParseFile(t *testing.T) {
 		{
 			name: "metadata handler returns error",
 			parser: parser{
-				Fields:      fields,
 				Patterns:    patterns,
 				LineHandler: DefaultLineHandler,
 				MetadataHandler: func(metadata *Metadata) (string, error) {
@@ -1227,7 +1282,6 @@ func TestParser_ParseFile(t *testing.T) {
 		{
 			name: "input file does not exists",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1244,7 +1298,6 @@ func TestParser_ParseFile(t *testing.T) {
 		{
 			name: "input path is directory not file",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1262,7 +1315,6 @@ func TestParser_ParseFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &Parser{
-				Fields:          tt.parser.Fields,
 				Patterns:        tt.parser.Patterns,
 				LineHandler:     tt.parser.LineHandler,
 				MetadataHandler: tt.parser.MetadataHandler,
@@ -1306,7 +1358,6 @@ func TestParser_ParseGzip(t *testing.T) {
 		{
 			name: "all match",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1326,7 +1377,6 @@ func TestParser_ParseGzip(t *testing.T) {
 		{
 			name: "contains unmatch",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1346,7 +1396,6 @@ func TestParser_ParseGzip(t *testing.T) {
 		{
 			name: "contains skip flag",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1366,7 +1415,6 @@ func TestParser_ParseGzip(t *testing.T) {
 		{
 			name: "all unmatch",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1386,7 +1434,6 @@ func TestParser_ParseGzip(t *testing.T) {
 		{
 			name: "all skip",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1406,7 +1453,6 @@ func TestParser_ParseGzip(t *testing.T) {
 		{
 			name: "mixed",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1426,7 +1472,6 @@ func TestParser_ParseGzip(t *testing.T) {
 		{
 			name: "nil input",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1443,7 +1488,6 @@ func TestParser_ParseGzip(t *testing.T) {
 		{
 			name: "line handler returns error",
 			parser: parser{
-				Fields:   fields,
 				Patterns: patterns,
 				LineHandler: func(matches []string, fields []string, index int) (string, error) {
 					return "", fmt.Errorf("error")
@@ -1462,7 +1506,6 @@ func TestParser_ParseGzip(t *testing.T) {
 		{
 			name: "metadata handler returns error",
 			parser: parser{
-				Fields:      fields,
 				Patterns:    patterns,
 				LineHandler: DefaultLineHandler,
 				MetadataHandler: func(metadata *Metadata) (string, error) {
@@ -1481,7 +1524,6 @@ func TestParser_ParseGzip(t *testing.T) {
 		{
 			name: "input file does not exists",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1498,7 +1540,6 @@ func TestParser_ParseGzip(t *testing.T) {
 		{
 			name: "input path is directory not file",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1515,7 +1556,6 @@ func TestParser_ParseGzip(t *testing.T) {
 		{
 			name: "input file is not gzip",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1533,7 +1573,6 @@ func TestParser_ParseGzip(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &Parser{
-				Fields:          tt.parser.Fields,
 				Patterns:        tt.parser.Patterns,
 				LineHandler:     tt.parser.LineHandler,
 				MetadataHandler: tt.parser.MetadataHandler,
@@ -1578,7 +1617,6 @@ func TestParser_ParseZipEntries(t *testing.T) {
 		{
 			name: "all match/one entry",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1601,7 +1639,6 @@ func TestParser_ParseZipEntries(t *testing.T) {
 		{
 			name: "contains unmatch/one entry",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1624,7 +1661,6 @@ func TestParser_ParseZipEntries(t *testing.T) {
 		{
 			name: "contains skip flag/one entry",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1647,7 +1683,6 @@ func TestParser_ParseZipEntries(t *testing.T) {
 		{
 			name: "all unmatch/one entry",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1670,7 +1705,6 @@ func TestParser_ParseZipEntries(t *testing.T) {
 		{
 			name: "all skip/one entry",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1693,7 +1727,6 @@ func TestParser_ParseZipEntries(t *testing.T) {
 		{
 			name: "mixed",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1716,7 +1749,6 @@ func TestParser_ParseZipEntries(t *testing.T) {
 		{
 			name: "nil input",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1734,7 +1766,6 @@ func TestParser_ParseZipEntries(t *testing.T) {
 		{
 			name: "line handler returns error",
 			parser: parser{
-				Fields:   fields,
 				Patterns: patterns,
 				LineHandler: func(matches []string, fields []string, index int) (string, error) {
 					return "", fmt.Errorf("error")
@@ -1754,7 +1785,6 @@ func TestParser_ParseZipEntries(t *testing.T) {
 		{
 			name: "metadata handler returns error",
 			parser: parser{
-				Fields:      fields,
 				Patterns:    patterns,
 				LineHandler: DefaultLineHandler,
 				MetadataHandler: func(metadata *Metadata) (string, error) {
@@ -1774,7 +1804,6 @@ func TestParser_ParseZipEntries(t *testing.T) {
 		{
 			name: "input file does not exists",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1791,7 +1820,6 @@ func TestParser_ParseZipEntries(t *testing.T) {
 		{
 			name: "input path is directory not file",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1809,7 +1837,6 @@ func TestParser_ParseZipEntries(t *testing.T) {
 		{
 			name: "input file is not zip",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1827,7 +1854,6 @@ func TestParser_ParseZipEntries(t *testing.T) {
 		{
 			name: "multi entries",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1858,7 +1884,6 @@ func TestParser_ParseZipEntries(t *testing.T) {
 		{
 			name: "multi entries and glob pattern filtering",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1881,7 +1906,6 @@ func TestParser_ParseZipEntries(t *testing.T) {
 		{
 			name: "multi entries and glob pattern returns error",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1900,7 +1924,6 @@ func TestParser_ParseZipEntries(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &Parser{
-				Fields:          tt.parser.Fields,
 				Patterns:        tt.parser.Patterns,
 				LineHandler:     tt.parser.LineHandler,
 				MetadataHandler: tt.parser.MetadataHandler,
@@ -1940,7 +1963,6 @@ func TestParser_createResult(t *testing.T) {
 		{
 			name: "basic",
 			parser: parser{
-				Fields:          fields,
 				Patterns:        patterns,
 				LineHandler:     DefaultLineHandler,
 				MetadataHandler: DefaultMetadataHandler,
@@ -1960,7 +1982,6 @@ func TestParser_createResult(t *testing.T) {
 		{
 			name: "metadata handler returns error",
 			parser: parser{
-				Fields:      fields,
 				Patterns:    patterns,
 				LineHandler: DefaultLineHandler,
 				MetadataHandler: func(metadata *Metadata) (string, error) {
@@ -1980,7 +2001,6 @@ func TestParser_createResult(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &Parser{
-				Fields:          tt.parser.Fields,
 				Patterns:        tt.parser.Patterns,
 				LineHandler:     tt.parser.LineHandler,
 				MetadataHandler: tt.parser.MetadataHandler,
@@ -2014,7 +2034,7 @@ func TestDefaultLineHandler(t *testing.T) {
 		{
 			name: "basic",
 			args: args{
-				matches: []string{"", "value1", "value2"},
+				matches: []string{"value1", "value2"},
 				fields:  []string{"field1", "field2"},
 				index:   1,
 			},
@@ -2026,7 +2046,7 @@ func TestDefaultLineHandler(t *testing.T) {
 		{
 			name: "invalid json character",
 			args: args{
-				matches: []string{"", "value1", "val\"ue2"},
+				matches: []string{"value1", "val\"ue2"},
 				fields:  []string{"field1", "field2"},
 				index:   2,
 			},
@@ -2038,7 +2058,7 @@ func TestDefaultLineHandler(t *testing.T) {
 		{
 			name: "more matches than fields",
 			args: args{
-				matches: []string{"", "value1", "value2", "value3"},
+				matches: []string{"value1", "value2", "value3"},
 				fields:  []string{"field1", "field2"},
 				index:   3,
 			},
@@ -2050,7 +2070,7 @@ func TestDefaultLineHandler(t *testing.T) {
 		{
 			name: "more fields than matches",
 			args: args{
-				matches: []string{"", "value1"},
+				matches: []string{"value1"},
 				fields:  []string{"field1", "field2"},
 				index:   4,
 			},
