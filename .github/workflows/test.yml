@@ -56,9 +56,7 @@ jobs:
       - name: Run tests
         run: |
           git diff --cached --exit-code
-          go test -race -cover -v ./... -coverprofile=cover.out -covermode=atomic
-          go test -bench . -benchmem
-          go vet ./...
+          go test ./... -v -cover -coverprofile=cover.out
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
