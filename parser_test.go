@@ -648,6 +648,21 @@ func TestParser_parse(t *testing.T) {
 				err:      nil, // This function does not invoke metadata handler directly
 			},
 		},
+		{
+			name: "nil pattern",
+			parser: parser{
+				Patterns: nil,
+			},
+			args: args{
+				input:     strings.NewReader(allMatchInput),
+				skipLines: nil,
+			},
+			want: want{
+				data:     nil,
+				metadata: nil,
+				err:      fmt.Errorf("cannot parse input: no patterns provided"),
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
