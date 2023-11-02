@@ -33,6 +33,13 @@ func main() {
 	fmt.Println(strings.Join(out.Data, "\n"))
 	fmt.Println(out.Metadata)
 
+	/*
+		{"index":1,"field1":"aaa","field2":"bbb","field3":"ccc"}
+		{"index":2,"field1":"xxx","field2":"yyy","field3":"zzz"}
+		{"index":3,"field1":"111","field2":"222","field3":"333"}
+		{"total":3,"matched":3,"unmatched":0,"skipped":0,"source":"","errors":null}
+	*/
+
 	// customize
 	p = logparser.NewParser(
 		logparser.WithLineHandler(prettyJSONLineHandler),
@@ -47,6 +54,35 @@ func main() {
 	}
 	fmt.Println(strings.Join(out.Data, "\n"))
 	fmt.Println(out.Metadata)
+
+	/*
+		{
+			"index": 1,
+			"field1": "aaa",
+			"field2": "bbb",
+			"field3": "ccc"
+		}
+		{
+			"index": 2,
+			"field1": "xxx",
+			"field2": "yyy",
+			"field3": "zzz"
+		}
+		{
+			"index": 3,
+			"field1": "111",
+			"field2": "222",
+			"field3": "333"
+		}
+		{
+			"total": 3,
+			"matched": 3,
+			"unmatched": 0,
+			"skipped": 0,
+			"source": "",
+			"errors": null
+		}
+	*/
 }
 
 func prettyJSON(s string) (string, error) {
@@ -72,10 +108,3 @@ func prettyJSONMetadataHandler(m *logparser.Metadata) (string, error) {
 	}
 	return prettyJSON(s)
 }
-
-/*
-{"index":1,"field1":"aaa","field2":"bbb","field3":"ccc"}
-{"index":2,"field1":"xxx","field2":"yyy","field3":"zzz"}
-{"index":3,"field1":"111","field2":"222","field3":"333"}
-{"total":3,"matched":3,"unmatched":0,"skipped":0,"source":"","errors":null}
-*/
