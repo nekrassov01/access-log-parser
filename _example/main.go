@@ -22,7 +22,7 @@ xxx yyy zzz
 
 func main() {
 	// default
-	p := logparser.NewParser()
+	p := parser.NewParser()
 	if err := p.AddPatterns(patterns); err != nil {
 		log.Fatal(err)
 	}
@@ -41,9 +41,9 @@ func main() {
 	*/
 
 	// customize
-	p = logparser.NewParser(
-		logparser.WithLineHandler(prettyJSONLineHandler),
-		logparser.WithMetadataHandler(prettyJSONMetadataHandler),
+	p = parser.NewParser(
+		parser.WithLineHandler(prettyJSONLineHandler),
+		parser.WithMetadataHandler(prettyJSONMetadataHandler),
 	)
 	if err := p.AddPatterns(patterns); err != nil {
 		log.Fatal(err)
@@ -94,15 +94,15 @@ func prettyJSON(s string) (string, error) {
 }
 
 func prettyJSONLineHandler(matches []string, fields []string, index int) (string, error) {
-	s, err := logparser.DefaultLineHandler(matches, fields, index)
+	s, err := parser.DefaultLineHandler(matches, fields, index)
 	if err != nil {
 		return "", err
 	}
 	return prettyJSON(s)
 }
 
-func prettyJSONMetadataHandler(m *logparser.Metadata) (string, error) {
-	s, err := logparser.DefaultMetadataHandler(m)
+func prettyJSONMetadataHandler(m *parser.Metadata) (string, error) {
+	s, err := parser.DefaultMetadataHandler(m)
 	if err != nil {
 		return "", err
 	}

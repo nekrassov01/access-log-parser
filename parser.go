@@ -1,5 +1,5 @@
-// Package logparser provides utilities for parsing access logs and converting them to structured formats.
-package logparser
+// Package parser provides utilities for parsing access logs and converting them to structured formats.
+package parser
 
 import (
 	"archive/zip"
@@ -15,7 +15,7 @@ import (
 )
 
 // Version of access-log-parser.
-const Version = "0.0.7"
+const Version = "0.0.6"
 
 // Parser is a struct that defines how to parse the access log.
 // Patterns represents a list of regular expression patterns used for matching log lines,

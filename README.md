@@ -14,7 +14,7 @@ Usage
 ```go
 func main() {
 	// Instantiate Parser
-	p := logparser.NewParser()
+	p := parser.NewParser()
 
 	// Multiple patterns can be set at the same time and matched in order
 	// Each pattern must have at least one named capture group
@@ -73,9 +73,9 @@ Customize
 Processing of each matched line and metadata output can be overridden when Parser instantiation.
 
 ```go
-p = logparser.NewParser(
-	logparser.WithLineHandler(yourCustomLineHandler),
-	logparser.WithMetadataHandler(yourCustomMetadataHandler),
+p = parser.NewParser(
+	parser.WithLineHandler(yourCustomLineHandler),
+	parser.WithMetadataHandler(yourCustomMetadataHandler),
 )
 ```
 
@@ -91,24 +91,24 @@ func prettyJSON(s string) (string, error) {
 }
 
 func prettyJSONLineHandler(matches []string, fields []string, index int) (string, error) {
-	s, err := logparser.DefaultLineHandler(matches, fields, index)
+	s, err := parser.DefaultLineHandler(matches, fields, index)
 	if err != nil {
 		return "", err
 	}
 	return prettyJSON(s)
 }
 
-func prettyJSONMetadataHandler(m *logparser.Metadata) (string, error) {
-	s, err := logparser.DefaultMetadataHandler(m)
+func prettyJSONMetadataHandler(m *parser.Metadata) (string, error) {
+	s, err := parser.DefaultMetadataHandler(m)
 	if err != nil {
 		return "", err
 	}
 	return prettyJSON(s)
 }
 
-p = logparser.NewParser(
-	logparser.WithLineHandler(prettyJSONLineHandler),
-	logparser.WithMetadataHandler(prettyJSONMetadataHandler),
+p = parser.NewParser(
+	parser.WithLineHandler(prettyJSONLineHandler),
+	parser.WithMetadataHandler(prettyJSONMetadataHandler),
 )
 ```
 
