@@ -1,4 +1,4 @@
-// Package parser provides utilities for parsing access logs and converting them to structured formats.
+// Package logparser provides utilities for parsing access logs and converting them to structured formats.
 package logparser
 
 import (
