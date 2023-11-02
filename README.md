@@ -13,9 +13,14 @@ Usage
 
 ```go
 func main() {
-	// Instantiate Parser with fields and patterns set
-	// The default is to return each matched line in NDJSON (newline-separated JSON) format
-	p := parser.New(fields, patterns)
+	// Instantiate Parser
+	p := logparser.NewParser()
+
+	// Multiple patterns can be set at the same time and matched in order
+	// Each pattern must have at least one named capture group
+	if err := p.AddPatterns(patterns); err != nil {
+		log.Fatal(err)
+	}
 
 	// Parses from a string passed
 	log := `dummy string`
@@ -37,9 +42,8 @@ Output format
 -------------
 
 ```go
-// Result represents processed data. The Data field contains
-// string representations serialized by the designated handler or
-// a default handler if none is specified
+// Result represents processed data. Data and Metadata are set
+// to the data serialized by the respective handlers.
 type Result struct {
 	Data     []string `json:"data"`
 	Metadata string   `json:"metadata"`
@@ -69,7 +73,10 @@ Customize
 Processing of each matched line and metadata output can be overridden when Parser instantiation.
 
 ```go
-p := parser.New(fields, patterns, WithLineHandler(customLineHandler), WithMetadataHandler(customMetadataHandler))
+p = logparser.NewParser(
+	logparser.WithLineHandler(yourCustomLineHandler),
+	logparser.WithMetadataHandler(yourCustomMetadataHandler),
+)
 ```
 
 If you want to pretty-print json, you can wrap the default handler:
@@ -84,22 +91,25 @@ func prettyJSON(s string) (string, error) {
 }
 
 func prettyJSONLineHandler(matches []string, fields []string, index int) (string, error) {
-	s, err := parser.DefaultLineHandler(matches, fields, index)
+	s, err := logparser.DefaultLineHandler(matches, fields, index)
 	if err != nil {
 		return "", err
 	}
 	return prettyJSON(s)
 }
 
-func prettyJSONMetadataHandler(m *parser.Metadata) (string, error) {
-	s, err := parser.DefaultMetadataHandler(m)
+func prettyJSONMetadataHandler(m *logparser.Metadata) (string, error) {
+	s, err := logparser.DefaultMetadataHandler(m)
 	if err != nil {
 		return "", err
 	}
 	return prettyJSON(s)
 }
 
-p := parser.New(fields, patterns, WithLineHandler(prettyJSONLineHandler), WithMetadataHandler(prettyJSONMetadataHandler))
+p = logparser.NewParser(
+	logparser.WithLineHandler(prettyJSONLineHandler),
+	logparser.WithMetadataHandler(prettyJSONMetadataHandler),
+)
 ```
 
 Sample
