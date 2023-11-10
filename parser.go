@@ -316,7 +316,7 @@ func DefaultLineHandler(matches []string, fields []string, index int) (string, e
 		}
 	}
 	builder.WriteString("}")
-	return builder.String(), nil
+	return strings.ReplaceAll(builder.String(), `"\"-\""`, `"-"`), nil
 }
 
 // DefaultMetadataHandler is the default handler that converts parsed log metadata to NDJSON format.
