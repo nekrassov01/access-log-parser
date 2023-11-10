@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -299,24 +300,26 @@ func (p *Parser) createResult(data []string, metadata *Metadata) (*Result, error
 // It is used if no specific LineHandler is provided when the Parser is instantiated.
 func DefaultLineHandler(matches []string, fields []string, index int) (string, error) {
 	var builder strings.Builder
-	_, err := builder.WriteString(fmt.Sprintf("{\"index\":%d", index))
-	if err != nil {
-		return "", fmt.Errorf("cannot use builder to write strings: %w", err)
-	}
+	builder.WriteString("{\"index\":")
+	builder.WriteString(strconv.Itoa(index))
 	for i, match := range matches {
 		if i < len(fields) {
+			builder.WriteString(",\"")
+			builder.WriteString(fields[i])
+			if match == "-" {
+				builder.WriteString("\":\"-\"")
+				continue
+			}
+			builder.WriteString("\":")
 			b, err := json.Marshal(match)
 			if err != nil {
 				return "", fmt.Errorf("cannot marshal matched string \"%s\" as json: %w", match, err)
 			}
-			_, err = builder.WriteString(fmt.Sprintf(",\"%s\":%s", fields[i], b))
-			if err != nil {
-				return "", fmt.Errorf("cannot use builder to write strings: %w", err)
-			}
+			builder.Write(b)
 		}
 	}
 	builder.WriteString("}")
-	return strings.ReplaceAll(builder.String(), `"\"-\""`, `"-"`), nil
+	return builder.String(), nil
 }
 
 // DefaultMetadataHandler is the default handler that converts parsed log metadata to NDJSON format.
