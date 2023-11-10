@@ -306,7 +306,7 @@ func DefaultLineHandler(matches []string, fields []string, index int) (string, e
 		if i < len(fields) {
 			builder.WriteString(",\"")
 			builder.WriteString(fields[i])
-			if match == "-" {
+			if match == "\"-\"" {
 				builder.WriteString("\":\"-\"")
 				continue
 			}
