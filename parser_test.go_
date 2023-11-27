@@ -1,4 +1,4 @@
-package logparser
+package parser
 
 import (
 	"fmt"
@@ -285,7 +285,7 @@ func TestNew(t *testing.T) {
 		metadataHandler MetadataHandler
 	}
 	type want struct {
-		parser *Parser
+		parser *RegexParser
 	}
 	tests := []struct {
 		name string
@@ -299,7 +299,7 @@ func TestNew(t *testing.T) {
 				metadataHandler: nil,
 			},
 			want: want{
-				parser: &Parser{
+				parser: &RegexParser{
 					Patterns:        nil,
 					LineHandler:     DefaultLineHandler,
 					MetadataHandler: DefaultMetadataHandler,
@@ -313,7 +313,7 @@ func TestNew(t *testing.T) {
 				metadataHandler: customMetadataHandler,
 			},
 			want: want{
-				parser: &Parser{
+				parser: &RegexParser{
 					Patterns:        nil,
 					LineHandler:     customLineHandler,
 					MetadataHandler: customMetadataHandler,
@@ -330,7 +330,7 @@ func TestNew(t *testing.T) {
 			if tt.args.metadataHandler != nil {
 				opts = append(opts, WithMetadataHandler(tt.args.metadataHandler))
 			}
-			p := NewParser(opts...)
+			p := NewRegexParser(opts...)
 			if reflect.ValueOf(p.LineHandler).Pointer() != reflect.ValueOf(tt.want.parser.LineHandler).Pointer() {
 				t.Errorf("got: %v, want: %v", p.LineHandler, tt.want.parser.LineHandler)
 			}
@@ -346,7 +346,7 @@ func TestAddPattern(t *testing.T) {
 		pattern *regexp.Regexp
 	}
 	type want struct {
-		parser *Parser
+		parser *RegexParser
 		err    error
 	}
 	tests := []struct {
@@ -360,7 +360,7 @@ func TestAddPattern(t *testing.T) {
 				pattern: pattern,
 			},
 			want: want{
-				parser: &Parser{
+				parser: &RegexParser{
 					Patterns: []*regexp.Regexp{pattern},
 				},
 				err: nil,
@@ -372,7 +372,7 @@ func TestAddPattern(t *testing.T) {
 				pattern: capturedGroupNotContainsPattern,
 			},
 			want: want{
-				parser: &Parser{
+				parser: &RegexParser{
 					Patterns: nil,
 				},
 				err: fmt.Errorf("invalid pattern detected: capture group not found"),
@@ -384,7 +384,7 @@ func TestAddPattern(t *testing.T) {
 				pattern: nonNamedCapturedGroupContainsPattern,
 			},
 			want: want{
-				parser: &Parser{
+				parser: &RegexParser{
 					Patterns: nil,
 				},
 				err: fmt.Errorf("invalid pattern detected: non-named capture group detected"),
@@ -393,7 +393,7 @@ func TestAddPattern(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser()
+			p := NewRegexParser()
 			err := p.AddPattern(tt.args.pattern)
 			if err != nil && err.Error() != tt.want.err.Error() {
 				t.Fatalf("got: %v, want: %v", err.Error(), tt.want.err.Error())
@@ -410,7 +410,7 @@ func TestAddPatterns(t *testing.T) {
 		patterns []*regexp.Regexp
 	}
 	type want struct {
-		parser *Parser
+		parser *RegexParser
 		err    error
 	}
 	tests := []struct {
@@ -424,7 +424,7 @@ func TestAddPatterns(t *testing.T) {
 				patterns: patterns,
 			},
 			want: want{
-				parser: &Parser{
+				parser: &RegexParser{
 					Patterns: patterns,
 				},
 				err: nil,
@@ -436,7 +436,7 @@ func TestAddPatterns(t *testing.T) {
 				patterns: capturedGroupNotContainsPatterns,
 			},
 			want: want{
-				parser: &Parser{
+				parser: &RegexParser{
 					Patterns: nil,
 				},
 				err: fmt.Errorf("invalid pattern detected: capture group not found"),
@@ -448,7 +448,7 @@ func TestAddPatterns(t *testing.T) {
 				patterns: nonNamedCapturedGroupContainsPatterns,
 			},
 			want: want{
-				parser: &Parser{
+				parser: &RegexParser{
 					Patterns: nil,
 				},
 				err: fmt.Errorf("invalid pattern detected: non-named capture group detected"),
@@ -457,7 +457,7 @@ func TestAddPatterns(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser()
+			p := NewRegexParser()
 			err := p.AddPatterns(tt.args.patterns)
 			if err != nil && err.Error() != tt.want.err.Error() {
 				t.Fatalf("got: %v, want: %v", err.Error(), tt.want.err.Error())
@@ -469,7 +469,7 @@ func TestAddPatterns(t *testing.T) {
 	}
 }
 
-func TestParser_parse(t *testing.T) {
+func TestRegexParser_parse(t *testing.T) {
 	type parser struct {
 		Fields          []string
 		Patterns        []*regexp.Regexp
@@ -648,10 +648,25 @@ func TestParser_parse(t *testing.T) {
 				err:      nil, // This function does not invoke metadata handler directly
 			},
 		},
+		{
+			name: "nil pattern",
+			parser: parser{
+				Patterns: nil,
+			},
+			args: args{
+				input:     strings.NewReader(allMatchInput),
+				skipLines: nil,
+			},
+			want: want{
+				data:     nil,
+				metadata: nil,
+				err:      fmt.Errorf("cannot parse input: no patterns provided"),
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &Parser{
+			p := &RegexParser{
 				Patterns:        tt.parser.Patterns,
 				LineHandler:     tt.parser.LineHandler,
 				MetadataHandler: tt.parser.MetadataHandler,
@@ -670,7 +685,7 @@ func TestParser_parse(t *testing.T) {
 	}
 }
 
-func TestParser_Parse(t *testing.T) {
+func TestRegexParser_Parse(t *testing.T) {
 	type parser struct {
 		Fields          []string
 		Patterns        []*regexp.Regexp
@@ -863,7 +878,7 @@ func TestParser_Parse(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &Parser{
+			p := &RegexParser{
 				Patterns:        tt.parser.Patterns,
 				LineHandler:     tt.parser.LineHandler,
 				MetadataHandler: tt.parser.MetadataHandler,
@@ -879,7 +894,7 @@ func TestParser_Parse(t *testing.T) {
 	}
 }
 
-func TestParser_ParseString(t *testing.T) {
+func TestRegexParser_ParseString(t *testing.T) {
 	type parser struct {
 		Fields          []string
 		Patterns        []*regexp.Regexp
@@ -1072,7 +1087,7 @@ func TestParser_ParseString(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &Parser{
+			p := &RegexParser{
 				Patterns:        tt.parser.Patterns,
 				LineHandler:     tt.parser.LineHandler,
 				MetadataHandler: tt.parser.MetadataHandler,
@@ -1088,7 +1103,7 @@ func TestParser_ParseString(t *testing.T) {
 	}
 }
 
-func TestParser_ParseFile(t *testing.T) {
+func TestRegexParser_ParseFile(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		fileNotFoundMessage = fileNotFoundMessageWindows
 		isDirMessage = isDirMessageWindows
@@ -1314,7 +1329,7 @@ func TestParser_ParseFile(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &Parser{
+			p := &RegexParser{
 				Patterns:        tt.parser.Patterns,
 				LineHandler:     tt.parser.LineHandler,
 				MetadataHandler: tt.parser.MetadataHandler,
@@ -1330,7 +1345,7 @@ func TestParser_ParseFile(t *testing.T) {
 	}
 }
 
-func TestParser_ParseGzip(t *testing.T) {
+func TestRegexParser_ParseGzip(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		fileNotFoundMessage = fileNotFoundMessageWindows
 		isDirMessage = isDirMessageWindows
@@ -1572,7 +1587,7 @@ func TestParser_ParseGzip(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &Parser{
+			p := &RegexParser{
 				Patterns:        tt.parser.Patterns,
 				LineHandler:     tt.parser.LineHandler,
 				MetadataHandler: tt.parser.MetadataHandler,
@@ -1588,7 +1603,7 @@ func TestParser_ParseGzip(t *testing.T) {
 	}
 }
 
-func TestParser_ParseZipEntries(t *testing.T) {
+func TestRegexParser_ParseZipEntries(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		fileNotFoundMessage = fileNotFoundMessageWindows
 		isDirMessage = isDirMessageWindows
@@ -1923,7 +1938,7 @@ func TestParser_ParseZipEntries(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &Parser{
+			p := &RegexParser{
 				Patterns:        tt.parser.Patterns,
 				LineHandler:     tt.parser.LineHandler,
 				MetadataHandler: tt.parser.MetadataHandler,
@@ -1939,7 +1954,7 @@ func TestParser_ParseZipEntries(t *testing.T) {
 	}
 }
 
-func TestParser_createResult(t *testing.T) {
+func TestRegexParser_createResult(t *testing.T) {
 	type parser struct {
 		Fields          []string
 		Patterns        []*regexp.Regexp
@@ -2000,7 +2015,7 @@ func TestParser_createResult(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &Parser{
+			p := &RegexParser{
 				Patterns:        tt.parser.Patterns,
 				LineHandler:     tt.parser.LineHandler,
 				MetadataHandler: tt.parser.MetadataHandler,

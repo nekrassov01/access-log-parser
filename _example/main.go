@@ -22,7 +22,7 @@ xxx yyy zzz
 
 func main() {
 	// default
-	p := logparser.NewParser()
+	p := parser.NewRegexParser()
 	if err := p.AddPatterns(patterns); err != nil {
 		log.Fatal(err)
 	}
@@ -41,10 +41,9 @@ func main() {
 	*/
 
 	// customize
-	p = logparser.NewParser(
-		logparser.WithLineHandler(prettyJSONLineHandler),
-		logparser.WithMetadataHandler(prettyJSONMetadataHandler),
-	)
+	p = parser.NewRegexParser()
+	p.SetLineHandler(prettyJSONLineHandler)
+	p.SetMetadataHandler(prettyJSONMetadataHandler)
 	if err := p.AddPatterns(patterns); err != nil {
 		log.Fatal(err)
 	}
@@ -83,6 +82,27 @@ func main() {
 			"errors": null
 		}
 	*/
+
+	sample2 := `aaa:xxx	bbb:yyy	ccc:zzz
+aaa:111	bbb:222	ccc:333
+`
+	p2 := parser.NewLTSVParser()
+	out, err = p2.Parse(strings.NewReader(sample2), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(strings.Join(out.Data, "\n"))
+	fmt.Println(out.Metadata)
+
+	p2 = parser.NewLTSVParser()
+	p2.SetLineHandler(prettyJSONLineHandler)
+	p2.SetMetadataHandler(prettyJSONMetadataHandler)
+	out, err = p2.Parse(strings.NewReader(sample2), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(strings.Join(out.Data, "\n"))
+	fmt.Println(out.Metadata)
 }
 
 func prettyJSON(s string) (string, error) {
@@ -94,15 +114,15 @@ func prettyJSON(s string) (string, error) {
 }
 
 func prettyJSONLineHandler(matches []string, fields []string, index int) (string, error) {
-	s, err := logparser.DefaultLineHandler(matches, fields, index)
+	s, err := parser.DefaultLineHandler(matches, fields, index)
 	if err != nil {
 		return "", err
 	}
 	return prettyJSON(s)
 }
 
-func prettyJSONMetadataHandler(m *logparser.Metadata) (string, error) {
-	s, err := logparser.DefaultMetadataHandler(m)
+func prettyJSONMetadataHandler(m *parser.Metadata) (string, error) {
+	s, err := parser.DefaultMetadataHandler(m)
 	if err != nil {
 		return "", err
 	}

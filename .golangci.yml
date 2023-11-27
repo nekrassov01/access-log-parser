@@ -10,7 +10,6 @@ linters:
     - gofmt
     - gofumpt
     - gosec
-    - lll
     - makezero
     - misspell
     - nakedret
@@ -29,5 +28,4 @@ issues:
   exclude-rules:
     - linters:
         - dupl
-        - lll
       path: _test\.go
