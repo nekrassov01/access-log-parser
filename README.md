@@ -11,10 +11,12 @@ Simple access log parser utilities written in Go
 Usage
 -----
 
+`RegexParser` allows multiple regular expression patterns to be specified and matched in sequence.
+
 ```go
 func main() {
 	// Instantiate Parser
-	p := logparser.NewParser()
+	p := parser.NewRegexParser()
 
 	// Multiple patterns can be set at the same time and matched in order
 	// Each pattern must have at least one named capture group
@@ -35,6 +37,21 @@ func main() {
 
 	// Read logs from a zip file. Default is to read all zip entries, but glob patterns can be applied
 	res, err := p.ParseZipEntries("path/to/logfile.log.zip", nil, "*.log")
+}
+```
+
+`LTSVParser` can parse logs in LTSV format and convert them to other structured formats.
+
+```go
+func main() {
+	// Instantiate Parser
+	p := parser.NewLTSVParser()
+
+	// Parses from a LTSV line passed
+	log := `label1:value1	label2:value2	label3:value3`
+	res, err := p.ParseString(log, nil)
+
+	// Can use the same ParseXXX method as RegexParser
 }
 ```
 
@@ -70,52 +87,38 @@ type ErrorRecord struct {
 Customize
 ---------
 
-Processing of each matched line and metadata output can be overridden when Parser instantiation.
+The processing of each matched row and the output of metadata can be overridden by setter methods.
 
 ```go
-p = logparser.NewParser(
-	logparser.WithLineHandler(yourCustomLineHandler),
-	logparser.WithMetadataHandler(yourCustomMetadataHandler),
-)
+p = parser.NewRegexParser()
+p.SetLineHandler(yourCustomLineHandler),
+p.SetMetadataHandler(yourCustomMetadataHandler),
 ```
 
-If you want to pretty-print json, you can wrap the default handler:
+The following handlers are preset:
 
-```go
-func prettyJSON(s string) (string, error) {
-	var buf bytes.Buffer
-	if err := json.Indent(&buf, []byte(s), "", "  "); err != nil {
-		return "", fmt.Errorf("cannot format string as json: %w", err)
-	}
-	return buf.String(), nil
-}
+- JSON (default): `JSONLineHandler`, `JSONMetadataHandler`
+- Pretty JSON: `PrettyJSONLineHandler`, `PrettyJSONMetadataHandler`
+- key=value pair: `KeyValuePairLineHandler`, `KeyValuePairMetadataHandler`
+- LTSV: `LTSVLineHandler`, `LTSVMetadataHandler`
 
-func prettyJSONLineHandler(matches []string, fields []string, index int) (string, error) {
-	s, err := logparser.DefaultLineHandler(matches, fields, index)
-	if err != nil {
-		return "", err
-	}
-	return prettyJSON(s)
-}
+Preset Constructors
+-------------------
 
-func prettyJSONMetadataHandler(m *logparser.Metadata) (string, error) {
-	s, err := logparser.DefaultMetadataHandler(m)
-	if err != nil {
-		return "", err
-	}
-	return prettyJSON(s)
-}
+Functions are provided by default to instantiate the following parsers:
 
-p = logparser.NewParser(
-	logparser.WithLineHandler(prettyJSONLineHandler),
-	logparser.WithMetadataHandler(prettyJSONMetadataHandler),
-)
-```
+- Apache common/combined log format: `NewApacheCLFRegexParser()`
+- Apache common/combined log format with virtual host: `NewApacheCLFWithVHostRegexParser()`
+- Amazon S3 access log format: `NewS3RegexParser()`
+- Amazon CloudFront access log format: `NewCFRegexParser()`
+- AWS Application Load Balancer access log format: `NewALBRegexParser()`
+- AWS Network Load Balancer access log format: `NewNLBRegexParser()`
+- AWS Classic Load Balancer access log format: `NewCLBRegexParser()`
 
 Sample
--------
+------
 
-[__alpen__](https://github.com/nekrassov01/alpen/blob/main/app.go#L353-L395) is an application for parsing and encoding access logs of AWS services.
+[__alpen__](https://github.com/nekrassov01/alpen/blob/main/app.go#L353-L395) is an application for parsing and encoding various access logs.
 
 Author
 ------
