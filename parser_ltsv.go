@@ -44,26 +44,26 @@ func (p *LTSVParser) SetMetadataHandler(handler MetadataHandler) {
 }
 
 // Parse processes the given io.Reader input using the configured patterns and handlers.
-func (p *LTSVParser) Parse(input io.Reader, skipLines []int) (*Result, error) {
-	return parse(input, skipLines, p.parser, nil, p.lineHandler, p.metadataHandler)
+func (p *LTSVParser) Parse(input io.Reader, skipLines []int, hasIndex bool) (*Result, error) {
+	return parse(input, skipLines, hasIndex, p.parser, nil, p.lineHandler, p.metadataHandler)
 }
 
 // ParseString processes the given string input as a reader.
-func (p *LTSVParser) ParseString(input string, skipLines []int) (*Result, error) {
-	return parseString(input, skipLines, p.parser, nil, p.lineHandler, p.metadataHandler)
+func (p *LTSVParser) ParseString(input string, skipLines []int, hasIndex bool) (*Result, error) {
+	return parseString(input, skipLines, hasIndex, p.parser, nil, p.lineHandler, p.metadataHandler)
 }
 
 // ParseFile processes the content of the specified file.
-func (p *LTSVParser) ParseFile(input string, skipLines []int) (*Result, error) {
-	return parseFile(input, skipLines, p.parser, nil, p.lineHandler, p.metadataHandler)
+func (p *LTSVParser) ParseFile(input string, skipLines []int, hasIndex bool) (*Result, error) {
+	return parseFile(input, skipLines, hasIndex, p.parser, nil, p.lineHandler, p.metadataHandler)
 }
 
 // ParseGzip processes the content of a gzipped file.
-func (p *LTSVParser) ParseGzip(input string, skipLines []int) (*Result, error) {
-	return parseGzip(input, skipLines, p.parser, nil, p.lineHandler, p.metadataHandler)
+func (p *LTSVParser) ParseGzip(input string, skipLines []int, hasIndex bool) (*Result, error) {
+	return parseGzip(input, skipLines, hasIndex, p.parser, nil, p.lineHandler, p.metadataHandler)
 }
 
 // ParseZipEntries processes the contents of zip file entries matching the specified glob pattern.
-func (p *LTSVParser) ParseZipEntries(input string, skipLines []int, globPattern string) ([]*Result, error) {
-	return parseZipEntries(input, skipLines, globPattern, p.parser, nil, p.lineHandler, p.metadataHandler)
+func (p *LTSVParser) ParseZipEntries(input string, skipLines []int, hasIndex bool, globPattern string) ([]*Result, error) {
+	return parseZipEntries(input, skipLines, hasIndex, globPattern, p.parser, nil, p.lineHandler, p.metadataHandler)
 }

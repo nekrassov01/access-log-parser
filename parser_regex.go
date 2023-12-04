@@ -44,28 +44,28 @@ func (p *RegexParser) SetMetadataHandler(handler MetadataHandler) {
 }
 
 // Parse processes the given io.Reader input using the configured patterns and handlers.
-func (p *RegexParser) Parse(input io.Reader, skipLines []int) (*Result, error) {
-	return parse(input, skipLines, p.parser, p.patterns, p.lineHandler, p.metadataHandler)
+func (p *RegexParser) Parse(input io.Reader, skipLines []int, hasIndex bool) (*Result, error) {
+	return parse(input, skipLines, hasIndex, p.parser, p.patterns, p.lineHandler, p.metadataHandler)
 }
 
 // ParseString processes the given string input as a reader.
-func (p *RegexParser) ParseString(input string, skipLines []int) (*Result, error) {
-	return parseString(input, skipLines, p.parser, p.patterns, p.lineHandler, p.metadataHandler)
+func (p *RegexParser) ParseString(input string, skipLines []int, hasIndex bool) (*Result, error) {
+	return parseString(input, skipLines, hasIndex, p.parser, p.patterns, p.lineHandler, p.metadataHandler)
 }
 
 // ParseFile processes the content of the specified file.
-func (p *RegexParser) ParseFile(input string, skipLines []int) (*Result, error) {
-	return parseFile(input, skipLines, p.parser, p.patterns, p.lineHandler, p.metadataHandler)
+func (p *RegexParser) ParseFile(input string, skipLines []int, hasIndex bool) (*Result, error) {
+	return parseFile(input, skipLines, hasIndex, p.parser, p.patterns, p.lineHandler, p.metadataHandler)
 }
 
 // ParseGzip processes the content of a gzipped file.
-func (p *RegexParser) ParseGzip(input string, skipLines []int) (*Result, error) {
-	return parseGzip(input, skipLines, p.parser, p.patterns, p.lineHandler, p.metadataHandler)
+func (p *RegexParser) ParseGzip(input string, skipLines []int, hasIndex bool) (*Result, error) {
+	return parseGzip(input, skipLines, hasIndex, p.parser, p.patterns, p.lineHandler, p.metadataHandler)
 }
 
 // ParseZipEntries processes the contents of zip file entries matching the specified glob pattern.
-func (p *RegexParser) ParseZipEntries(input string, skipLines []int, globPattern string) ([]*Result, error) {
-	return parseZipEntries(input, skipLines, globPattern, p.parser, p.patterns, p.lineHandler, p.metadataHandler)
+func (p *RegexParser) ParseZipEntries(input string, skipLines []int, hasIndex bool, globPattern string) ([]*Result, error) {
+	return parseZipEntries(input, skipLines, hasIndex, globPattern, p.parser, p.patterns, p.lineHandler, p.metadataHandler)
 }
 
 // AddPattern adds a new regular expression pattern to the parser for matching log lines.

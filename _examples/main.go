@@ -37,7 +37,7 @@ remote_host:192.168.1.10	remote_logname:-	remote_user:chris	datetime:[12/Mar/202
 	if err := rp.AddPatterns(regexPattern); err != nil {
 		log.Fatal(err)
 	}
-	out, err := rp.ParseString(regexSample, nil)
+	out, err := rp.ParseString(regexSample, nil, false)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -48,7 +48,7 @@ remote_host:192.168.1.10	remote_logname:-	remote_user:chris	datetime:[12/Mar/202
 	// pretty-json format
 	rp.SetLineHandler(parser.PrettyJSONLineHandler)
 	rp.SetMetadataHandler(parser.PrettyJSONMetadataHandler)
-	out, err = rp.ParseString(regexSample, nil)
+	out, err = rp.ParseString(regexSample, nil, true)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -59,7 +59,7 @@ remote_host:192.168.1.10	remote_logname:-	remote_user:chris	datetime:[12/Mar/202
 	// key=value pair format
 	rp.SetLineHandler(parser.KeyValuePairLineHandler)
 	rp.SetMetadataHandler(parser.KeyValuePairMetadataHandler)
-	out, err = rp.ParseString(regexSample, nil)
+	out, err = rp.ParseString(regexSample, nil, false)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -70,7 +70,7 @@ remote_host:192.168.1.10	remote_logname:-	remote_user:chris	datetime:[12/Mar/202
 	// ltsv format
 	rp.SetLineHandler(parser.LTSVLineHandler)
 	rp.SetMetadataHandler(parser.LTSVMetadataHandler)
-	out, err = rp.Parse(strings.NewReader(regexSample), nil)
+	out, err = rp.Parse(strings.NewReader(regexSample), nil, true)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -82,7 +82,7 @@ remote_host:192.168.1.10	remote_logname:-	remote_user:chris	datetime:[12/Mar/202
 
 	// json format
 	lp := parser.NewLTSVParser()
-	out, err = lp.ParseString(ltsvSample, nil)
+	out, err = lp.ParseString(ltsvSample, nil, false)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -93,7 +93,7 @@ remote_host:192.168.1.10	remote_logname:-	remote_user:chris	datetime:[12/Mar/202
 	// pretty-json format
 	lp.SetLineHandler(parser.PrettyJSONLineHandler)
 	lp.SetMetadataHandler(parser.PrettyJSONMetadataHandler)
-	out, err = lp.ParseString(ltsvSample, nil)
+	out, err = lp.ParseString(ltsvSample, nil, true)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -104,7 +104,7 @@ remote_host:192.168.1.10	remote_logname:-	remote_user:chris	datetime:[12/Mar/202
 	// key-value pair format
 	lp.SetLineHandler(parser.KeyValuePairLineHandler)
 	lp.SetMetadataHandler(parser.KeyValuePairMetadataHandler)
-	out, err = lp.ParseString(ltsvSample, nil)
+	out, err = lp.ParseString(ltsvSample, nil, false)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -115,7 +115,7 @@ remote_host:192.168.1.10	remote_logname:-	remote_user:chris	datetime:[12/Mar/202
 	// ltsv format
 	lp.SetLineHandler(parser.LTSVLineHandler)
 	lp.SetMetadataHandler(parser.LTSVMetadataHandler)
-	out, err = lp.ParseString(ltsvSample, nil)
+	out, err = lp.ParseString(ltsvSample, nil, true)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -19,11 +19,11 @@ import (
 type Parser interface {
 	SetLineHandler(LineHandler)
 	SetMetadataHandler(MetadataHandler)
-	Parse(input io.Reader, skipLines []int) (*Result, error)
-	ParseString(input string, skipLines []int) (*Result, error)
-	ParseFile(input string, skipLines []int) (*Result, error)
-	ParseGzip(input string, skipLines []int) (*Result, error)
-	ParseZipEntries(input string, skipLines []int, globPattern string) ([]*Result, error)
+	Parse(input io.Reader, skipLines []int, hasIndex bool) (*Result, error)
+	ParseString(input string, skipLines []int, hasIndex bool) (*Result, error)
+	ParseFile(input string, skipLines []int, hasIndex bool) (*Result, error)
+	ParseGzip(input string, skipLines []int, hasIndex bool) (*Result, error)
+	ParseZipEntries(input string, skipLines []int, hasIndex bool, globPattern string) ([]*Result, error)
 }
 
 // ErrorRecord stores information about log lines that couldn't be parsed
@@ -57,11 +57,12 @@ type Result struct {
 // parser is a function type that defines the signature for log parsing functions.
 // It takes an io.Reader as input, along with line skip rules and regular expression patterns,
 // and returns parsed data along with metadata and potential errors.
-type parser func(input io.Reader, skipLines []int, patterns []*regexp.Regexp, handler LineHandler) ([]string, *Metadata, error)
+type parser func(input io.Reader, skipLines []int, hasIndex bool, patterns []*regexp.Regexp, handler LineHandler) ([]string, *Metadata, error)
 
 // LineHandler is a function type that processes each matched line.
 // It takes the matches, their corresponding fields, and the line index, and returns processed string data.
-type LineHandler func(matches []string, fields []string, index int) (string, error)
+// type LineHandler func(matches []string, fields []string, index int) (string, error)
+type LineHandler func(pairs map[string]string, keys []string, index int, hasIndex bool) (string, error)
 
 // MetadataHandler is a function type for processing and formatting metadata.
 type MetadataHandler func(metadata *Metadata) (string, error)
@@ -69,8 +70,8 @@ type MetadataHandler func(metadata *Metadata) (string, error)
 // parse serves as a generic parsing function. It reads from the provided io.Reader,
 // applies the given parser function, and handles lines and metadata using the
 // specified handlers. It returns a Result object containing parsed data and metadata.
-func parse(input io.Reader, skipLines []int, parser parser, patterns []*regexp.Regexp, lineHandler LineHandler, metadataHandler MetadataHandler) (*Result, error) {
-	data, metadata, err := parser(input, skipLines, patterns, lineHandler)
+func parse(input io.Reader, skipLines []int, hasIndex bool, parser parser, patterns []*regexp.Regexp, lineHandler LineHandler, metadataHandler MetadataHandler) (*Result, error) {
+	data, metadata, err := parser(input, skipLines, hasIndex, patterns, lineHandler)
 	if err != nil {
 		return nil, err
 	}
@@ -79,14 +80,14 @@ func parse(input io.Reader, skipLines []int, parser parser, patterns []*regexp.R
 
 // parseString provides a convenience method for parsing a string input.
 // It wraps the string in a reader and delegates to the generic parse function.
-func parseString(input string, skipLines []int, parser parser, patterns []*regexp.Regexp, lineHandler LineHandler, metadataHandler MetadataHandler) (*Result, error) {
-	return parse(strings.NewReader(input), skipLines, parser, patterns, lineHandler, metadataHandler)
+func parseString(input string, skipLines []int, hasIndex bool, parser parser, patterns []*regexp.Regexp, lineHandler LineHandler, metadataHandler MetadataHandler) (*Result, error) {
+	return parse(strings.NewReader(input), skipLines, hasIndex, parser, patterns, lineHandler, metadataHandler)
 }
 
 // parseFile handles the parsing of a log file. It opens the file, reads its content,
 // and uses the provided parser function to parse the content. It returns a Result
 // object containing parsed data and metadata about the file.
-func parseFile(input string, skipLines []int, parser parser, patterns []*regexp.Regexp, lineHandler LineHandler, metadataHandler MetadataHandler) (*Result, error) {
+func parseFile(input string, skipLines []int, hasIndex bool, parser parser, patterns []*regexp.Regexp, lineHandler LineHandler, metadataHandler MetadataHandler) (*Result, error) {
 	if input == "" {
 		return nil, fmt.Errorf("empty path detected")
 	}
@@ -95,7 +96,7 @@ func parseFile(input string, skipLines []int, parser parser, patterns []*regexp.
 		return nil, fmt.Errorf("cannot open file: %w", err)
 	}
 	defer f.Close()
-	data, metadata, err := parser(f, skipLines, patterns, lineHandler)
+	data, metadata, err := parser(f, skipLines, hasIndex, patterns, lineHandler)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +107,7 @@ func parseFile(input string, skipLines []int, parser parser, patterns []*regexp.
 // parseGzip manages the parsing of gzipped log files. It opens and decompresses the
 // gzipped file, then parses its content using the provided parser function. The
 // resulting parsed data and metadata are returned in a Result object.
-func parseGzip(input string, skipLines []int, parser parser, patterns []*regexp.Regexp, lineHandler LineHandler, metadataHandler MetadataHandler) (*Result, error) {
+func parseGzip(input string, skipLines []int, hasIndex bool, parser parser, patterns []*regexp.Regexp, lineHandler LineHandler, metadataHandler MetadataHandler) (*Result, error) {
 	if input == "" {
 		return nil, fmt.Errorf("empty path detected")
 	}
@@ -120,7 +121,7 @@ func parseGzip(input string, skipLines []int, parser parser, patterns []*regexp.
 		return nil, fmt.Errorf("cannot create gzip reader for %s: %w", input, err)
 	}
 	defer g.Close()
-	data, metadata, err := parser(g, skipLines, patterns, lineHandler)
+	data, metadata, err := parser(g, skipLines, hasIndex, patterns, lineHandler)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +132,7 @@ func parseGzip(input string, skipLines []int, parser parser, patterns []*regexp.
 // parseZipEntries handles parsing of log files within a zip archive. It opens the
 // zip file, iterates over its entries, and parses those matching the specified
 // glob pattern. Each parsed entry is returned as a Result in a slice.
-func parseZipEntries(input string, skipLines []int, globPattern string, parser parser, patterns []*regexp.Regexp, lineHandler LineHandler, metadataHandler MetadataHandler) ([]*Result, error) {
+func parseZipEntries(input string, skipLines []int, hasIndex bool, globPattern string, parser parser, patterns []*regexp.Regexp, lineHandler LineHandler, metadataHandler MetadataHandler) ([]*Result, error) {
 	if input == "" {
 		return nil, fmt.Errorf("empty path detected")
 	}
@@ -153,7 +154,7 @@ func parseZipEntries(input string, skipLines []int, globPattern string, parser p
 		if err != nil {
 			return nil, fmt.Errorf("cannot open zip file entry: %w", err)
 		}
-		data, metadata, err := parser(e, skipLines, patterns, lineHandler)
+		data, metadata, err := parser(e, skipLines, hasIndex, patterns, lineHandler)
 		if err != nil {
 			return nil, err
 		}
@@ -172,7 +173,7 @@ func parseZipEntries(input string, skipLines []int, globPattern string, parser p
 // function to process the matched lines. Lines that are part of the skipLines array
 // will be skipped. The function returns a slice of processed lines, metadata about
 // the parsing process, and any errors encountered.
-func regexParser(input io.Reader, skipLines []int, patterns []*regexp.Regexp, handler LineHandler) ([]string, *Metadata, error) {
+func regexParser(input io.Reader, skipLines []int, hasIndex bool, patterns []*regexp.Regexp, handler LineHandler) ([]string, *Metadata, error) {
 	if len(patterns) == 0 {
 		return nil, nil, fmt.Errorf("cannot parse input: no patterns provided")
 	}
@@ -204,13 +205,13 @@ func regexParser(input io.Reader, skipLines []int, patterns []*regexp.Regexp, ha
 			continue
 		}
 		names := matchedPattern.SubexpNames()
-		labels := make([]string, 0, len(names)-1)
-		values := make([]string, 0, len(names)-1)
+		pairs := make(map[string]string)
+		keys := make([]string, 0, len(names)-1)
 		for j, name := range names[1:] {
-			labels = append(labels, name)
-			values = append(values, matches[j+1])
+			pairs[name] = matches[j+1]
+			keys = append(keys, name)
 		}
-		line, err := handler(values, labels, i)
+		line, err := handler(pairs, keys, i, hasIndex)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -230,7 +231,7 @@ func regexParser(input io.Reader, skipLines []int, patterns []*regexp.Regexp, ha
 // Lines included in the skipLines array will be skipped. The function returns a slice of
 // processed lines, metadata about the parsing process, and any errors encountered.
 // Unlike regexParser, it does not use regular expressions for parsing.
-func ltsvParser(input io.Reader, skipLines []int, _ []*regexp.Regexp, handler LineHandler) ([]string, *Metadata, error) {
+func ltsvParser(input io.Reader, skipLines []int, hasIndex bool, _ []*regexp.Regexp, handler LineHandler) ([]string, *Metadata, error) {
 	var data []string
 	metadata := &Metadata{}
 	i := 1
@@ -244,10 +245,9 @@ func ltsvParser(input io.Reader, skipLines []int, _ []*regexp.Regexp, handler Li
 		}
 		r := scanner.Text()
 		fields := strings.Split(r, "\t")
-		labels := make([]string, 0, len(fields))
-		values := make([]string, 0, len(fields))
+		pairs := make(map[string]string)
+		keys := make([]string, 0, len(fields))
 		isValid := true
-
 		for _, field := range fields {
 			parts := strings.SplitN(field, ":", 2)
 			if len(parts) != 2 {
@@ -256,12 +256,11 @@ func ltsvParser(input io.Reader, skipLines []int, _ []*regexp.Regexp, handler Li
 				isValid = false
 				break
 			}
-			labels = append(labels, parts[0])
-			values = append(values, parts[1])
+			keys = append(keys, parts[0])
+			pairs[parts[0]] = parts[1]
 		}
-
 		if isValid {
-			line, err := handler(values, labels, i)
+			line, err := handler(pairs, keys, i, hasIndex)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -293,10 +292,10 @@ func createResult(data []string, metadata *Metadata, handler MetadataHandler) (*
 // skipLineMap creates and returns a map from an array of line numbers to be skipped.
 // The map can be used to quickly determine if a line number is in the list of lines to skip.
 // It maps each line number in the skipLines array to a boolean value of true.
-func skipLineMap(skipLines []int) map[int]bool {
-	m := make(map[int]bool, len(skipLines))
+func skipLineMap(skipLines []int) map[int]struct{} {
+	m := make(map[int]struct{}, len(skipLines))
 	for _, skipLine := range skipLines {
-		m[skipLine] = true
+		m[skipLine] = struct{}{}
 	}
 	return m
 }
