@@ -247,7 +247,6 @@ func ltsvParser(input io.Reader, skipLines []int, hasIndex bool, _ []*regexp.Reg
 		labels := make([]string, 0, len(fields))
 		values := make([]string, 0, len(fields))
 		isValid := true
-
 		for _, field := range fields {
 			parts := strings.SplitN(field, ":", 2)
 			if len(parts) != 2 {
@@ -259,7 +258,6 @@ func ltsvParser(input io.Reader, skipLines []int, hasIndex bool, _ []*regexp.Reg
 			labels = append(labels, parts[0])
 			values = append(values, parts[1])
 		}
-
 		if isValid {
 			line, err := handler(labels, values, i, hasIndex)
 			if err != nil {
@@ -290,7 +288,7 @@ func createResult(data []string, metadata *Metadata, handler MetadataHandler) (*
 	}, nil
 }
 
-// skipLineMap creates and returns a map from an array of line numbers to be skipped.
+// skipLineMap creates and returns a map from a slice of line numbers to be skipped.
 func skipLineMap(skipLines []int) map[int]struct{} {
 	m := make(map[int]struct{}, len(skipLines))
 	for _, skipLine := range skipLines {
