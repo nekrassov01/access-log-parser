@@ -101,11 +101,11 @@ func setup() {
 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket89 [03/Feb/2019:03:54:33 +0000] 192.0.2.76 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 7B4A0FABBEXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket89?versioning HTTP/1.1" 200 - 113 - 33 - "-" "S3Console/0.4" - Ke1bUcazaN1jWuUlPJaxF64cQVpUEhoZKEG/hmy/gijN/I1DeWqDfFvnpybfEseEME/u7ME1234= SigV2 ECDHE-RSA-AES128-SHA AuthHeader
 01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f awsrandombucket77 [28/Feb/2019:14:12:59 +0000] 192.0.2.213 01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f 3E57427F3EXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket77?versioning HTTP/1.1" 200 - 113 - 7 - "-" "S3Console/0.4" -`
 	regexAllMatchData = []string{
-		`{"index":1,"bucket_owner":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","bucket":"awsrandombucket43","time":"[16/Feb/2019:11:23:45 +0000]","remote_ip":"192.0.2.132","requester":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","request_uri":"GET /awsrandombucket43?versioning HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket43.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1","access_point_arn":"-"}`,
-		`{"index":2,"bucket_owner":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","bucket":"awsrandombucket59","time":"[24/Feb/2019:07:45:11 +0000]","remote_ip":"192.0.2.45","requester":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","request_id":"891CE47D2EXAMPLE","operation":"REST.GET.LOGGING_STATUS","key":"-","request_uri":"GET /awsrandombucket59?logging HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"242","object_size":"-","total_time":"11","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1"}`,
-		`{"index":3,"bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","bucket":"awsrandombucket12","time":"[12/Feb/2019:18:32:21 +0000]","remote_ip":"192.0.2.189","requester":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","request_id":"A1206F460EXAMPLE","operation":"REST.GET.BUCKETPOLICY","key":"-","request_uri":"GET /awsrandombucket12?policy HTTP/1.1","http_status":"404","error_code":"NoSuchBucketPolicy","bytes_sent":"297","object_size":"-","total_time":"38","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com"}`,
-		`{"index":4,"bucket_owner":"d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01","bucket":"awsrandombucket89","time":"[03/Feb/2019:03:54:33 +0000]","remote_ip":"192.0.2.76","requester":"d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01","request_id":"7B4A0FABBEXAMPLE","operation":"REST.GET.VERSIONING","key":"-","request_uri":"GET /awsrandombucket89?versioning HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"33","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
-		`{"index":5,"bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","bucket":"awsrandombucket77","time":"[28/Feb/2019:14:12:59 +0000]","remote_ip":"192.0.2.213","requester":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","request_uri":"GET /awsrandombucket77?versioning HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
+		`{"index":"1","bucket_owner":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","bucket":"awsrandombucket43","time":"[16/Feb/2019:11:23:45 +0000]","remote_ip":"192.0.2.132","requester":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","request_uri":"GET /awsrandombucket43?versioning HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket43.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1","access_point_arn":"-"}`,
+		`{"index":"2","bucket_owner":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","bucket":"awsrandombucket59","time":"[24/Feb/2019:07:45:11 +0000]","remote_ip":"192.0.2.45","requester":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","request_id":"891CE47D2EXAMPLE","operation":"REST.GET.LOGGING_STATUS","key":"-","request_uri":"GET /awsrandombucket59?logging HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"242","object_size":"-","total_time":"11","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1"}`,
+		`{"index":"3","bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","bucket":"awsrandombucket12","time":"[12/Feb/2019:18:32:21 +0000]","remote_ip":"192.0.2.189","requester":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","request_id":"A1206F460EXAMPLE","operation":"REST.GET.BUCKETPOLICY","key":"-","request_uri":"GET /awsrandombucket12?policy HTTP/1.1","http_status":"404","error_code":"NoSuchBucketPolicy","bytes_sent":"297","object_size":"-","total_time":"38","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com"}`,
+		`{"index":"4","bucket_owner":"d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01","bucket":"awsrandombucket89","time":"[03/Feb/2019:03:54:33 +0000]","remote_ip":"192.0.2.76","requester":"d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01","request_id":"7B4A0FABBEXAMPLE","operation":"REST.GET.VERSIONING","key":"-","request_uri":"GET /awsrandombucket89?versioning HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"33","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
+		`{"index":"5","bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","bucket":"awsrandombucket77","time":"[28/Feb/2019:14:12:59 +0000]","remote_ip":"192.0.2.213","requester":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","request_uri":"GET /awsrandombucket77?versioning HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
 	}
 	regexAllMatchMetadata = &Metadata{
 		Total:     5,
@@ -123,10 +123,10 @@ d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket
 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket89 [03/Feb/2019:03:54:33 +0000] 192.0.2.76 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 7B4A0FABBEXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket89?versioning HTTP/1.1" 200 - 113 - 33 - "-" "S3Console/0.4"
 01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f awsrandombucket77 [28/Feb/2019:14:12:59 +0000] 192.0.2.213 01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f 3E57427F3EXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket77?versioning HTTP/1.1" 200 - 113 - 7 - "-" "S3Console/0.4" -`
 	regexContainsUnmatchData = []string{
-		`{"index":1,"bucket_owner":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","bucket":"awsrandombucket43","time":"[16/Feb/2019:11:23:45 +0000]","remote_ip":"192.0.2.132","requester":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","request_uri":"GET /awsrandombucket43?versioning HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket43.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1","access_point_arn":"-"}`,
-		`{"index":2,"bucket_owner":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","bucket":"awsrandombucket59","time":"[24/Feb/2019:07:45:11 +0000]","remote_ip":"192.0.2.45","requester":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","request_id":"891CE47D2EXAMPLE","operation":"REST.GET.LOGGING_STATUS","key":"-","request_uri":"GET /awsrandombucket59?logging HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"242","object_size":"-","total_time":"11","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1"}`,
-		`{"index":3,"bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","bucket":"awsrandombucket12","time":"[12/Feb/2019:18:32:21 +0000]","remote_ip":"192.0.2.189","requester":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","request_id":"A1206F460EXAMPLE","operation":"REST.GET.BUCKETPOLICY","key":"-","request_uri":"GET /awsrandombucket12?policy HTTP/1.1","http_status":"404","error_code":"NoSuchBucketPolicy","bytes_sent":"297","object_size":"-","total_time":"38","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com"}`,
-		`{"index":5,"bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","bucket":"awsrandombucket77","time":"[28/Feb/2019:14:12:59 +0000]","remote_ip":"192.0.2.213","requester":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","request_uri":"GET /awsrandombucket77?versioning HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
+		`{"index":"1","bucket_owner":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","bucket":"awsrandombucket43","time":"[16/Feb/2019:11:23:45 +0000]","remote_ip":"192.0.2.132","requester":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","request_uri":"GET /awsrandombucket43?versioning HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket43.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1","access_point_arn":"-"}`,
+		`{"index":"2","bucket_owner":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","bucket":"awsrandombucket59","time":"[24/Feb/2019:07:45:11 +0000]","remote_ip":"192.0.2.45","requester":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","request_id":"891CE47D2EXAMPLE","operation":"REST.GET.LOGGING_STATUS","key":"-","request_uri":"GET /awsrandombucket59?logging HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"242","object_size":"-","total_time":"11","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1"}`,
+		`{"index":"3","bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","bucket":"awsrandombucket12","time":"[12/Feb/2019:18:32:21 +0000]","remote_ip":"192.0.2.189","requester":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","request_id":"A1206F460EXAMPLE","operation":"REST.GET.BUCKETPOLICY","key":"-","request_uri":"GET /awsrandombucket12?policy HTTP/1.1","http_status":"404","error_code":"NoSuchBucketPolicy","bytes_sent":"297","object_size":"-","total_time":"38","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com"}`,
+		`{"index":"5","bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","bucket":"awsrandombucket77","time":"[28/Feb/2019:14:12:59 +0000]","remote_ip":"192.0.2.213","requester":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","request_uri":"GET /awsrandombucket77?versioning HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
 	}
 	regexContainsUnmatchMetadata = &Metadata{
 		Total:     5,
@@ -145,9 +145,9 @@ d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket
 
 	regexContainsSkipLines = []int{2, 4}
 	regexContainsSkipData = []string{
-		`{"index":1,"bucket_owner":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","bucket":"awsrandombucket43","time":"[16/Feb/2019:11:23:45 +0000]","remote_ip":"192.0.2.132","requester":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","request_uri":"GET /awsrandombucket43?versioning HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket43.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1","access_point_arn":"-"}`,
-		`{"index":3,"bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","bucket":"awsrandombucket12","time":"[12/Feb/2019:18:32:21 +0000]","remote_ip":"192.0.2.189","requester":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","request_id":"A1206F460EXAMPLE","operation":"REST.GET.BUCKETPOLICY","key":"-","request_uri":"GET /awsrandombucket12?policy HTTP/1.1","http_status":"404","error_code":"NoSuchBucketPolicy","bytes_sent":"297","object_size":"-","total_time":"38","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com"}`,
-		`{"index":5,"bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","bucket":"awsrandombucket77","time":"[28/Feb/2019:14:12:59 +0000]","remote_ip":"192.0.2.213","requester":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","request_uri":"GET /awsrandombucket77?versioning HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
+		`{"index":"1","bucket_owner":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","bucket":"awsrandombucket43","time":"[16/Feb/2019:11:23:45 +0000]","remote_ip":"192.0.2.132","requester":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","request_uri":"GET /awsrandombucket43?versioning HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket43.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1","access_point_arn":"-"}`,
+		`{"index":"3","bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","bucket":"awsrandombucket12","time":"[12/Feb/2019:18:32:21 +0000]","remote_ip":"192.0.2.189","requester":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","request_id":"A1206F460EXAMPLE","operation":"REST.GET.BUCKETPOLICY","key":"-","request_uri":"GET /awsrandombucket12?policy HTTP/1.1","http_status":"404","error_code":"NoSuchBucketPolicy","bytes_sent":"297","object_size":"-","total_time":"38","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com"}`,
+		`{"index":"5","bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","bucket":"awsrandombucket77","time":"[28/Feb/2019:14:12:59 +0000]","remote_ip":"192.0.2.213","requester":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","request_uri":"GET /awsrandombucket77?versioning HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
 	}
 	regexContainsSkipMetadata = &Metadata{
 		Total:     5,
@@ -218,9 +218,9 @@ d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket
 
 	regexMixedSkipLines = []int{1}
 	regexMixedData = []string{
-		`{"index":2,"bucket_owner":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","bucket":"awsrandombucket59","time":"[24/Feb/2019:07:45:11 +0000]","remote_ip":"192.0.2.45","requester":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","request_id":"891CE47D2EXAMPLE","operation":"REST.GET.LOGGING_STATUS","key":"-","request_uri":"GET /awsrandombucket59?logging HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"242","object_size":"-","total_time":"11","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1"}`,
-		`{"index":3,"bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","bucket":"awsrandombucket12","time":"[12/Feb/2019:18:32:21 +0000]","remote_ip":"192.0.2.189","requester":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","request_id":"A1206F460EXAMPLE","operation":"REST.GET.BUCKETPOLICY","key":"-","request_uri":"GET /awsrandombucket12?policy HTTP/1.1","http_status":"404","error_code":"NoSuchBucketPolicy","bytes_sent":"297","object_size":"-","total_time":"38","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com"}`,
-		`{"index":5,"bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","bucket":"awsrandombucket77","time":"[28/Feb/2019:14:12:59 +0000]","remote_ip":"192.0.2.213","requester":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","request_uri":"GET /awsrandombucket77?versioning HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
+		`{"index":"2","bucket_owner":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","bucket":"awsrandombucket59","time":"[24/Feb/2019:07:45:11 +0000]","remote_ip":"192.0.2.45","requester":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","request_id":"891CE47D2EXAMPLE","operation":"REST.GET.LOGGING_STATUS","key":"-","request_uri":"GET /awsrandombucket59?logging HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"242","object_size":"-","total_time":"11","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1"}`,
+		`{"index":"3","bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","bucket":"awsrandombucket12","time":"[12/Feb/2019:18:32:21 +0000]","remote_ip":"192.0.2.189","requester":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","request_id":"A1206F460EXAMPLE","operation":"REST.GET.BUCKETPOLICY","key":"-","request_uri":"GET /awsrandombucket12?policy HTTP/1.1","http_status":"404","error_code":"NoSuchBucketPolicy","bytes_sent":"297","object_size":"-","total_time":"38","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com"}`,
+		`{"index":"5","bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","bucket":"awsrandombucket77","time":"[28/Feb/2019:14:12:59 +0000]","remote_ip":"192.0.2.213","requester":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","request_uri":"GET /awsrandombucket77?versioning HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
 	}
 	regexMixedMetadata = &Metadata{
 		Total:     5,
@@ -243,11 +243,11 @@ remote_host:10.0.0.3	remote_logname:-	remote_user:mike	datetime:[12/Mar/2023:10:
 remote_host:192.168.1.4	remote_logname:-	remote_user:anna	datetime:[12/Mar/2023:10:58:24 +0000]	request:GET /products HTTP/1.1	status:404	size:0
 remote_host:192.168.1.10	remote_logname:-	remote_user:chris	datetime:[12/Mar/2023:11:04:16 +0000]	request:DELETE /account HTTP/1.1	status:200	size:204`
 	ltsvAllMatchData = []string{
-		`{"index":1,"remote_host":"192.168.1.1","remote_logname":"-","remote_user":"john","datetime":"[12/Mar/2023:10:55:36 +0000]","request":"GET /index.html HTTP/1.1","status":"200","size":"1024","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}`,
-		`{"index":2,"remote_host":"172.16.0.2","remote_logname":"-","remote_user":"jane","datetime":"[12/Mar/2023:10:56:10 +0000]","request":"POST /login HTTP/1.1","status":"303","size":"532","referer":"http://www.example.com/login","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}`,
-		`{"index":3,"remote_host":"10.0.0.3","remote_logname":"-","remote_user":"mike","datetime":"[12/Mar/2023:10:57:15 +0000]","request":"GET /about.html HTTP/1.1","status":"200","size":"749","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"}`,
-		`{"index":4,"remote_host":"192.168.1.4","remote_logname":"-","remote_user":"anna","datetime":"[12/Mar/2023:10:58:24 +0000]","request":"GET /products HTTP/1.1","status":"404","size":"0"}`,
-		`{"index":5,"remote_host":"192.168.1.10","remote_logname":"-","remote_user":"chris","datetime":"[12/Mar/2023:11:04:16 +0000]","request":"DELETE /account HTTP/1.1","status":"200","size":"204"}`,
+		`{"index":"1","remote_host":"192.168.1.1","remote_logname":"-","remote_user":"john","datetime":"[12/Mar/2023:10:55:36 +0000]","request":"GET /index.html HTTP/1.1","status":"200","size":"1024","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}`,
+		`{"index":"2","remote_host":"172.16.0.2","remote_logname":"-","remote_user":"jane","datetime":"[12/Mar/2023:10:56:10 +0000]","request":"POST /login HTTP/1.1","status":"303","size":"532","referer":"http://www.example.com/login","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}`,
+		`{"index":"3","remote_host":"10.0.0.3","remote_logname":"-","remote_user":"mike","datetime":"[12/Mar/2023:10:57:15 +0000]","request":"GET /about.html HTTP/1.1","status":"200","size":"749","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"}`,
+		`{"index":"4","remote_host":"192.168.1.4","remote_logname":"-","remote_user":"anna","datetime":"[12/Mar/2023:10:58:24 +0000]","request":"GET /products HTTP/1.1","status":"404","size":"0"}`,
+		`{"index":"5","remote_host":"192.168.1.10","remote_logname":"-","remote_user":"chris","datetime":"[12/Mar/2023:11:04:16 +0000]","request":"DELETE /account HTTP/1.1","status":"200","size":"204"}`,
 	}
 	ltsvAllMatchMetadata = &Metadata{
 		Total:     5,
@@ -265,10 +265,10 @@ remote_host:10.0.0.3	remote_logname:-	remote_user:mike	datetime:[12/Mar/2023:10:
 remote_host:192.168.1.4	remote_logname:-	remote_user:anna	datetime:[12/Mar/2023:10:58:24 +0000]	request:GET /products HTTP/1.1	404	size:0
 remote_host:192.168.1.10	remote_logname:-	remote_user:chris	datetime:[12/Mar/2023:11:04:16 +0000]	request:DELETE /account HTTP/1.1	status:200	size:204`
 	ltsvContainsUnmatchData = []string{
-		`{"index":1,"remote_host":"192.168.1.1","remote_logname":"-","remote_user":"john","datetime":"[12/Mar/2023:10:55:36 +0000]","request":"GET /index.html HTTP/1.1","status":"200","size":"1024","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}`,
-		`{"index":2,"remote_host":"172.16.0.2","remote_logname":"-","remote_user":"jane","datetime":"[12/Mar/2023:10:56:10 +0000]","request":"POST /login HTTP/1.1","status":"303","size":"532","referer":"http://www.example.com/login","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}`,
-		`{"index":3,"remote_host":"10.0.0.3","remote_logname":"-","remote_user":"mike","datetime":"[12/Mar/2023:10:57:15 +0000]","request":"GET /about.html HTTP/1.1","status":"200","size":"749","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"}`,
-		`{"index":5,"remote_host":"192.168.1.10","remote_logname":"-","remote_user":"chris","datetime":"[12/Mar/2023:11:04:16 +0000]","request":"DELETE /account HTTP/1.1","status":"200","size":"204"}`,
+		`{"index":"1","remote_host":"192.168.1.1","remote_logname":"-","remote_user":"john","datetime":"[12/Mar/2023:10:55:36 +0000]","request":"GET /index.html HTTP/1.1","status":"200","size":"1024","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}`,
+		`{"index":"2","remote_host":"172.16.0.2","remote_logname":"-","remote_user":"jane","datetime":"[12/Mar/2023:10:56:10 +0000]","request":"POST /login HTTP/1.1","status":"303","size":"532","referer":"http://www.example.com/login","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}`,
+		`{"index":"3","remote_host":"10.0.0.3","remote_logname":"-","remote_user":"mike","datetime":"[12/Mar/2023:10:57:15 +0000]","request":"GET /about.html HTTP/1.1","status":"200","size":"749","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"}`,
+		`{"index":"5","remote_host":"192.168.1.10","remote_logname":"-","remote_user":"chris","datetime":"[12/Mar/2023:11:04:16 +0000]","request":"DELETE /account HTTP/1.1","status":"200","size":"204"}`,
 	}
 	ltsvContainsUnmatchMetadata = &Metadata{
 		Total:     5,
@@ -287,9 +287,9 @@ remote_host:192.168.1.10	remote_logname:-	remote_user:chris	datetime:[12/Mar/202
 
 	ltsvContainsSkipLines = []int{2, 4}
 	ltsvContainsSkipData = []string{
-		`{"index":1,"remote_host":"192.168.1.1","remote_logname":"-","remote_user":"john","datetime":"[12/Mar/2023:10:55:36 +0000]","request":"GET /index.html HTTP/1.1","status":"200","size":"1024","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}`,
-		`{"index":3,"remote_host":"10.0.0.3","remote_logname":"-","remote_user":"mike","datetime":"[12/Mar/2023:10:57:15 +0000]","request":"GET /about.html HTTP/1.1","status":"200","size":"749","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"}`,
-		`{"index":5,"remote_host":"192.168.1.10","remote_logname":"-","remote_user":"chris","datetime":"[12/Mar/2023:11:04:16 +0000]","request":"DELETE /account HTTP/1.1","status":"200","size":"204"}`,
+		`{"index":"1","remote_host":"192.168.1.1","remote_logname":"-","remote_user":"john","datetime":"[12/Mar/2023:10:55:36 +0000]","request":"GET /index.html HTTP/1.1","status":"200","size":"1024","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}`,
+		`{"index":"3","remote_host":"10.0.0.3","remote_logname":"-","remote_user":"mike","datetime":"[12/Mar/2023:10:57:15 +0000]","request":"GET /about.html HTTP/1.1","status":"200","size":"749","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"}`,
+		`{"index":"5","remote_host":"192.168.1.10","remote_logname":"-","remote_user":"chris","datetime":"[12/Mar/2023:11:04:16 +0000]","request":"DELETE /account HTTP/1.1","status":"200","size":"204"}`,
 	}
 	ltsvContainsSkipMetadata = &Metadata{
 		Total:     5,
@@ -360,9 +360,9 @@ remote_host:192.168.1.10	remote_logname:-	remote_user:chris	datetime:[12/Mar/202
 
 	ltsvMixedSkipLines = []int{1}
 	ltsvMixedData = []string{
-		`{"index":2,"remote_host":"172.16.0.2","remote_logname":"-","remote_user":"jane","datetime":"[12/Mar/2023:10:56:10 +0000]","request":"POST /login HTTP/1.1","status":"303","size":"532","referer":"http://www.example.com/login","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}`,
-		`{"index":3,"remote_host":"10.0.0.3","remote_logname":"-","remote_user":"mike","datetime":"[12/Mar/2023:10:57:15 +0000]","request":"GET /about.html HTTP/1.1","status":"200","size":"749","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"}`,
-		`{"index":5,"remote_host":"192.168.1.10","remote_logname":"-","remote_user":"chris","datetime":"[12/Mar/2023:11:04:16 +0000]","request":"DELETE /account HTTP/1.1","status":"200","size":"204"}`,
+		`{"index":"2","remote_host":"172.16.0.2","remote_logname":"-","remote_user":"jane","datetime":"[12/Mar/2023:10:56:10 +0000]","request":"POST /login HTTP/1.1","status":"303","size":"532","referer":"http://www.example.com/login","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}`,
+		`{"index":"3","remote_host":"10.0.0.3","remote_logname":"-","remote_user":"mike","datetime":"[12/Mar/2023:10:57:15 +0000]","request":"GET /about.html HTTP/1.1","status":"200","size":"749","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"}`,
+		`{"index":"5","remote_host":"192.168.1.10","remote_logname":"-","remote_user":"chris","datetime":"[12/Mar/2023:11:04:16 +0000]","request":"DELETE /account HTTP/1.1","status":"200","size":"204"}`,
 	}
 	ltsvMixedMetadata = &Metadata{
 		Total:     5,
@@ -389,6 +389,7 @@ func Test_parse(t *testing.T) {
 	type args struct {
 		input           io.Reader
 		skipLines       []int
+		hasIndex        bool
 		parser          parser
 		patterns        []*regexp.Regexp
 		lineHandler     LineHandler
@@ -405,6 +406,7 @@ func Test_parse(t *testing.T) {
 			args: args{
 				input:           strings.NewReader(regexAllMatchInput),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -421,6 +423,7 @@ func Test_parse(t *testing.T) {
 			args: args{
 				input:           strings.NewReader(ltsvAllMatchInput),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				patterns:        nil,
 				lineHandler:     JSONLineHandler,
@@ -435,7 +438,7 @@ func Test_parse(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parse(tt.args.input, tt.args.skipLines, tt.args.parser, tt.args.patterns, tt.args.lineHandler, tt.args.metadataHandler)
+			got, err := parse(tt.args.input, tt.args.skipLines, tt.args.hasIndex, tt.args.parser, tt.args.patterns, tt.args.lineHandler, tt.args.metadataHandler)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parse() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -451,6 +454,7 @@ func Test_parseString(t *testing.T) {
 	type args struct {
 		input           string
 		skipLines       []int
+		hasIndex        bool
 		parser          parser
 		patterns        []*regexp.Regexp
 		lineHandler     LineHandler
@@ -467,6 +471,7 @@ func Test_parseString(t *testing.T) {
 			args: args{
 				input:           regexAllMatchInput,
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -483,6 +488,7 @@ func Test_parseString(t *testing.T) {
 			args: args{
 				input:           regexContainsUnmatchInput,
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -499,6 +505,7 @@ func Test_parseString(t *testing.T) {
 			args: args{
 				input:           regexAllMatchInput,
 				skipLines:       regexContainsSkipLines,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -515,6 +522,7 @@ func Test_parseString(t *testing.T) {
 			args: args{
 				input:           regexAllUnmatchInput,
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -531,6 +539,7 @@ func Test_parseString(t *testing.T) {
 			args: args{
 				input:           regexAllMatchInput,
 				skipLines:       regexAllSkipLines,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -547,6 +556,7 @@ func Test_parseString(t *testing.T) {
 			args: args{
 				input:           regexContainsUnmatchInput,
 				skipLines:       regexMixedSkipLines,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -563,6 +573,7 @@ func Test_parseString(t *testing.T) {
 			args: args{
 				input:           "",
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -579,9 +590,10 @@ func Test_parseString(t *testing.T) {
 			args: args{
 				input:     regexAllMatchInput,
 				skipLines: nil,
+				hasIndex:  true,
 				parser:    regexParser,
 				patterns:  regexPatterns,
-				lineHandler: func(matches []string, fields []string, index int) (string, error) {
+				lineHandler: func(labels []string, values []string, index int, hasIndex bool) (string, error) {
 					return "", fmt.Errorf("error")
 				},
 				metadataHandler: JSONMetadataHandler,
@@ -594,6 +606,7 @@ func Test_parseString(t *testing.T) {
 			args: args{
 				input:       regexAllMatchInput,
 				skipLines:   nil,
+				hasIndex:    true,
 				parser:      regexParser,
 				patterns:    regexPatterns,
 				lineHandler: JSONLineHandler,
@@ -609,6 +622,7 @@ func Test_parseString(t *testing.T) {
 			args: args{
 				input:           ltsvAllMatchInput,
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				patterns:        nil,
 				lineHandler:     JSONLineHandler,
@@ -625,6 +639,7 @@ func Test_parseString(t *testing.T) {
 			args: args{
 				input:           ltsvContainsUnmatchInput,
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				patterns:        nil,
 				lineHandler:     JSONLineHandler,
@@ -641,6 +656,7 @@ func Test_parseString(t *testing.T) {
 			args: args{
 				input:           ltsvAllMatchInput,
 				skipLines:       ltsvContainsSkipLines,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				patterns:        nil,
 				lineHandler:     JSONLineHandler,
@@ -657,6 +673,7 @@ func Test_parseString(t *testing.T) {
 			args: args{
 				input:           ltsvAllUnmatchInput,
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				patterns:        nil,
 				lineHandler:     JSONLineHandler,
@@ -673,6 +690,7 @@ func Test_parseString(t *testing.T) {
 			args: args{
 				input:           ltsvAllMatchInput,
 				skipLines:       ltsvAllSkipLines,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				patterns:        nil,
 				lineHandler:     JSONLineHandler,
@@ -689,6 +707,7 @@ func Test_parseString(t *testing.T) {
 			args: args{
 				input:           ltsvContainsUnmatchInput,
 				skipLines:       ltsvMixedSkipLines,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				patterns:        nil,
 				lineHandler:     JSONLineHandler,
@@ -705,6 +724,7 @@ func Test_parseString(t *testing.T) {
 			args: args{
 				input:           "",
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				patterns:        nil,
 				lineHandler:     JSONLineHandler,
@@ -721,9 +741,10 @@ func Test_parseString(t *testing.T) {
 			args: args{
 				input:     ltsvAllMatchInput,
 				skipLines: nil,
+				hasIndex:  true,
 				parser:    ltsvParser,
 				patterns:  nil,
-				lineHandler: func(matches []string, fields []string, index int) (string, error) {
+				lineHandler: func(labels []string, values []string, index int, hasIndex bool) (string, error) {
 					return "", fmt.Errorf("error")
 				},
 				metadataHandler: JSONMetadataHandler,
@@ -736,6 +757,7 @@ func Test_parseString(t *testing.T) {
 			args: args{
 				input:       ltsvAllMatchInput,
 				skipLines:   nil,
+				hasIndex:    true,
 				parser:      ltsvParser,
 				patterns:    nil,
 				lineHandler: JSONLineHandler,
@@ -749,7 +771,7 @@ func Test_parseString(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseString(tt.args.input, tt.args.skipLines, tt.args.parser, tt.args.patterns, tt.args.lineHandler, tt.args.metadataHandler)
+			got, err := parseString(tt.args.input, tt.args.skipLines, tt.args.hasIndex, tt.args.parser, tt.args.patterns, tt.args.lineHandler, tt.args.metadataHandler)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parseString() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -765,6 +787,7 @@ func Test_parseFile(t *testing.T) {
 	type args struct {
 		input           string
 		skipLines       []int
+		hasIndex        bool
 		parser          parser
 		patterns        []*regexp.Regexp
 		lineHandler     LineHandler
@@ -781,6 +804,7 @@ func Test_parseFile(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_all_match.log"),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -797,6 +821,7 @@ func Test_parseFile(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_contains_unmatch.log"),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -813,6 +838,7 @@ func Test_parseFile(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_all_match.log"),
 				skipLines:       regexContainsSkipLines,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -829,6 +855,7 @@ func Test_parseFile(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_all_unmatch.log"),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -845,6 +872,7 @@ func Test_parseFile(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_all_match.log"),
 				skipLines:       regexAllSkipLines,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -861,6 +889,7 @@ func Test_parseFile(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_contains_unmatch.log"),
 				skipLines:       regexMixedSkipLines,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -877,6 +906,7 @@ func Test_parseFile(t *testing.T) {
 			args: args{
 				input:           "",
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -890,9 +920,10 @@ func Test_parseFile(t *testing.T) {
 			args: args{
 				input:     filepath.Join("testdata", "sample_s3_all_match.log"),
 				skipLines: nil,
+				hasIndex:  true,
 				parser:    regexParser,
 				patterns:  regexPatterns,
-				lineHandler: func(matches []string, fields []string, index int) (string, error) {
+				lineHandler: func(labels []string, values []string, index int, hasIndex bool) (string, error) {
 					return "", fmt.Errorf("error")
 				},
 				metadataHandler: JSONMetadataHandler,
@@ -906,6 +937,7 @@ func Test_parseFile(t *testing.T) {
 				input:       filepath.Join("testdata", "sample_s3_all_match.log"),
 				skipLines:   nil,
 				parser:      regexParser,
+				hasIndex:    true,
 				patterns:    regexPatterns,
 				lineHandler: JSONLineHandler,
 				metadataHandler: func(metadata *Metadata) (string, error) {
@@ -920,6 +952,7 @@ func Test_parseFile(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_all_match.log.dummy"),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -933,6 +966,7 @@ func Test_parseFile(t *testing.T) {
 			args: args{
 				input:           "testdata",
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -946,6 +980,7 @@ func Test_parseFile(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_all_match.log"),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
@@ -961,6 +996,7 @@ func Test_parseFile(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_contains_unmatch.log"),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
@@ -976,6 +1012,7 @@ func Test_parseFile(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_all_match.log"),
 				skipLines:       regexContainsSkipLines,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
@@ -991,6 +1028,7 @@ func Test_parseFile(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_all_unmatch.log"),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
@@ -1006,6 +1044,7 @@ func Test_parseFile(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_all_match.log"),
 				skipLines:       regexAllSkipLines,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
@@ -1021,6 +1060,7 @@ func Test_parseFile(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_contains_unmatch.log"),
 				skipLines:       ltsvMixedSkipLines,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
@@ -1036,6 +1076,7 @@ func Test_parseFile(t *testing.T) {
 			args: args{
 				input:           "",
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
@@ -1048,8 +1089,9 @@ func Test_parseFile(t *testing.T) {
 			args: args{
 				input:     filepath.Join("testdata", "sample_ltsv_all_match.log"),
 				skipLines: nil,
+				hasIndex:  true,
 				parser:    ltsvParser,
-				lineHandler: func(matches []string, fields []string, index int) (string, error) {
+				lineHandler: func(labels []string, values []string, index int, hasIndex bool) (string, error) {
 					return "", fmt.Errorf("error")
 				},
 				metadataHandler: JSONMetadataHandler,
@@ -1062,6 +1104,7 @@ func Test_parseFile(t *testing.T) {
 			args: args{
 				input:       filepath.Join("testdata", "sample_ltsv_all_match.log"),
 				skipLines:   nil,
+				hasIndex:    true,
 				parser:      ltsvParser,
 				lineHandler: JSONLineHandler,
 				metadataHandler: func(metadata *Metadata) (string, error) {
@@ -1076,6 +1119,7 @@ func Test_parseFile(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_all_match.log.dummy"),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
@@ -1088,6 +1132,7 @@ func Test_parseFile(t *testing.T) {
 			args: args{
 				input:           "testdata",
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
@@ -1098,7 +1143,7 @@ func Test_parseFile(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseFile(tt.args.input, tt.args.skipLines, tt.args.parser, tt.args.patterns, tt.args.lineHandler, tt.args.metadataHandler)
+			got, err := parseFile(tt.args.input, tt.args.skipLines, tt.args.hasIndex, tt.args.parser, tt.args.patterns, tt.args.lineHandler, tt.args.metadataHandler)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parseFile() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1114,6 +1159,7 @@ func Test_parseGzip(t *testing.T) {
 	type args struct {
 		input           string
 		skipLines       []int
+		hasIndex        bool
 		parser          parser
 		patterns        []*regexp.Regexp
 		lineHandler     LineHandler
@@ -1130,6 +1176,7 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_all_match.log.gz"),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -1146,6 +1193,7 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_contains_unmatch.log.gz"),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -1162,6 +1210,7 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_all_match.log.gz"),
 				skipLines:       regexContainsSkipLines,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -1178,6 +1227,7 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_all_unmatch.log.gz"),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -1210,6 +1260,7 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_contains_unmatch.log.gz"),
 				skipLines:       regexMixedSkipLines,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -1226,6 +1277,7 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:           "",
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -1239,9 +1291,10 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:     filepath.Join("testdata", "sample_s3_all_match.log.gz"),
 				skipLines: nil,
+				hasIndex:  true,
 				parser:    regexParser,
 				patterns:  regexPatterns,
-				lineHandler: func(matches []string, fields []string, index int) (string, error) {
+				lineHandler: func(labels []string, values []string, index int, hasIndex bool) (string, error) {
 					return "", fmt.Errorf("error")
 				},
 				metadataHandler: JSONMetadataHandler,
@@ -1269,6 +1322,7 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_all_match.log.gz.dummy"),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -1282,6 +1336,7 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:           "testdata",
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -1295,6 +1350,7 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_all_match.log"),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -1308,6 +1364,7 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_all_match.log.gz"),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
@@ -1323,6 +1380,7 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_contains_unmatch.log.gz"),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
@@ -1338,6 +1396,7 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_all_match.log.gz"),
 				skipLines:       ltsvContainsSkipLines,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
@@ -1353,6 +1412,7 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_all_unmatch.log.gz"),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
@@ -1368,6 +1428,7 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_all_match.log.gz"),
 				skipLines:       ltsvAllSkipLines,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
@@ -1383,6 +1444,7 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_contains_unmatch.log.gz"),
 				skipLines:       ltsvMixedSkipLines,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
@@ -1398,6 +1460,7 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:           "",
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
@@ -1410,8 +1473,9 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:     filepath.Join("testdata", "sample_ltsv_all_match.log.gz"),
 				skipLines: nil,
+				hasIndex:  true,
 				parser:    ltsvParser,
-				lineHandler: func(matches []string, fields []string, index int) (string, error) {
+				lineHandler: func(labels []string, values []string, index int, hasIndex bool) (string, error) {
 					return "", fmt.Errorf("error")
 				},
 				metadataHandler: JSONMetadataHandler,
@@ -1424,6 +1488,7 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:       filepath.Join("testdata", "sample_ltsv_all_match.log.gz"),
 				skipLines:   nil,
+				hasIndex:    true,
 				parser:      ltsvParser,
 				lineHandler: JSONLineHandler,
 				metadataHandler: func(metadata *Metadata) (string, error) {
@@ -1438,6 +1503,7 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_all_match.log.gz.dummy"),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
@@ -1450,6 +1516,7 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:           "testdata",
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
@@ -1462,6 +1529,7 @@ func Test_parseGzip(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_all_match.log"),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
@@ -1472,7 +1540,7 @@ func Test_parseGzip(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseGzip(tt.args.input, tt.args.skipLines, tt.args.parser, tt.args.patterns, tt.args.lineHandler, tt.args.metadataHandler)
+			got, err := parseGzip(tt.args.input, tt.args.skipLines, tt.args.hasIndex, tt.args.parser, tt.args.patterns, tt.args.lineHandler, tt.args.metadataHandler)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parseGzip() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1488,6 +1556,7 @@ func Test_parseZipEntries(t *testing.T) {
 	type args struct {
 		input           string
 		skipLines       []int
+		hasIndex        bool
 		globPattern     string
 		parser          parser
 		patterns        []*regexp.Regexp
@@ -1505,6 +1574,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_all_match.log.zip"),
 				skipLines:       nil,
+				hasIndex:        true,
 				globPattern:     "*",
 				parser:          regexParser,
 				patterns:        regexPatterns,
@@ -1524,6 +1594,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_contains_unmatch.log.zip"),
 				skipLines:       nil,
+				hasIndex:        true,
 				globPattern:     "*",
 				parser:          regexParser,
 				patterns:        regexPatterns,
@@ -1543,6 +1614,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_all_match.log.zip"),
 				skipLines:       regexAllSkipLines,
+				hasIndex:        true,
 				globPattern:     "*",
 				parser:          regexParser,
 				patterns:        regexPatterns,
@@ -1562,6 +1634,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_all_unmatch.log.zip"),
 				skipLines:       nil,
+				hasIndex:        true,
 				globPattern:     "*",
 				parser:          regexParser,
 				patterns:        regexPatterns,
@@ -1581,6 +1654,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_all_match.log.zip"),
 				skipLines:       regexAllSkipLines,
+				hasIndex:        true,
 				globPattern:     "*",
 				parser:          regexParser,
 				patterns:        regexPatterns,
@@ -1600,6 +1674,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_contains_unmatch.log.zip"),
 				skipLines:       regexMixedSkipLines,
+				hasIndex:        true,
 				globPattern:     "*",
 				parser:          regexParser,
 				patterns:        regexPatterns,
@@ -1619,6 +1694,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           "",
 				skipLines:       nil,
+				hasIndex:        true,
 				globPattern:     "*",
 				parser:          regexParser,
 				patterns:        regexPatterns,
@@ -1633,10 +1709,11 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:       filepath.Join("testdata", "sample_s3_all_match.log.zip"),
 				skipLines:   nil,
+				hasIndex:    true,
 				globPattern: "*",
 				parser:      regexParser,
 				patterns:    regexPatterns,
-				lineHandler: func(matches []string, fields []string, index int) (string, error) {
+				lineHandler: func(labels []string, values []string, index int, hasIndex bool) (string, error) {
 					return "", fmt.Errorf("error")
 				},
 				metadataHandler: JSONMetadataHandler,
@@ -1665,6 +1742,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_all_match.log.zip.dummy"),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          regexParser,
 				patterns:        regexPatterns,
 				lineHandler:     JSONLineHandler,
@@ -1678,6 +1756,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           "testdata",
 				skipLines:       nil,
+				hasIndex:        true,
 				globPattern:     "*",
 				parser:          regexParser,
 				patterns:        regexPatterns,
@@ -1692,6 +1771,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3_all_match.log.gz"),
 				skipLines:       nil,
+				hasIndex:        true,
 				globPattern:     "*",
 				parser:          regexParser,
 				patterns:        regexPatterns,
@@ -1706,6 +1786,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3.zip"),
 				skipLines:       nil,
+				hasIndex:        true,
 				globPattern:     "*",
 				parser:          regexParser,
 				patterns:        regexPatterns,
@@ -1733,6 +1814,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_s3.zip"),
 				skipLines:       nil,
+				hasIndex:        true,
 				globPattern:     "*all_match*",
 				parser:          regexParser,
 				patterns:        regexPatterns,
@@ -1752,6 +1834,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "log.zip"),
 				skipLines:       nil,
+				hasIndex:        true,
 				globPattern:     "[",
 				parser:          regexParser,
 				patterns:        regexPatterns,
@@ -1766,6 +1849,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_all_match.log.zip"),
 				skipLines:       nil,
+				hasIndex:        true,
 				globPattern:     "*",
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
@@ -1784,6 +1868,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_contains_unmatch.log.zip"),
 				skipLines:       nil,
+				hasIndex:        true,
 				globPattern:     "*",
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
@@ -1802,6 +1887,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_all_match.log.zip"),
 				skipLines:       ltsvAllSkipLines,
+				hasIndex:        true,
 				globPattern:     "*",
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
@@ -1820,6 +1906,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_all_unmatch.log.zip"),
 				skipLines:       nil,
+				hasIndex:        true,
 				globPattern:     "*",
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
@@ -1838,6 +1925,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_all_match.log.zip"),
 				skipLines:       ltsvAllSkipLines,
+				hasIndex:        true,
 				globPattern:     "*",
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
@@ -1856,6 +1944,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_contains_unmatch.log.zip"),
 				skipLines:       ltsvMixedSkipLines,
+				hasIndex:        true,
 				globPattern:     "*",
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
@@ -1874,6 +1963,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           "",
 				skipLines:       nil,
+				hasIndex:        true,
 				globPattern:     "*",
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
@@ -1887,9 +1977,10 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:       filepath.Join("testdata", "sample_ltsv_all_match.log.zip"),
 				skipLines:   nil,
+				hasIndex:    true,
 				globPattern: "*",
 				parser:      ltsvParser,
-				lineHandler: func(matches []string, fields []string, index int) (string, error) {
+				lineHandler: func(labels []string, values []string, index int, hasIndex bool) (string, error) {
 					return "", fmt.Errorf("error")
 				},
 				metadataHandler: JSONMetadataHandler,
@@ -1902,6 +1993,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:       filepath.Join("testdata", "sample_ltsv_all_match.log.zip"),
 				skipLines:   nil,
+				hasIndex:    true,
 				globPattern: "*",
 				parser:      ltsvParser,
 				lineHandler: JSONLineHandler,
@@ -1917,6 +2009,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_all_match.log.zip.dummy"),
 				skipLines:       nil,
+				hasIndex:        true,
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
@@ -1929,6 +2022,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           "testdata",
 				skipLines:       nil,
+				hasIndex:        true,
 				globPattern:     "*",
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
@@ -1942,6 +2036,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv_all_match.log.gz"),
 				skipLines:       nil,
+				hasIndex:        true,
 				globPattern:     "*",
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
@@ -1955,6 +2050,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv.zip"),
 				skipLines:       nil,
+				hasIndex:        true,
 				globPattern:     "*",
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
@@ -1981,6 +2077,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv.zip"),
 				skipLines:       nil,
+				hasIndex:        true,
 				globPattern:     "*all_match*",
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
@@ -1999,6 +2096,7 @@ func Test_parseZipEntries(t *testing.T) {
 			args: args{
 				input:           filepath.Join("testdata", "sample_ltsv.zip"),
 				skipLines:       nil,
+				hasIndex:        true,
 				globPattern:     "[",
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
@@ -2010,7 +2108,7 @@ func Test_parseZipEntries(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseZipEntries(tt.args.input, tt.args.skipLines, tt.args.globPattern, tt.args.parser, tt.args.patterns, tt.args.lineHandler, tt.args.metadataHandler)
+			got, err := parseZipEntries(tt.args.input, tt.args.skipLines, tt.args.hasIndex, tt.args.globPattern, tt.args.parser, tt.args.patterns, tt.args.lineHandler, tt.args.metadataHandler)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parseZipEntries() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -2026,6 +2124,7 @@ func Test_regexParser(t *testing.T) {
 	type args struct {
 		input     io.Reader
 		skipLines []int
+		hasIndex  bool
 		patterns  []*regexp.Regexp
 		handler   LineHandler
 	}
@@ -2041,6 +2140,7 @@ func Test_regexParser(t *testing.T) {
 			args: args{
 				input:     strings.NewReader(regexAllMatchInput),
 				skipLines: nil,
+				hasIndex:  true,
 				patterns:  regexPatterns,
 				handler:   JSONLineHandler,
 			},
@@ -2053,6 +2153,7 @@ func Test_regexParser(t *testing.T) {
 			args: args{
 				input:     strings.NewReader(regexContainsUnmatchInput),
 				skipLines: nil,
+				hasIndex:  true,
 				patterns:  regexPatterns,
 				handler:   JSONLineHandler,
 			},
@@ -2065,6 +2166,7 @@ func Test_regexParser(t *testing.T) {
 			args: args{
 				input:     strings.NewReader(regexAllMatchInput),
 				skipLines: regexContainsSkipLines,
+				hasIndex:  true,
 				patterns:  regexPatterns,
 				handler:   JSONLineHandler,
 			},
@@ -2077,6 +2179,7 @@ func Test_regexParser(t *testing.T) {
 			args: args{
 				input:     strings.NewReader(regexAllUnmatchInput),
 				skipLines: nil,
+				hasIndex:  true,
 				patterns:  regexPatterns,
 				handler:   JSONLineHandler,
 			},
@@ -2089,6 +2192,7 @@ func Test_regexParser(t *testing.T) {
 			args: args{
 				input:     strings.NewReader(regexAllMatchInput),
 				skipLines: regexAllSkipLines,
+				hasIndex:  true,
 				patterns:  regexPatterns,
 				handler:   JSONLineHandler,
 			},
@@ -2101,6 +2205,7 @@ func Test_regexParser(t *testing.T) {
 			args: args{
 				input:     strings.NewReader(regexContainsUnmatchInput),
 				skipLines: regexMixedSkipLines,
+				hasIndex:  true,
 				patterns:  regexPatterns,
 				handler:   JSONLineHandler,
 			},
@@ -2113,6 +2218,7 @@ func Test_regexParser(t *testing.T) {
 			args: args{
 				input:     strings.NewReader(""),
 				skipLines: nil,
+				hasIndex:  true,
 				patterns:  regexPatterns,
 				handler:   JSONLineHandler,
 			},
@@ -2125,8 +2231,9 @@ func Test_regexParser(t *testing.T) {
 			args: args{
 				input:     strings.NewReader(regexAllMatchInput),
 				skipLines: nil,
+				hasIndex:  true,
 				patterns:  regexPatterns,
-				handler: func(matches []string, fields []string, index int) (string, error) {
+				handler: func(labels []string, values []string, index int, hasIndex bool) (string, error) {
 					return "", fmt.Errorf("error")
 				},
 			},
@@ -2139,6 +2246,7 @@ func Test_regexParser(t *testing.T) {
 			args: args{
 				input:     strings.NewReader(regexAllMatchInput),
 				skipLines: nil,
+				hasIndex:  true,
 				patterns:  nil,
 				handler:   JSONLineHandler,
 			},
@@ -2149,7 +2257,7 @@ func Test_regexParser(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, err := regexParser(tt.args.input, tt.args.skipLines, tt.args.patterns, tt.args.handler)
+			got, got1, err := regexParser(tt.args.input, tt.args.skipLines, tt.args.hasIndex, tt.args.patterns, tt.args.handler)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("regexParser() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -2168,6 +2276,7 @@ func Test_ltsvParser(t *testing.T) {
 	type args struct {
 		input     io.Reader
 		skipLines []int
+		hasIndex  bool
 		handler   LineHandler
 	}
 	tests := []struct {
@@ -2182,6 +2291,7 @@ func Test_ltsvParser(t *testing.T) {
 			args: args{
 				input:     strings.NewReader(ltsvAllMatchInput),
 				skipLines: nil,
+				hasIndex:  true,
 				handler:   JSONLineHandler,
 			},
 			want:    ltsvAllMatchData,
@@ -2193,6 +2303,7 @@ func Test_ltsvParser(t *testing.T) {
 			args: args{
 				input:     strings.NewReader(ltsvContainsUnmatchInput),
 				skipLines: nil,
+				hasIndex:  true,
 				handler:   JSONLineHandler,
 			},
 			want:    ltsvContainsUnmatchData,
@@ -2204,6 +2315,7 @@ func Test_ltsvParser(t *testing.T) {
 			args: args{
 				input:     strings.NewReader(ltsvAllMatchInput),
 				skipLines: ltsvContainsSkipLines,
+				hasIndex:  true,
 				handler:   JSONLineHandler,
 			},
 			want:    ltsvContainsSkipData,
@@ -2215,6 +2327,7 @@ func Test_ltsvParser(t *testing.T) {
 			args: args{
 				input:     strings.NewReader(ltsvAllUnmatchInput),
 				skipLines: nil,
+				hasIndex:  true,
 				handler:   JSONLineHandler,
 			},
 			want:    nil,
@@ -2226,6 +2339,7 @@ func Test_ltsvParser(t *testing.T) {
 			args: args{
 				input:     strings.NewReader(ltsvAllMatchInput),
 				skipLines: ltsvAllSkipLines,
+				hasIndex:  true,
 				handler:   JSONLineHandler,
 			},
 			want:    nil,
@@ -2237,6 +2351,7 @@ func Test_ltsvParser(t *testing.T) {
 			args: args{
 				input:     strings.NewReader(ltsvContainsUnmatchInput),
 				skipLines: ltsvMixedSkipLines,
+				hasIndex:  true,
 				handler:   JSONLineHandler,
 			},
 			want:    ltsvMixedData,
@@ -2248,6 +2363,7 @@ func Test_ltsvParser(t *testing.T) {
 			args: args{
 				input:     strings.NewReader(""),
 				skipLines: nil,
+				hasIndex:  true,
 				handler:   JSONLineHandler,
 			},
 			want:    nil,
@@ -2259,7 +2375,8 @@ func Test_ltsvParser(t *testing.T) {
 			args: args{
 				input:     strings.NewReader(ltsvAllMatchInput),
 				skipLines: nil,
-				handler: func(matches []string, fields []string, index int) (string, error) {
+				hasIndex:  true,
+				handler: func(labels []string, values []string, index int, hasIndex bool) (string, error) {
 					return "", fmt.Errorf("error")
 				},
 			},
@@ -2270,7 +2387,7 @@ func Test_ltsvParser(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, err := ltsvParser(tt.args.input, tt.args.skipLines, nil, tt.args.handler)
+			got, got1, err := ltsvParser(tt.args.input, tt.args.skipLines, tt.args.hasIndex, nil, tt.args.handler)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ltsvParser() error = %v, wantErr %v", err, tt.wantErr)
 				return

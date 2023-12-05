@@ -7,9 +7,10 @@ import (
 
 func TestJSONLineHandler(t *testing.T) {
 	type args struct {
-		values []string
-		labels []string
-		index  int
+		values   []string
+		labels   []string
+		index    int
+		hasIndex bool
 	}
 	tests := []struct {
 		name    string
@@ -20,77 +21,84 @@ func TestJSONLineHandler(t *testing.T) {
 		{
 			name: "basic",
 			args: args{
-				values: []string{"value1", "value2"},
-				labels: []string{"label1", "label2"},
-				index:  1,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1", "value2"},
+				index:    1,
+				hasIndex: true,
 			},
-			want:    `{"index":1,"label1":"value1","label2":"value2"}`,
+			want:    `{"index":"1","label1":"value1","label2":"value2"}`,
 			wantErr: false,
 		},
 		{
 			name: "invalid json character",
 			args: args{
-				values: []string{"value1", "val\"ue2"},
-				labels: []string{"label1", "label2"},
-				index:  2,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1", "val\"ue2"},
+				index:    2,
+				hasIndex: true,
 			},
-			want:    `{"index":2,"label1":"value1","label2":"val\"ue2"}`,
+			want:    `{"index":"2","label1":"value1","label2":"val\"ue2"}`,
 			wantErr: false,
 		},
 		{
 			name: "more matches than fields",
 			args: args{
-				values: []string{"value1", "value2", "value3"},
-				labels: []string{"label1", "label2"},
-				index:  3,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1", "value2", "value3"},
+				index:    3,
+				hasIndex: true,
 			},
-			want:    `{"index":3,"label1":"value1","label2":"value2"}`,
+			want:    `{"index":"3","label1":"value1","label2":"value2"}`,
 			wantErr: false,
 		},
 		{
 			name: "more fields than matches",
 			args: args{
-				values: []string{"value1"},
-				labels: []string{"label1", "label2"},
-				index:  4,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1"},
+				index:    4,
+				hasIndex: true,
 			},
-			want:    `{"index":4,"label1":"value1"}`,
+			want:    `{"index":"4","label1":"value1"}`,
 			wantErr: false,
 		},
 		{
 			name: "space included",
 			args: args{
-				values: []string{"value1", "value 2"},
-				labels: []string{"label1", "label2"},
-				index:  5,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1", "value 2"},
+				index:    5,
+				hasIndex: true,
 			},
-			want:    `{"index":5,"label1":"value1","label2":"value 2"}`,
+			want:    `{"index":"5","label1":"value1","label2":"value 2"}`,
 			wantErr: false,
 		},
 		{
 			name: "hyphen included",
 			args: args{
-				values: []string{"-", "\"-\""},
-				labels: []string{"label1", "label2"},
-				index:  6,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"-", "\"-\""},
+				index:    6,
+				hasIndex: true,
 			},
-			want:    `{"index":6,"label1":"-","label2":"-"}`,
+			want:    `{"index":"6","label1":"-","label2":"\"-\""}`,
 			wantErr: false,
 		},
 		{
 			name: "slash included",
 			args: args{
-				values: []string{"value1", `value\2`},
-				labels: []string{"label1", "label2"},
-				index:  7,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1", `value\2`},
+				index:    7,
+				hasIndex: true,
 			},
-			want:    `{"index":7,"label1":"value1","label2":"value\\2"}`,
+			want:    `{"index":"7","label1":"value1","label2":"value\\2"}`,
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := JSONLineHandler(tt.args.values, tt.args.labels, tt.args.index)
+			got, err := JSONLineHandler(tt.args.labels, tt.args.values, tt.args.index, tt.args.hasIndex)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("JSONLineHandler() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -169,9 +177,10 @@ func TestJSONMetadataHandler(t *testing.T) {
 
 func TestPrettyJSONLineHandler(t *testing.T) {
 	type args struct {
-		values []string
-		labels []string
-		index  int
+		values   []string
+		labels   []string
+		index    int
+		hasIndex bool
 	}
 	tests := []struct {
 		name    string
@@ -182,12 +191,13 @@ func TestPrettyJSONLineHandler(t *testing.T) {
 		{
 			name: "basic",
 			args: args{
-				values: []string{"value1", "value2"},
-				labels: []string{"label1", "label2"},
-				index:  1,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1", "value2"},
+				index:    1,
+				hasIndex: true,
 			},
 			want: `{
-  "index": 1,
+  "index": "1",
   "label1": "value1",
   "label2": "value2"
 }`,
@@ -196,12 +206,13 @@ func TestPrettyJSONLineHandler(t *testing.T) {
 		{
 			name: "invalid json character",
 			args: args{
-				values: []string{"value1", "val\"ue2"},
-				labels: []string{"label1", "label2"},
-				index:  2,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1", "val\"ue2"},
+				index:    2,
+				hasIndex: true,
 			},
 			want: `{
-  "index": 2,
+  "index": "2",
   "label1": "value1",
   "label2": "val\"ue2"
 }`,
@@ -210,12 +221,13 @@ func TestPrettyJSONLineHandler(t *testing.T) {
 		{
 			name: "more matches than fields",
 			args: args{
-				values: []string{"value1", "value2", "value3"},
-				labels: []string{"label1", "label2"},
-				index:  3,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1", "value2", "value3"},
+				index:    3,
+				hasIndex: true,
 			},
 			want: `{
-  "index": 3,
+  "index": "3",
   "label1": "value1",
   "label2": "value2"
 }`,
@@ -224,12 +236,13 @@ func TestPrettyJSONLineHandler(t *testing.T) {
 		{
 			name: "more fields than matches",
 			args: args{
-				values: []string{"value1"},
-				labels: []string{"label1", "label2"},
-				index:  4,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1"},
+				index:    4,
+				hasIndex: true,
 			},
 			want: `{
-  "index": 4,
+  "index": "4",
   "label1": "value1"
 }`,
 			wantErr: false,
@@ -237,12 +250,13 @@ func TestPrettyJSONLineHandler(t *testing.T) {
 		{
 			name: "space included",
 			args: args{
-				values: []string{"value1", "value 2"},
-				labels: []string{"label1", "label2"},
-				index:  5,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1", "value 2"},
+				index:    5,
+				hasIndex: true,
 			},
 			want: `{
-  "index": 5,
+  "index": "5",
   "label1": "value1",
   "label2": "value 2"
 }`,
@@ -251,26 +265,28 @@ func TestPrettyJSONLineHandler(t *testing.T) {
 		{
 			name: "hyphen included",
 			args: args{
-				values: []string{"-", "\"-\""},
-				labels: []string{"label1", "label2"},
-				index:  6,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"-", "\"-\""},
+				index:    6,
+				hasIndex: true,
 			},
 			want: `{
-  "index": 6,
+  "index": "6",
   "label1": "-",
-  "label2": "-"
+  "label2": "\"-\""
 }`,
 			wantErr: false,
 		},
 		{
 			name: "slash included",
 			args: args{
-				values: []string{"value1", `value\2`},
-				labels: []string{"label1", "label2"},
-				index:  7,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1", `value\2`},
+				index:    7,
+				hasIndex: true,
 			},
 			want: `{
-  "index": 7,
+  "index": "7",
   "label1": "value1",
   "label2": "value\\2"
 }`,
@@ -279,7 +295,7 @@ func TestPrettyJSONLineHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := PrettyJSONLineHandler(tt.args.values, tt.args.labels, tt.args.index)
+			got, err := PrettyJSONLineHandler(tt.args.labels, tt.args.values, tt.args.index, tt.args.hasIndex)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PrettyJSONLineHandler() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -419,9 +435,10 @@ func TestPrettyJSONMetadataHandler(t *testing.T) {
 
 func TestKeyValuePairLineHandler(t *testing.T) {
 	type args struct {
-		values []string
-		labels []string
-		index  int
+		values   []string
+		labels   []string
+		index    int
+		hasIndex bool
 	}
 	tests := []struct {
 		name    string
@@ -432,77 +449,84 @@ func TestKeyValuePairLineHandler(t *testing.T) {
 		{
 			name: "basic",
 			args: args{
-				values: []string{"value1", "value2"},
-				labels: []string{"label1", "label2"},
-				index:  1,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1", "value2"},
+				index:    1,
+				hasIndex: true,
 			},
-			want:    `index=1 label1="value1" label2="value2"`,
+			want:    `index="1" label1="value1" label2="value2"`,
 			wantErr: false,
 		},
 		{
 			name: "invalid json character",
 			args: args{
-				values: []string{"value1", "val\"ue2"},
-				labels: []string{"label1", "label2"},
-				index:  2,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1", "val\"ue2"},
+				index:    2,
+				hasIndex: true,
 			},
-			want:    `index=2 label1="value1" label2="val\"ue2"`,
+			want:    `index="2" label1="value1" label2="val\"ue2"`,
 			wantErr: false,
 		},
 		{
 			name: "more matches than fields",
 			args: args{
-				values: []string{"value1", "value2", "value3"},
-				labels: []string{"label1", "label2"},
-				index:  3,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1", "value2", "value3"},
+				index:    3,
+				hasIndex: true,
 			},
-			want:    `index=3 label1="value1" label2="value2"`,
+			want:    `index="3" label1="value1" label2="value2"`,
 			wantErr: false,
 		},
 		{
 			name: "more fields than matches",
 			args: args{
-				values: []string{"value1"},
-				labels: []string{"label1", "label2"},
-				index:  4,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1"},
+				index:    4,
+				hasIndex: true,
 			},
-			want:    `index=4 label1="value1"`,
+			want:    `index="4" label1="value1"`,
 			wantErr: false,
 		},
 		{
 			name: "space included",
 			args: args{
-				values: []string{"value1", "value 2"},
-				labels: []string{"label1", "label2"},
-				index:  5,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1", "value 2"},
+				index:    5,
+				hasIndex: true,
 			},
-			want:    `index=5 label1="value1" label2="value 2"`,
+			want:    `index="5" label1="value1" label2="value 2"`,
 			wantErr: false,
 		},
 		{
 			name: "hyphen included",
 			args: args{
-				values: []string{"-", "\"-\""},
-				labels: []string{"label1", "label2"},
-				index:  6,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"-", "\"-\""},
+				index:    6,
+				hasIndex: true,
 			},
-			want:    `index=6 label1="-" label2="-"`,
+			want:    `index="6" label1="-" label2="\"-\""`,
 			wantErr: false,
 		},
 		{
 			name: "slash included",
 			args: args{
-				values: []string{"value1", `value\2`},
-				labels: []string{"label1", "label2"},
-				index:  7,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1", `value\2`},
+				index:    7,
+				hasIndex: true,
 			},
-			want:    `index=7 label1="value1" label2="value\2"`,
+			want:    `index="7" label1="value1" label2="value\\2"`,
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := KeyValuePairLineHandler(tt.args.values, tt.args.labels, tt.args.index)
+			got, err := KeyValuePairLineHandler(tt.args.labels, tt.args.values, tt.args.index, tt.args.hasIndex)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("KeyValuePairLineHandler() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -564,6 +588,21 @@ func TestKeyValuePairMetadataHandler(t *testing.T) {
 			want:    `total=5 matched=0 unmatched=0 skipped=5 source="" errors=null`,
 			wantErr: false,
 		},
+		{
+			name: "source is not null",
+			args: args{
+				m: &Metadata{
+					Total:     5,
+					Matched:   5,
+					Unmatched: 0,
+					Skipped:   0,
+					Source:    "test.log",
+					Errors:    nil,
+				},
+			},
+			want:    `total=5 matched=5 unmatched=0 skipped=0 source="test.log" errors=null`,
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -581,9 +620,10 @@ func TestKeyValuePairMetadataHandler(t *testing.T) {
 
 func TestLTSVLineHandler(t *testing.T) {
 	type args struct {
-		values []string
-		labels []string
-		index  int
+		values   []string
+		labels   []string
+		index    int
+		hasIndex bool
 	}
 	tests := []struct {
 		name    string
@@ -594,9 +634,10 @@ func TestLTSVLineHandler(t *testing.T) {
 		{
 			name: "basic",
 			args: args{
-				values: []string{"value1", "value2"},
-				labels: []string{"label1", "label2"},
-				index:  1,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1", "value2"},
+				index:    1,
+				hasIndex: true,
 			},
 			want:    `index:1	label1:value1	label2:value2`,
 			wantErr: false,
@@ -604,9 +645,10 @@ func TestLTSVLineHandler(t *testing.T) {
 		{
 			name: "invalid json character",
 			args: args{
-				values: []string{"value1", "val\"ue2"},
-				labels: []string{"label1", "label2"},
-				index:  2,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1", "val\"ue2"},
+				index:    2,
+				hasIndex: true,
 			},
 			want:    `index:2	label1:value1	label2:val"ue2`,
 			wantErr: false,
@@ -614,9 +656,10 @@ func TestLTSVLineHandler(t *testing.T) {
 		{
 			name: "more matches than fields",
 			args: args{
-				values: []string{"value1", "value2", "value3"},
-				labels: []string{"label1", "label2"},
-				index:  3,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1", "value2", "value3"},
+				index:    3,
+				hasIndex: true,
 			},
 			want:    `index:3	label1:value1	label2:value2`,
 			wantErr: false,
@@ -624,9 +667,10 @@ func TestLTSVLineHandler(t *testing.T) {
 		{
 			name: "more fields than matches",
 			args: args{
-				values: []string{"value1"},
-				labels: []string{"label1", "label2"},
-				index:  4,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1"},
+				index:    4,
+				hasIndex: true,
 			},
 			want:    `index:4	label1:value1`,
 			wantErr: false,
@@ -634,9 +678,10 @@ func TestLTSVLineHandler(t *testing.T) {
 		{
 			name: "space included",
 			args: args{
-				values: []string{"value1", "value 2"},
-				labels: []string{"label1", "label2"},
-				index:  5,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1", "value 2"},
+				index:    5,
+				hasIndex: true,
 			},
 			want:    `index:5	label1:value1	label2:value 2`,
 			wantErr: false,
@@ -644,27 +689,40 @@ func TestLTSVLineHandler(t *testing.T) {
 		{
 			name: "hyphen included",
 			args: args{
-				values: []string{"-", "\"-\""},
-				labels: []string{"label1", "label2"},
-				index:  6,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"-", "\"-\""},
+				index:    6,
+				hasIndex: true,
 			},
-			want:    `index:6	label1:-	label2:-`,
+			want:    `index:6	label1:-	label2:"-"`,
 			wantErr: false,
 		},
 		{
 			name: "slash included",
 			args: args{
-				values: []string{"value1", `value\2`},
-				labels: []string{"label1", "label2"},
-				index:  7,
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1", `value\2`},
+				index:    7,
+				hasIndex: true,
 			},
 			want:    `index:7	label1:value1	label2:value\2`,
+			wantErr: false,
+		},
+		{
+			name: "blank included",
+			args: args{
+				labels:   []string{"label1", "label2"},
+				values:   []string{"value1", ""},
+				index:    7,
+				hasIndex: true,
+			},
+			want:    `index:7	label1:value1	label2:-`,
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := LTSVLineHandler(tt.args.values, tt.args.labels, tt.args.index)
+			got, err := LTSVLineHandler(tt.args.labels, tt.args.values, tt.args.index, tt.args.hasIndex)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("LTSVLineHandler() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -724,6 +782,21 @@ func TestLTSVMetadataHandler(t *testing.T) {
 				m: regexAllSkipMetadata,
 			},
 			want:    `total:5	matched:0	unmatched:0	skipped:5	source:-	errors:null`,
+			wantErr: false,
+		},
+		{
+			name: "source is not null",
+			args: args{
+				m: &Metadata{
+					Total:     5,
+					Matched:   5,
+					Unmatched: 0,
+					Skipped:   0,
+					Source:    "test.log",
+					Errors:    nil,
+				},
+			},
+			want:    `total:5	matched:5	unmatched:0	skipped:0	source:test.log	errors:null`,
 			wantErr: false,
 		},
 	}

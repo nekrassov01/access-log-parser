@@ -3,7 +3,6 @@ run:
 linters:
   enable:
     - dogsled
-    - dupl
     - errorlint
     - gocritic
     - gocyclo
@@ -24,8 +23,3 @@ linters:
     - unused
     - wastedassign
     - whitespace
-issues:
-  exclude-rules:
-    - linters:
-        - dupl
-      path: _test\.go

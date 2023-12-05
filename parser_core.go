@@ -61,8 +61,7 @@ type parser func(input io.Reader, skipLines []int, hasIndex bool, patterns []*re
 
 // LineHandler is a function type that processes each matched line.
 // It takes the matches, their corresponding fields, and the line index, and returns processed string data.
-// type LineHandler func(matches []string, fields []string, index int) (string, error)
-type LineHandler func(pairs map[string]string, keys []string, index int, hasIndex bool) (string, error)
+type LineHandler func(labels []string, values []string, index int, hasIndex bool) (string, error)
 
 // MetadataHandler is a function type for processing and formatting metadata.
 type MetadataHandler func(metadata *Metadata) (string, error)
@@ -205,13 +204,13 @@ func regexParser(input io.Reader, skipLines []int, hasIndex bool, patterns []*re
 			continue
 		}
 		names := matchedPattern.SubexpNames()
-		pairs := make(map[string]string)
-		keys := make([]string, 0, len(names)-1)
+		labels := make([]string, 0, len(names)-1)
+		values := make([]string, 0, len(names)-1)
 		for j, name := range names[1:] {
-			pairs[name] = matches[j+1]
-			keys = append(keys, name)
+			labels = append(labels, name)
+			values = append(values, matches[j+1])
 		}
-		line, err := handler(pairs, keys, i, hasIndex)
+		line, err := handler(labels, values, i, hasIndex)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -245,9 +244,10 @@ func ltsvParser(input io.Reader, skipLines []int, hasIndex bool, _ []*regexp.Reg
 		}
 		r := scanner.Text()
 		fields := strings.Split(r, "\t")
-		pairs := make(map[string]string)
-		keys := make([]string, 0, len(fields))
+		labels := make([]string, 0, len(fields))
+		values := make([]string, 0, len(fields))
 		isValid := true
+
 		for _, field := range fields {
 			parts := strings.SplitN(field, ":", 2)
 			if len(parts) != 2 {
@@ -256,11 +256,12 @@ func ltsvParser(input io.Reader, skipLines []int, hasIndex bool, _ []*regexp.Reg
 				isValid = false
 				break
 			}
-			keys = append(keys, parts[0])
-			pairs[parts[0]] = parts[1]
+			labels = append(labels, parts[0])
+			values = append(values, parts[1])
 		}
+
 		if isValid {
-			line, err := handler(pairs, keys, i, hasIndex)
+			line, err := handler(labels, values, i, hasIndex)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -290,8 +291,6 @@ func createResult(data []string, metadata *Metadata, handler MetadataHandler) (*
 }
 
 // skipLineMap creates and returns a map from an array of line numbers to be skipped.
-// The map can be used to quickly determine if a line number is in the list of lines to skip.
-// It maps each line number in the skipLines array to a boolean value of true.
 func skipLineMap(skipLines []int) map[int]struct{} {
 	m := make(map[int]struct{}, len(skipLines))
 	for _, skipLine := range skipLines {

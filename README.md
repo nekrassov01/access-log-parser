@@ -26,17 +26,20 @@ func main() {
 
 	// Parses from a string passed
 	log := `dummy string`
-	res, err := p.ParseString(log, nil)
+	res, err := p.ParseString(log, nil, false)
 
 	// Read and parse logs from a file
 	// All ParseXXX methods can skip lines by specifying the line numbers
-	res, err := p.ParseFile("path/to/logfile.log", []int{1, 2})
+	res, err := p.ParseFile("path/to/logfile.log", []int{1, 2}, false)
 
 	// Read and parse logs directly from the gzip file
-	res, err := p.ParseGzip("path/to/logfile.log.gz", []int{1, 2})
+	res, err := p.ParseGzip("path/to/logfile.log.gz", []int{1, 2}, false)
 
 	// Read logs from a zip file. Default is to read all zip entries, but glob patterns can be applied
-	res, err := p.ParseZipEntries("path/to/logfile.log.zip", nil, "*.log")
+	res, err := p.ParseZipEntries("path/to/logfile.log.zip", nil, false, "*.log")
+
+	// If you want to add an Index (Line number) at the beginning of a line, set the third argument to true
+	res, err := p.ParseFile("path/to/logfile.log", nil, true)
 }
 ```
 
@@ -49,7 +52,7 @@ func main() {
 
 	// Parses from a LTSV line passed
 	log := `label1:value1	label2:value2	label3:value3`
-	res, err := p.ParseString(log, nil)
+	res, err := p.ParseString(log, nil, false)
 
 	// Can use the same ParseXXX method as RegexParser
 }
