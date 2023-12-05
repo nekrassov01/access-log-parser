@@ -25,11 +25,7 @@ func JSONLineHandler(labels []string, values []string, index int, hasIndex bool)
 			builder.WriteString("\"")
 			builder.WriteString(labels[i])
 			builder.WriteString("\":")
-			b, err := json.Marshal(value)
-			if err != nil {
-				return "", fmt.Errorf("cannot marshal matched string \"%s\": %w", value, err)
-			}
-			builder.Write(b)
+			builder.WriteString(strconv.Quote(value))
 		}
 	}
 	builder.WriteString("}")
@@ -89,12 +85,8 @@ func KeyValuePairLineHandler(labels []string, values []string, index int, hasInd
 				builder.WriteString(" ")
 			}
 			builder.WriteString(labels[i])
-			builder.WriteString(`=`)
-			b, err := json.Marshal(value)
-			if err != nil {
-				return "", fmt.Errorf("cannot marshal matched string \"%s\": %w", value, err)
-			}
-			builder.Write(b)
+			builder.WriteString("=")
+			builder.WriteString(strconv.Quote(value))
 		}
 	}
 	return builder.String(), nil
@@ -113,13 +105,7 @@ func KeyValuePairMetadataHandler(m *Metadata) (string, error) {
 	builder.WriteString(" skipped=")
 	builder.WriteString(strconv.Itoa(m.Skipped))
 	builder.WriteString(" source=")
-	if m.Source == "" {
-		builder.WriteString("\"\"")
-	} else {
-		builder.WriteString("\"")
-		builder.WriteString(m.Source)
-		builder.WriteString("\"")
-	}
+	builder.WriteString(strconv.Quote(m.Source))
 	builder.WriteString(" errors=")
 	e, err := json.Marshal(m.Errors)
 	if err != nil {
