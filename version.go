@@ -1,4 +1,4 @@
 package parser
 
 // Version of access-log-parser.
-const Version = "0.0.12"
+const Version = "0.0.13"
