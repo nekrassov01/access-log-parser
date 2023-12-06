@@ -24,7 +24,7 @@ type Parser interface {
 	ParseFile(input string, skipLines []int, hasIndex bool) (*Result, error)
 	ParseGzip(input string, skipLines []int, hasIndex bool) (*Result, error)
 	ParseZipEntries(input string, skipLines []int, hasIndex bool, globPattern string) ([]*Result, error)
-	Decode(input string) ([]string, []string, error)
+	Label(line string, hasIndex bool) ([]string, error)
 }
 
 // ErrorRecord stores information about log lines that couldn't be parsed
@@ -189,7 +189,7 @@ func regexParser(input io.Reader, skipLines []int, hasIndex bool, patterns []*re
 			continue
 		}
 		r := scanner.Text()
-		labels, values, err := regexDecoder(r, patterns)
+		labels, values, err := regexDecoder(r, patterns, false)
 		if err != nil {
 			metadata.Errors = append(metadata.Errors, ErrorRecord{Index: i, Record: r})
 			metadata.Unmatched++
@@ -214,16 +214,18 @@ func regexParser(input io.Reader, skipLines []int, hasIndex bool, patterns []*re
 // regexDecoder applies regular expression patterns to a given string and
 // extracts matching groups. It returns slices of labels and values extracted
 // from the string. If no pattern matches, it returns an error.
-func regexDecoder(s string, patterns []*regexp.Regexp) ([]string, []string, error) {
+func regexDecoder(line string, patterns []*regexp.Regexp, labelOnly bool) ([]string, []string, error) {
 	for _, pattern := range patterns {
-		matches := pattern.FindStringSubmatch(s)
+		matches := pattern.FindStringSubmatch(line)
 		if matches != nil {
 			labels := pattern.SubexpNames()[1:]
-			values := matches[1:]
-			return labels, values, nil
+			if labelOnly {
+				return labels, nil, nil
+			}
+			return labels, matches[1:], nil
 		}
 	}
-	return nil, nil, fmt.Errorf("cannot parse input: no matching pattern for input")
+	return nil, nil, fmt.Errorf("cannot parse line: no matching pattern for line: %s", line)
 }
 
 // ltsvParser parses the input from an io.Reader as LTSV (Labeled Tab-separated Values) format.
@@ -244,7 +246,7 @@ func ltsvParser(input io.Reader, skipLines []int, hasIndex bool, _ []*regexp.Reg
 			continue
 		}
 		r := scanner.Text()
-		labels, values, err := ltsvDecoder(r)
+		labels, values, err := ltsvDecoder(r, false)
 		if err != nil {
 			metadata.Errors = append(metadata.Errors, ErrorRecord{Index: i, Record: r})
 			metadata.Unmatched++
@@ -269,17 +271,22 @@ func ltsvParser(input io.Reader, skipLines []int, hasIndex bool, _ []*regexp.Reg
 // ltsvDecoder parses a string formatted in Labeled Tab-separated Values (LTSV)
 // format. It splits the string into fields based on tabs and then further
 // splits each field into labels and values. Returns an error for invalid fields.
-func ltsvDecoder(s string) ([]string, []string, error) {
-	fields := strings.Split(s, "\t")
+func ltsvDecoder(line string, labelOnly bool) ([]string, []string, error) {
+	fields := strings.Split(line, "\t")
 	labels := make([]string, 0, len(fields))
-	values := make([]string, 0, len(fields))
+	var values []string
+	if !labelOnly {
+		values = make([]string, 0, len(fields))
+	}
 	for _, field := range fields {
 		parts := strings.SplitN(field, ":", 2)
 		if len(parts) != 2 {
 			return nil, nil, fmt.Errorf("cannot parse input: invalid field detected: %s", field)
 		}
 		labels = append(labels, parts[0])
-		values = append(values, parts[1])
+		if !labelOnly {
+			values = append(values, parts[1])
+		}
 	}
 	return labels, values, nil
 }

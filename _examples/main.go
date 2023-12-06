@@ -122,4 +122,12 @@ remote_host:192.168.1.10	remote_logname:-	remote_user:chris	datetime:[12/Mar/202
 	fmt.Println(strings.Join(out.Data, "\n"))
 	fmt.Println(out.Metadata)
 	fmt.Println("")
+
+	labels, values, err := lp.Decode(ltsvSample)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(strings.Join(labels, "\n"))
+	fmt.Println(strings.Join(values, "\n"))
+	fmt.Println("")
 }

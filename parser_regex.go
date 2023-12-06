@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strings"
 )
 
 // RegexParser is a parser that uses regular expressions to parse log entries.
@@ -68,11 +69,15 @@ func (p *RegexParser) ParseZipEntries(input string, skipLines []int, hasIndex bo
 	return parseZipEntries(input, skipLines, hasIndex, globPattern, p.parser, p.patterns, p.lineHandler, p.metadataHandler)
 }
 
-// Decode applies the RegexParser's patterns to the given string and
-// extracts labels and values based on these patterns. It delegates
-// the actual decoding logic to the regexDecoder function.
-func (p *RegexParser) Decode(input string) ([]string, []string, error) {
-	return regexDecoder(input, p.patterns)
+func (p *RegexParser) Label(line string, hasIndex bool) ([]string, error) {
+	labels, _, err := regexDecoder(strings.Split(line, "\n")[0], p.patterns, true)
+	if err != nil {
+		return nil, err
+	}
+	if hasIndex {
+		labels = append([]string{"index"}, labels...)
+	}
+	return labels, nil
 }
 
 // AddPattern adds a new regular expression pattern to the parser for matching log lines.

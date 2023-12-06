@@ -538,7 +538,7 @@ func TestRegexParser_ParseZipEntries(t *testing.T) {
 	}
 }
 
-func TestRegexParser_Decode(t *testing.T) {
+func TestRegexParser_Label(t *testing.T) {
 	type fields struct {
 		parser          parser
 		lineHandler     LineHandler
@@ -546,18 +546,18 @@ func TestRegexParser_Decode(t *testing.T) {
 		patterns        []*regexp.Regexp
 	}
 	type args struct {
-		s string
+		line     string
+		hasIndex bool
 	}
 	tests := []struct {
 		name    string
 		fields  fields
 		args    args
 		want    []string
-		want1   []string
 		wantErr bool
 	}{
 		{
-			name: "basic",
+			name: "basic1",
 			fields: fields{
 				parser:          regexParser,
 				lineHandler:     JSONLineHandler,
@@ -570,10 +570,50 @@ func TestRegexParser_Decode(t *testing.T) {
 				},
 			},
 			args: args{
-				s: `123.45.67.89 - frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326 "http://www.example.com/start.html" "Mozilla/4.08 [en] (Win98; I ;Nav)"`,
+				line:     `123.45.67.89 - frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326 "http://www.example.com/start.html" "Mozilla/4.08 [en] (Win98; I ;Nav)"`,
+				hasIndex: false,
 			},
 			want:    []string{"remote_host", "remote_logname", "remote_user", "datetime", "method", "request_uri", "protocol", "status", "size", "referer", "user_agent"},
-			want1:   []string{"123.45.67.89", "-", "frank", "[10/Oct/2000:13:55:36 -0700]", "GET", "/apache_pb.gif", "HTTP/1.0", "200", "2326", "http://www.example.com/start.html", "Mozilla/4.08 [en] (Win98; I ;Nav)"},
+			wantErr: false,
+		},
+		{
+			name: "basic2",
+			fields: fields{
+				parser:          regexParser,
+				lineHandler:     JSONLineHandler,
+				metadataHandler: JSONMetadataHandler,
+				patterns: []*regexp.Regexp{
+					regexp.MustCompile(`^(?P<remote_host>\S+) (?P<remote_logname>\S+) (?P<remote_user>[\S ]+) (?P<datetime>\[[^\]]+\]) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<status>[0-9]{3}) (?P<size>[0-9]+|-) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)"`),
+					regexp.MustCompile(`^(?P<remote_host>\S+) (?P<remote_logname>\S+) (?P<remote_user>[\S ]+) (?P<datetime>\[[^\]]+\]) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<status>[0-9]{3}) (?P<size>[0-9]+|-)`),
+					regexp.MustCompile(`^(?P<remote_host>\S+)\t(?P<remote_logname>\S+)\t(?P<remote_user>[\S ]+)\t(?P<datetime>\[[^\]]+\])\t\"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\"\t(?P<status>[0-9]{3})\t(?P<size>[0-9]+|-)\t"(?P<referer>[^\"]*)"\t"(?P<user_agent>[^\"]*)"`),
+					regexp.MustCompile(`^(?P<remote_host>\S+)\t(?P<remote_logname>\S+)\t(?P<remote_user>[\S ]+)\t(?P<datetime>\[[^\]]+\])\t\"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\"\t(?P<status>[0-9]{3})\t(?P<size>[0-9]+|-)`),
+				},
+			},
+			args: args{
+				line:     `123.45.67.89 - frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326`,
+				hasIndex: false,
+			},
+			want:    []string{"remote_host", "remote_logname", "remote_user", "datetime", "method", "request_uri", "protocol", "status", "size"},
+			wantErr: false,
+		},
+		{
+			name: "hasIndex",
+			fields: fields{
+				parser:          regexParser,
+				lineHandler:     JSONLineHandler,
+				metadataHandler: JSONMetadataHandler,
+				patterns: []*regexp.Regexp{
+					regexp.MustCompile(`^(?P<remote_host>\S+) (?P<remote_logname>\S+) (?P<remote_user>[\S ]+) (?P<datetime>\[[^\]]+\]) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<status>[0-9]{3}) (?P<size>[0-9]+|-) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)"`),
+					regexp.MustCompile(`^(?P<remote_host>\S+) (?P<remote_logname>\S+) (?P<remote_user>[\S ]+) (?P<datetime>\[[^\]]+\]) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<status>[0-9]{3}) (?P<size>[0-9]+|-)`),
+					regexp.MustCompile(`^(?P<remote_host>\S+)\t(?P<remote_logname>\S+)\t(?P<remote_user>[\S ]+)\t(?P<datetime>\[[^\]]+\])\t\"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\"\t(?P<status>[0-9]{3})\t(?P<size>[0-9]+|-)\t"(?P<referer>[^\"]*)"\t"(?P<user_agent>[^\"]*)"`),
+					regexp.MustCompile(`^(?P<remote_host>\S+)\t(?P<remote_logname>\S+)\t(?P<remote_user>[\S ]+)\t(?P<datetime>\[[^\]]+\])\t\"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\"\t(?P<status>[0-9]{3})\t(?P<size>[0-9]+|-)`),
+				},
+			},
+			args: args{
+				line:     `123.45.67.89 - frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326 "http://www.example.com/start.html" "Mozilla/4.08 [en] (Win98; I ;Nav)"`,
+				hasIndex: true,
+			},
+			want:    []string{"index", "remote_host", "remote_logname", "remote_user", "datetime", "method", "request_uri", "protocol", "status", "size", "referer", "user_agent"},
 			wantErr: false,
 		},
 		{
@@ -590,10 +630,10 @@ func TestRegexParser_Decode(t *testing.T) {
 				},
 			},
 			args: args{
-				s: "aaa",
+				line:     "aaa",
+				hasIndex: false,
 			},
 			want:    nil,
-			want1:   nil,
 			wantErr: true,
 		},
 		{
@@ -610,10 +650,10 @@ func TestRegexParser_Decode(t *testing.T) {
 				},
 			},
 			args: args{
-				s: "",
+				line:     "",
+				hasIndex: false,
 			},
 			want:    nil,
-			want1:   nil,
 			wantErr: true,
 		},
 		{
@@ -625,10 +665,10 @@ func TestRegexParser_Decode(t *testing.T) {
 				patterns:        nil,
 			},
 			args: args{
-				s: `123.45.67.89 - frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326 "http://www.example.com/start.html" "Mozilla/4.08 [en] (Win98; I ;Nav)"`,
+				line:     `123.45.67.89 - frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326 "http://www.example.com/start.html" "Mozilla/4.08 [en] (Win98; I ;Nav)"`,
+				hasIndex: false,
 			},
 			want:    nil,
-			want1:   nil,
 			wantErr: true,
 		},
 	}
@@ -640,16 +680,13 @@ func TestRegexParser_Decode(t *testing.T) {
 				metadataHandler: tt.fields.metadataHandler,
 				patterns:        tt.fields.patterns,
 			}
-			labels, values, err := p.Decode(tt.args.s)
+			labels, err := p.Label(tt.args.line, tt.args.hasIndex)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("RegexParser.Decode() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("RegexParser.Label() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(labels, tt.want) {
-				t.Errorf("RegexParser.Decode() = %v, want %v", labels, tt.want)
-			}
-			if !reflect.DeepEqual(values, tt.want1) {
-				t.Errorf("RegexParser.Decode() = %v, want %v", values, tt.want1)
+				t.Errorf("RegexParser.Label() = %v, want %v", labels, tt.want)
 			}
 		})
 	}

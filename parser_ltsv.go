@@ -2,6 +2,7 @@ package parser
 
 import (
 	"io"
+	"strings"
 )
 
 var _ Parser = (*LTSVParser)(nil)
@@ -68,9 +69,13 @@ func (p *LTSVParser) ParseZipEntries(input string, skipLines []int, hasIndex boo
 	return parseZipEntries(input, skipLines, hasIndex, globPattern, p.parser, nil, p.lineHandler, p.metadataHandler)
 }
 
-// Decode takes a string in LTSV format and extracts labels and values
-// using the ltsvDecoder function. It provides an interface for parsing
-// LTSV formatted strings through the LTSVParser structure.
-func (p *LTSVParser) Decode(input string) ([]string, []string, error) {
-	return ltsvDecoder(input)
+func (p *LTSVParser) Label(line string, hasIndex bool) ([]string, error) {
+	labels, _, err := ltsvDecoder(strings.Split(line, "\n")[0], true)
+	if err != nil {
+		return nil, err
+	}
+	if hasIndex {
+		labels = append([]string{"index"}, labels...)
+	}
+	return labels, nil
 }

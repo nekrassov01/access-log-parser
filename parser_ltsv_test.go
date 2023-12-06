@@ -521,35 +521,49 @@ func TestLTSVParser_ParseZipEntries(t *testing.T) {
 	}
 }
 
-func TestLTSVParser_Decode(t *testing.T) {
+func TestLTSVParser_Label(t *testing.T) {
 	type fields struct {
 		parser          parser
 		lineHandler     LineHandler
 		metadataHandler MetadataHandler
 	}
 	type args struct {
-		s string
+		line     string
+		hasIndex bool
 	}
 	tests := []struct {
 		name    string
 		fields  fields
 		args    args
 		want    []string
-		want1   []string
 		wantErr bool
 	}{
 		{
-			name: "basic",
+			name: "basic1",
 			fields: fields{
 				parser:          ltsvParser,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
 			},
 			args: args{
-				s: "aaa:111\tbbb:222\tccc:333",
+				line:     "aaa:111\tbbb:222\tccc:333",
+				hasIndex: false,
 			},
 			want:    []string{"aaa", "bbb", "ccc"},
-			want1:   []string{"111", "222", "333"},
+			wantErr: false,
+		},
+		{
+			name: "basic2",
+			fields: fields{
+				parser:          ltsvParser,
+				lineHandler:     JSONLineHandler,
+				metadataHandler: JSONMetadataHandler,
+			},
+			args: args{
+				line:     "aaa:111\tbbb:222\tccc:333",
+				hasIndex: true,
+			},
+			want:    []string{"index", "aaa", "bbb", "ccc"},
 			wantErr: false,
 		},
 		{
@@ -560,10 +574,10 @@ func TestLTSVParser_Decode(t *testing.T) {
 				metadataHandler: JSONMetadataHandler,
 			},
 			args: args{
-				s: "aaa111\tbbb:222\tccc:333",
+				line:     "aaa111\tbbb:222\tccc:333",
+				hasIndex: false,
 			},
 			want:    nil,
-			want1:   nil,
 			wantErr: true,
 		},
 		{
@@ -574,10 +588,10 @@ func TestLTSVParser_Decode(t *testing.T) {
 				metadataHandler: JSONMetadataHandler,
 			},
 			args: args{
-				s: "",
+				line:     "",
+				hasIndex: false,
 			},
 			want:    nil,
-			want1:   nil,
 			wantErr: true,
 		},
 	}
@@ -588,16 +602,13 @@ func TestLTSVParser_Decode(t *testing.T) {
 				lineHandler:     tt.fields.lineHandler,
 				metadataHandler: tt.fields.metadataHandler,
 			}
-			labels, values, err := p.Decode(tt.args.s)
+			labels, err := p.Label(tt.args.line, tt.args.hasIndex)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("LTSVParser.Decode() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("LTSVParser.Label() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(labels, tt.want) {
-				t.Errorf("LTSVParser.Decode() = %v, want %v", labels, tt.want)
-			}
-			if !reflect.DeepEqual(values, tt.want1) {
-				t.Errorf("LTSVParser.Decode() = %v, want %v", values, tt.want1)
+				t.Errorf("LTSVParser.Label() = %v, want %v", labels, tt.want)
 			}
 		})
 	}

@@ -40,6 +40,11 @@ func main() {
 
 	// If you want to add an Index (Line number) at the beginning of a line, set the third argument to true
 	res, err := p.ParseFile("path/to/logfile.log", nil, true)
+
+	// By passing a single line, labels can be extracted.
+	// If there is a line break, the labels are obtained for the first element of the division.
+    // The second argument can specify whether to have line numbers as items.
+	labels, err := p.Label(log, true)
 }
 ```
 
