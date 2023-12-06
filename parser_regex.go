@@ -68,6 +68,13 @@ func (p *RegexParser) ParseZipEntries(input string, skipLines []int, hasIndex bo
 	return parseZipEntries(input, skipLines, hasIndex, globPattern, p.parser, p.patterns, p.lineHandler, p.metadataHandler)
 }
 
+// Decode applies the RegexParser's patterns to the given string and
+// extracts labels and values based on these patterns. It delegates
+// the actual decoding logic to the regexDecoder function.
+func (p *RegexParser) Decode(input string) ([]string, []string, error) {
+	return regexDecoder(input, p.patterns)
+}
+
 // AddPattern adds a new regular expression pattern to the parser for matching log lines.
 // Each pattern must contain at least one capture group and all capture groups should be named.
 func (p *RegexParser) AddPattern(pattern *regexp.Regexp) error {

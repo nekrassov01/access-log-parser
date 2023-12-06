@@ -67,3 +67,10 @@ func (p *LTSVParser) ParseGzip(input string, skipLines []int, hasIndex bool) (*R
 func (p *LTSVParser) ParseZipEntries(input string, skipLines []int, hasIndex bool, globPattern string) ([]*Result, error) {
 	return parseZipEntries(input, skipLines, hasIndex, globPattern, p.parser, nil, p.lineHandler, p.metadataHandler)
 }
+
+// Decode takes a string in LTSV format and extracts labels and values
+// using the ltsvDecoder function. It provides an interface for parsing
+// LTSV formatted strings through the LTSVParser structure.
+func (p *LTSVParser) Decode(input string) ([]string, []string, error) {
+	return ltsvDecoder(input)
+}

@@ -24,6 +24,7 @@ type Parser interface {
 	ParseFile(input string, skipLines []int, hasIndex bool) (*Result, error)
 	ParseGzip(input string, skipLines []int, hasIndex bool) (*Result, error)
 	ParseZipEntries(input string, skipLines []int, hasIndex bool, globPattern string) ([]*Result, error)
+	Decode(input string) ([]string, []string, error)
 }
 
 // ErrorRecord stores information about log lines that couldn't be parsed
@@ -188,27 +189,12 @@ func regexParser(input io.Reader, skipLines []int, hasIndex bool, patterns []*re
 			continue
 		}
 		r := scanner.Text()
-		var matchedPattern *regexp.Regexp
-		var matches []string
-		for _, pattern := range patterns {
-			matches = pattern.FindStringSubmatch(r)
-			if matches != nil {
-				matchedPattern = pattern
-				break
-			}
-		}
-		if matchedPattern == nil {
+		labels, values, err := regexDecoder(r, patterns)
+		if err != nil {
 			metadata.Errors = append(metadata.Errors, ErrorRecord{Index: i, Record: r})
 			metadata.Unmatched++
 			i++
 			continue
-		}
-		names := matchedPattern.SubexpNames()
-		labels := make([]string, 0, len(names)-1)
-		values := make([]string, 0, len(names)-1)
-		for j, name := range names[1:] {
-			labels = append(labels, name)
-			values = append(values, matches[j+1])
 		}
 		line, err := handler(labels, values, i, hasIndex)
 		if err != nil {
@@ -223,6 +209,21 @@ func regexParser(input io.Reader, skipLines []int, hasIndex bool, patterns []*re
 	}
 	metadata.Total = i - 1
 	return data, metadata, nil
+}
+
+// regexDecoder applies regular expression patterns to a given string and
+// extracts matching groups. It returns slices of labels and values extracted
+// from the string. If no pattern matches, it returns an error.
+func regexDecoder(s string, patterns []*regexp.Regexp) ([]string, []string, error) {
+	for _, pattern := range patterns {
+		matches := pattern.FindStringSubmatch(s)
+		if matches != nil {
+			labels := pattern.SubexpNames()[1:]
+			values := matches[1:]
+			return labels, values, nil
+		}
+	}
+	return nil, nil, fmt.Errorf("cannot parse input: no matching pattern for input")
 }
 
 // ltsvParser parses the input from an io.Reader as LTSV (Labeled Tab-separated Values) format.
@@ -243,29 +244,19 @@ func ltsvParser(input io.Reader, skipLines []int, hasIndex bool, _ []*regexp.Reg
 			continue
 		}
 		r := scanner.Text()
-		fields := strings.Split(r, "\t")
-		labels := make([]string, 0, len(fields))
-		values := make([]string, 0, len(fields))
-		isValid := true
-		for _, field := range fields {
-			parts := strings.SplitN(field, ":", 2)
-			if len(parts) != 2 {
-				metadata.Errors = append(metadata.Errors, ErrorRecord{Index: i, Record: r})
-				metadata.Unmatched++
-				isValid = false
-				break
-			}
-			labels = append(labels, parts[0])
-			values = append(values, parts[1])
+		labels, values, err := ltsvDecoder(r)
+		if err != nil {
+			metadata.Errors = append(metadata.Errors, ErrorRecord{Index: i, Record: r})
+			metadata.Unmatched++
+			i++
+			continue
 		}
-		if isValid {
-			line, err := handler(labels, values, i, hasIndex)
-			if err != nil {
-				return nil, nil, err
-			}
-			data = append(data, line)
-			metadata.Matched++
+		line, err := handler(labels, values, i, hasIndex)
+		if err != nil {
+			return nil, nil, err
 		}
+		data = append(data, line)
+		metadata.Matched++
 		i++
 	}
 	if err := scanner.Err(); err != nil {
@@ -273,6 +264,24 @@ func ltsvParser(input io.Reader, skipLines []int, hasIndex bool, _ []*regexp.Reg
 	}
 	metadata.Total = i - 1
 	return data, metadata, nil
+}
+
+// ltsvDecoder parses a string formatted in Labeled Tab-separated Values (LTSV)
+// format. It splits the string into fields based on tabs and then further
+// splits each field into labels and values. Returns an error for invalid fields.
+func ltsvDecoder(s string) ([]string, []string, error) {
+	fields := strings.Split(s, "\t")
+	labels := make([]string, 0, len(fields))
+	values := make([]string, 0, len(fields))
+	for _, field := range fields {
+		parts := strings.SplitN(field, ":", 2)
+		if len(parts) != 2 {
+			return nil, nil, fmt.Errorf("cannot parse input: invalid field detected: %s", field)
+		}
+		labels = append(labels, parts[0])
+		values = append(values, parts[1])
+	}
+	return labels, values, nil
 }
 
 // createResult combines the parsed data and metadata into a Result.

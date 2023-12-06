@@ -538,6 +538,123 @@ func TestRegexParser_ParseZipEntries(t *testing.T) {
 	}
 }
 
+func TestRegexParser_Decode(t *testing.T) {
+	type fields struct {
+		parser          parser
+		lineHandler     LineHandler
+		metadataHandler MetadataHandler
+		patterns        []*regexp.Regexp
+	}
+	type args struct {
+		s string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []string
+		want1   []string
+		wantErr bool
+	}{
+		{
+			name: "basic",
+			fields: fields{
+				parser:          regexParser,
+				lineHandler:     JSONLineHandler,
+				metadataHandler: JSONMetadataHandler,
+				patterns: []*regexp.Regexp{
+					regexp.MustCompile(`^(?P<remote_host>\S+) (?P<remote_logname>\S+) (?P<remote_user>[\S ]+) (?P<datetime>\[[^\]]+\]) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<status>[0-9]{3}) (?P<size>[0-9]+|-) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)"`),
+					regexp.MustCompile(`^(?P<remote_host>\S+) (?P<remote_logname>\S+) (?P<remote_user>[\S ]+) (?P<datetime>\[[^\]]+\]) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<status>[0-9]{3}) (?P<size>[0-9]+|-)`),
+					regexp.MustCompile(`^(?P<remote_host>\S+)\t(?P<remote_logname>\S+)\t(?P<remote_user>[\S ]+)\t(?P<datetime>\[[^\]]+\])\t\"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\"\t(?P<status>[0-9]{3})\t(?P<size>[0-9]+|-)\t"(?P<referer>[^\"]*)"\t"(?P<user_agent>[^\"]*)"`),
+					regexp.MustCompile(`^(?P<remote_host>\S+)\t(?P<remote_logname>\S+)\t(?P<remote_user>[\S ]+)\t(?P<datetime>\[[^\]]+\])\t\"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\"\t(?P<status>[0-9]{3})\t(?P<size>[0-9]+|-)`),
+				},
+			},
+			args: args{
+				s: `123.45.67.89 - frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326 "http://www.example.com/start.html" "Mozilla/4.08 [en] (Win98; I ;Nav)"`,
+			},
+			want:    []string{"remote_host", "remote_logname", "remote_user", "datetime", "method", "request_uri", "protocol", "status", "size", "referer", "user_agent"},
+			want1:   []string{"123.45.67.89", "-", "frank", "[10/Oct/2000:13:55:36 -0700]", "GET", "/apache_pb.gif", "HTTP/1.0", "200", "2326", "http://www.example.com/start.html", "Mozilla/4.08 [en] (Win98; I ;Nav)"},
+			wantErr: false,
+		},
+		{
+			name: "invalid input",
+			fields: fields{
+				parser:          regexParser,
+				lineHandler:     JSONLineHandler,
+				metadataHandler: JSONMetadataHandler,
+				patterns: []*regexp.Regexp{
+					regexp.MustCompile(`^(?P<remote_host>\S+) (?P<remote_logname>\S+) (?P<remote_user>[\S ]+) (?P<datetime>\[[^\]]+\]) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<status>[0-9]{3}) (?P<size>[0-9]+|-) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)"`),
+					regexp.MustCompile(`^(?P<remote_host>\S+) (?P<remote_logname>\S+) (?P<remote_user>[\S ]+) (?P<datetime>\[[^\]]+\]) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<status>[0-9]{3}) (?P<size>[0-9]+|-)`),
+					regexp.MustCompile(`^(?P<remote_host>\S+)\t(?P<remote_logname>\S+)\t(?P<remote_user>[\S ]+)\t(?P<datetime>\[[^\]]+\])\t\"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\"\t(?P<status>[0-9]{3})\t(?P<size>[0-9]+|-)\t"(?P<referer>[^\"]*)"\t"(?P<user_agent>[^\"]*)"`),
+					regexp.MustCompile(`^(?P<remote_host>\S+)\t(?P<remote_logname>\S+)\t(?P<remote_user>[\S ]+)\t(?P<datetime>\[[^\]]+\])\t\"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\"\t(?P<status>[0-9]{3})\t(?P<size>[0-9]+|-)`),
+				},
+			},
+			args: args{
+				s: "aaa",
+			},
+			want:    nil,
+			want1:   nil,
+			wantErr: true,
+		},
+		{
+			name: "blank input",
+			fields: fields{
+				parser:          regexParser,
+				lineHandler:     JSONLineHandler,
+				metadataHandler: JSONMetadataHandler,
+				patterns: []*regexp.Regexp{
+					regexp.MustCompile(`^(?P<remote_host>\S+) (?P<remote_logname>\S+) (?P<remote_user>[\S ]+) (?P<datetime>\[[^\]]+\]) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<status>[0-9]{3}) (?P<size>[0-9]+|-) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)"`),
+					regexp.MustCompile(`^(?P<remote_host>\S+) (?P<remote_logname>\S+) (?P<remote_user>[\S ]+) (?P<datetime>\[[^\]]+\]) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<status>[0-9]{3}) (?P<size>[0-9]+|-)`),
+					regexp.MustCompile(`^(?P<remote_host>\S+)\t(?P<remote_logname>\S+)\t(?P<remote_user>[\S ]+)\t(?P<datetime>\[[^\]]+\])\t\"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\"\t(?P<status>[0-9]{3})\t(?P<size>[0-9]+|-)\t"(?P<referer>[^\"]*)"\t"(?P<user_agent>[^\"]*)"`),
+					regexp.MustCompile(`^(?P<remote_host>\S+)\t(?P<remote_logname>\S+)\t(?P<remote_user>[\S ]+)\t(?P<datetime>\[[^\]]+\])\t\"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\"\t(?P<status>[0-9]{3})\t(?P<size>[0-9]+|-)`),
+				},
+			},
+			args: args{
+				s: "",
+			},
+			want:    nil,
+			want1:   nil,
+			wantErr: true,
+		},
+		{
+			name: "nil pattern",
+			fields: fields{
+				parser:          regexParser,
+				lineHandler:     JSONLineHandler,
+				metadataHandler: JSONMetadataHandler,
+				patterns:        nil,
+			},
+			args: args{
+				s: `123.45.67.89 - frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326 "http://www.example.com/start.html" "Mozilla/4.08 [en] (Win98; I ;Nav)"`,
+			},
+			want:    nil,
+			want1:   nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &RegexParser{
+				parser:          tt.fields.parser,
+				lineHandler:     tt.fields.lineHandler,
+				metadataHandler: tt.fields.metadataHandler,
+				patterns:        tt.fields.patterns,
+			}
+			labels, values, err := p.Decode(tt.args.s)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("RegexParser.Decode() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(labels, tt.want) {
+				t.Errorf("RegexParser.Decode() = %v, want %v", labels, tt.want)
+			}
+			if !reflect.DeepEqual(values, tt.want1) {
+				t.Errorf("RegexParser.Decode() = %v, want %v", values, tt.want1)
+			}
+		})
+	}
+}
+
 func TestRegexParser_AddPattern(t *testing.T) {
 	type fields struct {
 		parser          parser

@@ -520,3 +520,85 @@ func TestLTSVParser_ParseZipEntries(t *testing.T) {
 		})
 	}
 }
+
+func TestLTSVParser_Decode(t *testing.T) {
+	type fields struct {
+		parser          parser
+		lineHandler     LineHandler
+		metadataHandler MetadataHandler
+	}
+	type args struct {
+		s string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []string
+		want1   []string
+		wantErr bool
+	}{
+		{
+			name: "basic",
+			fields: fields{
+				parser:          ltsvParser,
+				lineHandler:     JSONLineHandler,
+				metadataHandler: JSONMetadataHandler,
+			},
+			args: args{
+				s: "aaa:111\tbbb:222\tccc:333",
+			},
+			want:    []string{"aaa", "bbb", "ccc"},
+			want1:   []string{"111", "222", "333"},
+			wantErr: false,
+		},
+		{
+			name: "invalid input",
+			fields: fields{
+				parser:          ltsvParser,
+				lineHandler:     JSONLineHandler,
+				metadataHandler: JSONMetadataHandler,
+			},
+			args: args{
+				s: "aaa111\tbbb:222\tccc:333",
+			},
+			want:    nil,
+			want1:   nil,
+			wantErr: true,
+		},
+		{
+			name: "blank input",
+			fields: fields{
+				parser:          ltsvParser,
+				lineHandler:     JSONLineHandler,
+				metadataHandler: JSONMetadataHandler,
+			},
+			args: args{
+				s: "",
+			},
+			want:    nil,
+			want1:   nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &LTSVParser{
+				parser:          tt.fields.parser,
+				lineHandler:     tt.fields.lineHandler,
+				metadataHandler: tt.fields.metadataHandler,
+			}
+			labels, values, err := p.Decode(tt.args.s)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("LTSVParser.Decode() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(labels, tt.want) {
+				t.Errorf("LTSVParser.Decode() = %v, want %v", labels, tt.want)
+			}
+			if !reflect.DeepEqual(values, tt.want1) {
+				t.Errorf("LTSVParser.Decode() = %v, want %v", values, tt.want1)
+			}
+		})
+	}
+}
