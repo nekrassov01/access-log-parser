@@ -166,6 +166,52 @@ func LTSVMetadataHandler(m *Metadata) (string, error) {
 	return builder.String(), nil
 }
 
+// TSVLineHandler formats a single log line as TSV using given labels and values.
+func TSVLineHandler(labels []string, values []string, index int, hasIndex bool) (string, error) {
+	if hasIndex {
+		labels, values = addIndex(labels, values, index)
+	}
+	var builder strings.Builder
+	for i, value := range values {
+		if i < len(labels) {
+			if i > 0 {
+				builder.WriteString("\t")
+			}
+			if value == "" {
+				builder.WriteString("-")
+			} else {
+				builder.WriteString(value)
+			}
+		}
+	}
+	return builder.String(), nil
+}
+
+// TSVMetadataHandler formats metadata for TSV output.
+func TSVMetadataHandler(m *Metadata) (string, error) {
+	var builder strings.Builder
+	builder.WriteString(strconv.Itoa(m.Total))
+	builder.WriteString("\t")
+	builder.WriteString(strconv.Itoa(m.Matched))
+	builder.WriteString("\t")
+	builder.WriteString(strconv.Itoa(m.Unmatched))
+	builder.WriteString("\t")
+	builder.WriteString(strconv.Itoa(m.Skipped))
+	builder.WriteString("\t")
+	if m.Source == "" {
+		builder.WriteString("-")
+	} else {
+		builder.WriteString(m.Source)
+	}
+	builder.WriteString("\t")
+	e, err := json.Marshal(m.Errors)
+	if err != nil {
+		return "", fmt.Errorf("cannot marshal errors: %w", err)
+	}
+	builder.Write(e)
+	return builder.String(), nil
+}
+
 // addIndex adds a line number to the beginning of the label and value slices.
 func addIndex(labels []string, values []string, index int) ([]string, []string) {
 	return append([]string{"index"}, labels...), append([]string{strconv.Itoa(index)}, values...)
