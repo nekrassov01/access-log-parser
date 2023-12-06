@@ -104,6 +104,7 @@ The following handlers are preset:
 - Pretty JSON: `PrettyJSONLineHandler`, `PrettyJSONMetadataHandler`
 - key=value pair: `KeyValuePairLineHandler`, `KeyValuePairMetadataHandler`
 - LTSV: `LTSVLineHandler`, `LTSVMetadataHandler`
+- TSV: `TSVLineHandler`, `TSVMetadataHandler`
 
 Preset Constructors
 -------------------
