@@ -43,7 +43,7 @@ func main() {
 
 	// By passing a single line, labels can be extracted.
 	// If there is a line break, the labels are obtained for the first element of the division.
-    // The second argument can specify whether to have line numbers as items.
+	// The second argument can specify whether to have line numbers as items.
 	labels, err := p.Label(log, true)
 }
 ```
