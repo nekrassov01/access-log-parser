@@ -6,7 +6,7 @@ access-log-parser
 [![Go Reference](https://pkg.go.dev/badge/github.com/nekrassov01/access-log-parser.svg)](https://pkg.go.dev/github.com/nekrassov01/access-log-parser)
 [![Go Report Card](https://goreportcard.com/badge/github.com/nekrassov01/access-log-parser)](https://goreportcard.com/report/github.com/nekrassov01/access-log-parser)
 
-Simple access log parser utilities written in Go
+Simple access log parser utilities
 
 Usage
 -----
@@ -40,11 +40,6 @@ func main() {
 
 	// If you want to add an Index (Line number) at the beginning of a line, set the third argument to true
 	res, err := p.ParseFile("path/to/logfile.log", nil, true)
-
-	// By passing a single line, labels can be extracted.
-	// If there is a line break, the labels are obtained for the first element of the division.
-	// The second argument can specify whether to have line numbers as items.
-	labels, err := p.Label(log, true)
 }
 ```
 
@@ -67,11 +62,12 @@ Output format
 -------------
 
 ```go
-// Result represents processed data. Data and Metadata are set
-// to the data serialized by the respective handlers.
+// Result encapsulates the parsed results of the logs
 type Result struct {
-	Data     []string `json:"data"`
-	Metadata string   `json:"metadata"`
+	Data     []string   `json:"data"`
+	Metadata string     `json:"metadata"`
+	Labels   [][]string `json:"labels"`
+	Values   [][]string `json:"values"`
 }
 
 // Metadata contains aggregate information about the processed data

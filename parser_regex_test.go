@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestNewRegexParser(t *testing.T) {
@@ -32,7 +34,7 @@ func TestNewRegexParser(t *testing.T) {
 				hasIndex: true,
 			},
 			want: &RegexParser{
-				parser:          regexParser,
+				decoder:         regexDecoder,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
 			},
@@ -47,7 +49,7 @@ func TestNewRegexParser(t *testing.T) {
 				hasIndex: false,
 			},
 			want: &RegexParser{
-				parser:          regexParser,
+				decoder:         regexDecoder,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
 			},
@@ -79,7 +81,7 @@ func TestNewRegexParser(t *testing.T) {
 
 func TestRegexParser_SetLineHandler(t *testing.T) {
 	type fields struct {
-		parser          parser
+		decoder         decoder
 		lineHandler     LineHandler
 		metadataHandler MetadataHandler
 	}
@@ -102,7 +104,7 @@ func TestRegexParser_SetLineHandler(t *testing.T) {
 		{
 			name: "basic",
 			fields: fields{
-				parser:          regexParser,
+				decoder:         regexDecoder,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
 			},
@@ -120,7 +122,7 @@ func TestRegexParser_SetLineHandler(t *testing.T) {
 		{
 			name: "nil input",
 			fields: fields{
-				parser:          regexParser,
+				decoder:         regexDecoder,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
 			},
@@ -140,7 +142,7 @@ func TestRegexParser_SetLineHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &RegexParser{
-				parser:          tt.fields.parser,
+				decoder:         tt.fields.decoder,
 				lineHandler:     tt.fields.lineHandler,
 				metadataHandler: tt.fields.metadataHandler,
 			}
@@ -158,7 +160,7 @@ func TestRegexParser_SetLineHandler(t *testing.T) {
 
 func TestRegexParser_SetMetadataHandler(t *testing.T) {
 	type fields struct {
-		parser          parser
+		decoder         decoder
 		lineHandler     LineHandler
 		metadataHandler MetadataHandler
 	}
@@ -178,7 +180,7 @@ func TestRegexParser_SetMetadataHandler(t *testing.T) {
 		{
 			name: "basic",
 			fields: fields{
-				parser:          regexParser,
+				decoder:         regexDecoder,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
 			},
@@ -200,7 +202,7 @@ func TestRegexParser_SetMetadataHandler(t *testing.T) {
 		{
 			name: "nil input",
 			fields: fields{
-				parser:          regexParser,
+				decoder:         regexDecoder,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
 			},
@@ -223,7 +225,7 @@ func TestRegexParser_SetMetadataHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &RegexParser{
-				parser:          tt.fields.parser,
+				decoder:         tt.fields.decoder,
 				lineHandler:     tt.fields.lineHandler,
 				metadataHandler: tt.fields.metadataHandler,
 			}
@@ -241,7 +243,7 @@ func TestRegexParser_SetMetadataHandler(t *testing.T) {
 
 func TestRegexParser_Parse(t *testing.T) {
 	type fields struct {
-		parser          parser
+		decoder         decoder
 		lineHandler     LineHandler
 		metadataHandler MetadataHandler
 		patterns        []*regexp.Regexp
@@ -259,9 +261,9 @@ func TestRegexParser_Parse(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "regexParser: all match",
+			name: "regex: all match",
 			fields: fields{
-				parser:          regexParser,
+				decoder:         regexDecoder,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
 				patterns:        regexPatterns,
@@ -274,6 +276,8 @@ func TestRegexParser_Parse(t *testing.T) {
 			want: &Result{
 				Data:     regexAllMatchData,
 				Metadata: fmt.Sprintf(regexAllMatchMetadataSerialized, ""),
+				Labels:   regexAllMatchLabelData,
+				Values:   regexAllMatchValueData,
 			},
 			wantErr: false,
 		},
@@ -281,7 +285,7 @@ func TestRegexParser_Parse(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &RegexParser{
-				parser:          tt.fields.parser,
+				decoder:         tt.fields.decoder,
 				lineHandler:     tt.fields.lineHandler,
 				metadataHandler: tt.fields.metadataHandler,
 				patterns:        tt.fields.patterns,
@@ -300,7 +304,7 @@ func TestRegexParser_Parse(t *testing.T) {
 
 func TestRegexParser_ParseString(t *testing.T) {
 	type fields struct {
-		parser          parser
+		decoder         decoder
 		lineHandler     LineHandler
 		metadataHandler MetadataHandler
 		patterns        []*regexp.Regexp
@@ -318,9 +322,9 @@ func TestRegexParser_ParseString(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "regexParser: all match",
+			name: "regex: all match",
 			fields: fields{
-				parser:          regexParser,
+				decoder:         regexDecoder,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
 				patterns:        regexPatterns,
@@ -333,6 +337,8 @@ func TestRegexParser_ParseString(t *testing.T) {
 			want: &Result{
 				Data:     regexAllMatchData,
 				Metadata: fmt.Sprintf(regexAllMatchMetadataSerialized, ""),
+				Labels:   regexAllMatchLabelData,
+				Values:   regexAllMatchValueData,
 			},
 			wantErr: false,
 		},
@@ -340,7 +346,7 @@ func TestRegexParser_ParseString(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &RegexParser{
-				parser:          tt.fields.parser,
+				decoder:         tt.fields.decoder,
 				lineHandler:     tt.fields.lineHandler,
 				metadataHandler: tt.fields.metadataHandler,
 				patterns:        tt.fields.patterns,
@@ -349,6 +355,15 @@ func TestRegexParser_ParseString(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RegexParser.ParseString() error = %v, wantErr %v", err, tt.wantErr)
 				return
+			}
+			if diff := cmp.Diff(got.Data, tt.want.Data); diff != "" {
+				t.Errorf(diff)
+			}
+			if diff := cmp.Diff(got.Labels, tt.want.Labels); diff != "" {
+				t.Errorf(diff)
+			}
+			if diff := cmp.Diff(got.Values, tt.want.Values); diff != "" {
+				t.Errorf(diff)
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("RegexParser.ParseString() = %v, want %v", got, tt.want)
@@ -359,7 +374,7 @@ func TestRegexParser_ParseString(t *testing.T) {
 
 func TestRegexParser_ParseFile(t *testing.T) {
 	type fields struct {
-		parser          parser
+		decoder         decoder
 		lineHandler     LineHandler
 		metadataHandler MetadataHandler
 		patterns        []*regexp.Regexp
@@ -377,9 +392,9 @@ func TestRegexParser_ParseFile(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "regexParser: all match",
+			name: "regex: all match",
 			fields: fields{
-				parser:          regexParser,
+				decoder:         regexDecoder,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
 				patterns:        regexPatterns,
@@ -392,6 +407,8 @@ func TestRegexParser_ParseFile(t *testing.T) {
 			want: &Result{
 				Data:     regexAllMatchData,
 				Metadata: fmt.Sprintf(regexAllMatchMetadataSerialized, "sample_s3_all_match.log"),
+				Labels:   regexAllMatchLabelData,
+				Values:   regexAllMatchValueData,
 			},
 			wantErr: false,
 		},
@@ -399,7 +416,7 @@ func TestRegexParser_ParseFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &RegexParser{
-				parser:          tt.fields.parser,
+				decoder:         tt.fields.decoder,
 				lineHandler:     tt.fields.lineHandler,
 				metadataHandler: tt.fields.metadataHandler,
 				patterns:        tt.fields.patterns,
@@ -408,6 +425,15 @@ func TestRegexParser_ParseFile(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RegexParser.ParseFile() error = %v, wantErr %v", err, tt.wantErr)
 				return
+			}
+			if diff := cmp.Diff(got.Data, tt.want.Data); diff != "" {
+				t.Errorf(diff)
+			}
+			if diff := cmp.Diff(got.Labels, tt.want.Labels); diff != "" {
+				t.Errorf(diff)
+			}
+			if diff := cmp.Diff(got.Values, tt.want.Values); diff != "" {
+				t.Errorf(diff)
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("RegexParser.ParseFile() = %v, want %v", got, tt.want)
@@ -418,7 +444,7 @@ func TestRegexParser_ParseFile(t *testing.T) {
 
 func TestRegexParser_ParseGzip(t *testing.T) {
 	type fields struct {
-		parser          parser
+		decoder         decoder
 		lineHandler     LineHandler
 		metadataHandler MetadataHandler
 		patterns        []*regexp.Regexp
@@ -436,9 +462,9 @@ func TestRegexParser_ParseGzip(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "regexParser: all match",
+			name: "regex: all match",
 			fields: fields{
-				parser:          regexParser,
+				decoder:         regexDecoder,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
 				patterns:        regexPatterns,
@@ -451,6 +477,8 @@ func TestRegexParser_ParseGzip(t *testing.T) {
 			want: &Result{
 				Data:     regexAllMatchData,
 				Metadata: fmt.Sprintf(regexAllMatchMetadataSerialized, "sample_s3_all_match.log.gz"),
+				Labels:   regexAllMatchLabelData,
+				Values:   regexAllMatchValueData,
 			},
 			wantErr: false,
 		},
@@ -458,7 +486,7 @@ func TestRegexParser_ParseGzip(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &RegexParser{
-				parser:          tt.fields.parser,
+				decoder:         tt.fields.decoder,
 				lineHandler:     tt.fields.lineHandler,
 				metadataHandler: tt.fields.metadataHandler,
 				patterns:        tt.fields.patterns,
@@ -468,8 +496,17 @@ func TestRegexParser_ParseGzip(t *testing.T) {
 				t.Errorf("RegexParser.ParseGzip() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("RegexParser.ParseGzip() = %v, want %v", got, tt.want)
+			if diff := cmp.Diff(got.Data, tt.want.Data); diff != "" {
+				t.Errorf(diff)
+			}
+			if diff := cmp.Diff(got.Labels, tt.want.Labels); diff != "" {
+				t.Errorf(diff)
+			}
+			if diff := cmp.Diff(got.Values, tt.want.Values); diff != "" {
+				t.Errorf(diff)
+			}
+			if !reflect.DeepEqual(got.Data, tt.want.Data) {
+				t.Errorf("RegexParser.ParseGzip() = %v, want %v", got.Data, tt.want.Data)
 			}
 		})
 	}
@@ -477,7 +514,7 @@ func TestRegexParser_ParseGzip(t *testing.T) {
 
 func TestRegexParser_ParseZipEntries(t *testing.T) {
 	type fields struct {
-		parser          parser
+		decoder         decoder
 		lineHandler     LineHandler
 		metadataHandler MetadataHandler
 		patterns        []*regexp.Regexp
@@ -496,9 +533,9 @@ func TestRegexParser_ParseZipEntries(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "regexParser: all match",
+			name: "regex: all match",
 			fields: fields{
-				parser:          regexParser,
+				decoder:         regexDecoder,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
 				patterns:        regexPatterns,
@@ -513,6 +550,8 @@ func TestRegexParser_ParseZipEntries(t *testing.T) {
 				{
 					Data:     regexAllMatchData,
 					Metadata: fmt.Sprintf(regexAllMatchMetadataSerialized, "sample_s3_all_match.log"),
+					Labels:   regexAllMatchLabelData,
+					Values:   regexAllMatchValueData,
 				},
 			},
 			wantErr: false,
@@ -521,172 +560,39 @@ func TestRegexParser_ParseZipEntries(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &RegexParser{
-				parser:          tt.fields.parser,
+				decoder:         tt.fields.decoder,
 				lineHandler:     tt.fields.lineHandler,
 				metadataHandler: tt.fields.metadataHandler,
 				patterns:        tt.fields.patterns,
 			}
-			got, err := p.ParseZipEntries(tt.args.input, tt.args.skipLines, tt.args.hasIndex, tt.args.globPattern)
+			gots, err := p.ParseZipEntries(tt.args.input, tt.args.skipLines, tt.args.hasIndex, tt.args.globPattern)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RegexParser.ParseZipEntries() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("RegexParser.ParseZipEntries() = %v, want %v", got, tt.want)
+			for _, got := range gots {
+				for _, w := range tt.want {
+					if diff := cmp.Diff(got.Data, w.Data); diff != "" {
+						t.Errorf(diff)
+					}
+				}
 			}
-		})
-	}
-}
-
-func TestRegexParser_Label(t *testing.T) {
-	type fields struct {
-		parser          parser
-		lineHandler     LineHandler
-		metadataHandler MetadataHandler
-		patterns        []*regexp.Regexp
-	}
-	type args struct {
-		line     string
-		hasIndex bool
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    []string
-		wantErr bool
-	}{
-		{
-			name: "basic1",
-			fields: fields{
-				parser:          regexParser,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-				patterns: []*regexp.Regexp{
-					regexp.MustCompile(`^(?P<remote_host>\S+) (?P<remote_logname>\S+) (?P<remote_user>[\S ]+) (?P<datetime>\[[^\]]+\]) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<status>[0-9]{3}) (?P<size>[0-9]+|-) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)"`),
-					regexp.MustCompile(`^(?P<remote_host>\S+) (?P<remote_logname>\S+) (?P<remote_user>[\S ]+) (?P<datetime>\[[^\]]+\]) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<status>[0-9]{3}) (?P<size>[0-9]+|-)`),
-					regexp.MustCompile(`^(?P<remote_host>\S+)\t(?P<remote_logname>\S+)\t(?P<remote_user>[\S ]+)\t(?P<datetime>\[[^\]]+\])\t\"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\"\t(?P<status>[0-9]{3})\t(?P<size>[0-9]+|-)\t"(?P<referer>[^\"]*)"\t"(?P<user_agent>[^\"]*)"`),
-					regexp.MustCompile(`^(?P<remote_host>\S+)\t(?P<remote_logname>\S+)\t(?P<remote_user>[\S ]+)\t(?P<datetime>\[[^\]]+\])\t\"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\"\t(?P<status>[0-9]{3})\t(?P<size>[0-9]+|-)`),
-				},
-			},
-			args: args{
-				line:     `123.45.67.89 - frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326 "http://www.example.com/start.html" "Mozilla/4.08 [en] (Win98; I ;Nav)"`,
-				hasIndex: false,
-			},
-			want:    []string{"remote_host", "remote_logname", "remote_user", "datetime", "method", "request_uri", "protocol", "status", "size", "referer", "user_agent"},
-			wantErr: false,
-		},
-		{
-			name: "basic2",
-			fields: fields{
-				parser:          regexParser,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-				patterns: []*regexp.Regexp{
-					regexp.MustCompile(`^(?P<remote_host>\S+) (?P<remote_logname>\S+) (?P<remote_user>[\S ]+) (?P<datetime>\[[^\]]+\]) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<status>[0-9]{3}) (?P<size>[0-9]+|-) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)"`),
-					regexp.MustCompile(`^(?P<remote_host>\S+) (?P<remote_logname>\S+) (?P<remote_user>[\S ]+) (?P<datetime>\[[^\]]+\]) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<status>[0-9]{3}) (?P<size>[0-9]+|-)`),
-					regexp.MustCompile(`^(?P<remote_host>\S+)\t(?P<remote_logname>\S+)\t(?P<remote_user>[\S ]+)\t(?P<datetime>\[[^\]]+\])\t\"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\"\t(?P<status>[0-9]{3})\t(?P<size>[0-9]+|-)\t"(?P<referer>[^\"]*)"\t"(?P<user_agent>[^\"]*)"`),
-					regexp.MustCompile(`^(?P<remote_host>\S+)\t(?P<remote_logname>\S+)\t(?P<remote_user>[\S ]+)\t(?P<datetime>\[[^\]]+\])\t\"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\"\t(?P<status>[0-9]{3})\t(?P<size>[0-9]+|-)`),
-				},
-			},
-			args: args{
-				line:     `123.45.67.89 - frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326`,
-				hasIndex: false,
-			},
-			want:    []string{"remote_host", "remote_logname", "remote_user", "datetime", "method", "request_uri", "protocol", "status", "size"},
-			wantErr: false,
-		},
-		{
-			name: "hasIndex",
-			fields: fields{
-				parser:          regexParser,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-				patterns: []*regexp.Regexp{
-					regexp.MustCompile(`^(?P<remote_host>\S+) (?P<remote_logname>\S+) (?P<remote_user>[\S ]+) (?P<datetime>\[[^\]]+\]) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<status>[0-9]{3}) (?P<size>[0-9]+|-) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)"`),
-					regexp.MustCompile(`^(?P<remote_host>\S+) (?P<remote_logname>\S+) (?P<remote_user>[\S ]+) (?P<datetime>\[[^\]]+\]) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<status>[0-9]{3}) (?P<size>[0-9]+|-)`),
-					regexp.MustCompile(`^(?P<remote_host>\S+)\t(?P<remote_logname>\S+)\t(?P<remote_user>[\S ]+)\t(?P<datetime>\[[^\]]+\])\t\"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\"\t(?P<status>[0-9]{3})\t(?P<size>[0-9]+|-)\t"(?P<referer>[^\"]*)"\t"(?P<user_agent>[^\"]*)"`),
-					regexp.MustCompile(`^(?P<remote_host>\S+)\t(?P<remote_logname>\S+)\t(?P<remote_user>[\S ]+)\t(?P<datetime>\[[^\]]+\])\t\"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\"\t(?P<status>[0-9]{3})\t(?P<size>[0-9]+|-)`),
-				},
-			},
-			args: args{
-				line:     `123.45.67.89 - frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326 "http://www.example.com/start.html" "Mozilla/4.08 [en] (Win98; I ;Nav)"`,
-				hasIndex: true,
-			},
-			want:    []string{"index", "remote_host", "remote_logname", "remote_user", "datetime", "method", "request_uri", "protocol", "status", "size", "referer", "user_agent"},
-			wantErr: false,
-		},
-		{
-			name: "invalid input",
-			fields: fields{
-				parser:          regexParser,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-				patterns: []*regexp.Regexp{
-					regexp.MustCompile(`^(?P<remote_host>\S+) (?P<remote_logname>\S+) (?P<remote_user>[\S ]+) (?P<datetime>\[[^\]]+\]) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<status>[0-9]{3}) (?P<size>[0-9]+|-) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)"`),
-					regexp.MustCompile(`^(?P<remote_host>\S+) (?P<remote_logname>\S+) (?P<remote_user>[\S ]+) (?P<datetime>\[[^\]]+\]) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<status>[0-9]{3}) (?P<size>[0-9]+|-)`),
-					regexp.MustCompile(`^(?P<remote_host>\S+)\t(?P<remote_logname>\S+)\t(?P<remote_user>[\S ]+)\t(?P<datetime>\[[^\]]+\])\t\"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\"\t(?P<status>[0-9]{3})\t(?P<size>[0-9]+|-)\t"(?P<referer>[^\"]*)"\t"(?P<user_agent>[^\"]*)"`),
-					regexp.MustCompile(`^(?P<remote_host>\S+)\t(?P<remote_logname>\S+)\t(?P<remote_user>[\S ]+)\t(?P<datetime>\[[^\]]+\])\t\"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\"\t(?P<status>[0-9]{3})\t(?P<size>[0-9]+|-)`),
-				},
-			},
-			args: args{
-				line:     "aaa",
-				hasIndex: false,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "blank input",
-			fields: fields{
-				parser:          regexParser,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-				patterns: []*regexp.Regexp{
-					regexp.MustCompile(`^(?P<remote_host>\S+) (?P<remote_logname>\S+) (?P<remote_user>[\S ]+) (?P<datetime>\[[^\]]+\]) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<status>[0-9]{3}) (?P<size>[0-9]+|-) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)"`),
-					regexp.MustCompile(`^(?P<remote_host>\S+) (?P<remote_logname>\S+) (?P<remote_user>[\S ]+) (?P<datetime>\[[^\]]+\]) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<status>[0-9]{3}) (?P<size>[0-9]+|-)`),
-					regexp.MustCompile(`^(?P<remote_host>\S+)\t(?P<remote_logname>\S+)\t(?P<remote_user>[\S ]+)\t(?P<datetime>\[[^\]]+\])\t\"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\"\t(?P<status>[0-9]{3})\t(?P<size>[0-9]+|-)\t"(?P<referer>[^\"]*)"\t"(?P<user_agent>[^\"]*)"`),
-					regexp.MustCompile(`^(?P<remote_host>\S+)\t(?P<remote_logname>\S+)\t(?P<remote_user>[\S ]+)\t(?P<datetime>\[[^\]]+\])\t\"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\"\t(?P<status>[0-9]{3})\t(?P<size>[0-9]+|-)`),
-				},
-			},
-			args: args{
-				line:     "",
-				hasIndex: false,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "nil pattern",
-			fields: fields{
-				parser:          regexParser,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-				patterns:        nil,
-			},
-			args: args{
-				line:     `123.45.67.89 - frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326 "http://www.example.com/start.html" "Mozilla/4.08 [en] (Win98; I ;Nav)"`,
-				hasIndex: false,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := &RegexParser{
-				parser:          tt.fields.parser,
-				lineHandler:     tt.fields.lineHandler,
-				metadataHandler: tt.fields.metadataHandler,
-				patterns:        tt.fields.patterns,
+			for _, got := range gots {
+				for _, w := range tt.want {
+					if diff := cmp.Diff(got.Labels, w.Labels); diff != "" {
+						t.Errorf(diff)
+					}
+				}
 			}
-			labels, err := p.Label(tt.args.line, tt.args.hasIndex)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("RegexParser.Label() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			for _, got := range gots {
+				for _, w := range tt.want {
+					if diff := cmp.Diff(got.Values, w.Values); diff != "" {
+						t.Errorf(diff)
+					}
+				}
 			}
-			if !reflect.DeepEqual(labels, tt.want) {
-				t.Errorf("RegexParser.Label() = %v, want %v", labels, tt.want)
+			if !reflect.DeepEqual(gots, tt.want) {
+				t.Errorf("RegexParser.ParseZipEntries() = %v, want %v", gots, tt.want)
 			}
 		})
 	}
@@ -694,7 +600,7 @@ func TestRegexParser_Label(t *testing.T) {
 
 func TestRegexParser_AddPattern(t *testing.T) {
 	type fields struct {
-		parser          parser
+		decoder         decoder
 		lineHandler     LineHandler
 		metadataHandler MetadataHandler
 		patterns        []*regexp.Regexp
@@ -737,7 +643,7 @@ func TestRegexParser_AddPattern(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &RegexParser{
-				parser:          tt.fields.parser,
+				decoder:         tt.fields.decoder,
 				lineHandler:     tt.fields.lineHandler,
 				metadataHandler: tt.fields.metadataHandler,
 				patterns:        tt.fields.patterns,
@@ -751,7 +657,7 @@ func TestRegexParser_AddPattern(t *testing.T) {
 
 func TestRegexParser_AddPatterns(t *testing.T) {
 	type fields struct {
-		parser          parser
+		decoder         decoder
 		lineHandler     LineHandler
 		metadataHandler MetadataHandler
 		patterns        []*regexp.Regexp
@@ -796,7 +702,7 @@ func TestRegexParser_AddPatterns(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &RegexParser{
-				parser:          tt.fields.parser,
+				decoder:         tt.fields.decoder,
 				lineHandler:     tt.fields.lineHandler,
 				metadataHandler: tt.fields.metadataHandler,
 				patterns:        tt.fields.patterns,
@@ -810,7 +716,7 @@ func TestRegexParser_AddPatterns(t *testing.T) {
 
 func TestRegexParser_GetPatterns(t *testing.T) {
 	type fields struct {
-		parser          parser
+		decoder         decoder
 		lineHandler     LineHandler
 		metadataHandler MetadataHandler
 		patterns        []*regexp.Regexp
@@ -824,7 +730,7 @@ func TestRegexParser_GetPatterns(t *testing.T) {
 		{
 			name: "basic",
 			fields: fields{
-				parser:          regexParser,
+				decoder:         regexDecoder,
 				lineHandler:     JSONLineHandler,
 				metadataHandler: JSONMetadataHandler,
 				patterns:        regexPatterns,
@@ -836,7 +742,7 @@ func TestRegexParser_GetPatterns(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &RegexParser{
-				parser:          tt.fields.parser,
+				decoder:         tt.fields.decoder,
 				lineHandler:     tt.fields.lineHandler,
 				metadataHandler: tt.fields.metadataHandler,
 				patterns:        tt.fields.patterns,

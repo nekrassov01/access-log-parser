@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"io"
 	"regexp"
-	"strings"
 )
 
 // RegexParser is a parser that uses regular expressions to parse log entries.
 // It enables the definition of complex parsing rules through regular expressions, making it versatile for different log formats.
 // The parser allows for customization of log line processing and metadata handling through user-defined functions.
 type RegexParser struct {
-	parser          parser           // Internal parser function that utilizes regular expressions for parsing.
+	decoder         decoder          // Internal parser function that utilizes regular expressions for parsing.
 	lineHandler     LineHandler      // Custom function to process and format individual log lines after they are matched by a regex pattern.
 	metadataHandler MetadataHandler  // Custom function to process and format metadata about the parsing process, such as total logs processed and errors.
 	patterns        []*regexp.Regexp // Collection of regular expression patterns. Each pattern is used to match and extract data from log lines.
@@ -22,7 +21,7 @@ type RegexParser struct {
 // Users can customize the parsing behavior by adding different regex patterns and by setting custom line and metadata handlers.
 func NewRegexParser() *RegexParser {
 	return &RegexParser{
-		parser:          regexParser,         // Internal parsing function based on regular expressions.
+		decoder:         regexDecoder,        // Internal parsing function based on regular expressions.
 		lineHandler:     JSONLineHandler,     // Default line handler to convert matched log lines to JSON format.
 		metadataHandler: JSONMetadataHandler, // Default metadata handler to convert parsing metadata to JSON format.
 	}
@@ -46,38 +45,27 @@ func (p *RegexParser) SetMetadataHandler(handler MetadataHandler) {
 
 // Parse processes the given io.Reader input using the configured patterns and handlers.
 func (p *RegexParser) Parse(input io.Reader, skipLines []int, hasIndex bool) (*Result, error) {
-	return parse(input, skipLines, hasIndex, p.parser, p.patterns, p.lineHandler, p.metadataHandler)
+	return parse(input, skipLines, hasIndex, p.decoder, p.patterns, p.lineHandler, p.metadataHandler)
 }
 
 // ParseString processes the given string input as a reader.
 func (p *RegexParser) ParseString(input string, skipLines []int, hasIndex bool) (*Result, error) {
-	return parseString(input, skipLines, hasIndex, p.parser, p.patterns, p.lineHandler, p.metadataHandler)
+	return parseString(input, skipLines, hasIndex, p.decoder, p.patterns, p.lineHandler, p.metadataHandler)
 }
 
 // ParseFile processes the content of the specified file.
 func (p *RegexParser) ParseFile(input string, skipLines []int, hasIndex bool) (*Result, error) {
-	return parseFile(input, skipLines, hasIndex, p.parser, p.patterns, p.lineHandler, p.metadataHandler)
+	return parseFile(input, skipLines, hasIndex, p.decoder, p.patterns, p.lineHandler, p.metadataHandler)
 }
 
 // ParseGzip processes the content of a gzipped file.
 func (p *RegexParser) ParseGzip(input string, skipLines []int, hasIndex bool) (*Result, error) {
-	return parseGzip(input, skipLines, hasIndex, p.parser, p.patterns, p.lineHandler, p.metadataHandler)
+	return parseGzip(input, skipLines, hasIndex, p.decoder, p.patterns, p.lineHandler, p.metadataHandler)
 }
 
 // ParseZipEntries processes the contents of zip file entries matching the specified glob pattern.
 func (p *RegexParser) ParseZipEntries(input string, skipLines []int, hasIndex bool, globPattern string) ([]*Result, error) {
-	return parseZipEntries(input, skipLines, hasIndex, globPattern, p.parser, p.patterns, p.lineHandler, p.metadataHandler)
-}
-
-func (p *RegexParser) Label(line string, hasIndex bool) ([]string, error) {
-	labels, _, err := regexDecoder(strings.Split(line, "\n")[0], p.patterns, true)
-	if err != nil {
-		return nil, err
-	}
-	if hasIndex {
-		labels = append([]string{"index"}, labels...)
-	}
-	return labels, nil
+	return parseZipEntries(input, skipLines, hasIndex, globPattern, p.decoder, p.patterns, p.lineHandler, p.metadataHandler)
 }
 
 // AddPattern adds a new regular expression pattern to the parser for matching log lines.
@@ -114,7 +102,7 @@ func (p *RegexParser) GetPatterns() []*regexp.Regexp {
 // This parser is suitable for logs typically found in Apache HTTP server access logs.
 func NewApacheCLFRegexParser() *RegexParser {
 	return &RegexParser{
-		parser:          regexParser,
+		decoder:         regexDecoder,
 		lineHandler:     JSONLineHandler,
 		metadataHandler: JSONMetadataHandler,
 		patterns: []*regexp.Regexp{
@@ -131,7 +119,7 @@ func NewApacheCLFRegexParser() *RegexParser {
 // of the log entry, which is common in setups hosting multiple domains.
 func NewApacheCLFWithVHostRegexParser() *RegexParser {
 	return &RegexParser{
-		parser:          regexParser,
+		decoder:         regexDecoder,
 		lineHandler:     JSONLineHandler,
 		metadataHandler: JSONMetadataHandler,
 		patterns: []*regexp.Regexp{
@@ -148,7 +136,7 @@ func NewApacheCLFWithVHostRegexParser() *RegexParser {
 // detailed information from S3 access logs like operation, requester, error code, etc.
 func NewS3RegexParser() *RegexParser {
 	return &RegexParser{
-		parser:          regexParser,
+		decoder:         regexDecoder,
 		lineHandler:     JSONLineHandler,
 		metadataHandler: JSONMetadataHandler,
 		patterns: []*regexp.Regexp{
@@ -166,7 +154,7 @@ func NewS3RegexParser() *RegexParser {
 // analyzing viewer traffic and understanding content delivery metrics.
 func NewCFRegexParser() *RegexParser {
 	return &RegexParser{
-		parser:          regexParser,
+		decoder:         regexDecoder,
 		lineHandler:     JSONLineHandler,
 		metadataHandler: JSONMetadataHandler,
 		patterns: []*regexp.Regexp{
@@ -180,7 +168,7 @@ func NewCFRegexParser() *RegexParser {
 // analysis of client requests and backend responses.
 func NewALBRegexParser() *RegexParser {
 	return &RegexParser{
-		parser:          regexParser,
+		decoder:         regexDecoder,
 		lineHandler:     JSONLineHandler,
 		metadataHandler: JSONMetadataHandler,
 		patterns: []*regexp.Regexp{
@@ -194,7 +182,7 @@ func NewALBRegexParser() *RegexParser {
 // network traffic flowing through NLB instances.
 func NewNLBRegexParser() *RegexParser {
 	return &RegexParser{
-		parser:          regexParser,
+		decoder:         regexDecoder,
 		lineHandler:     JSONLineHandler,
 		metadataHandler: JSONMetadataHandler,
 		patterns: []*regexp.Regexp{
@@ -208,7 +196,7 @@ func NewNLBRegexParser() *RegexParser {
 // processing time, backend processing time, and response processing time.
 func NewCLBRegexParser() *RegexParser {
 	return &RegexParser{
-		parser:          regexParser,
+		decoder:         regexDecoder,
 		lineHandler:     JSONLineHandler,
 		metadataHandler: JSONMetadataHandler,
 		patterns: []*regexp.Regexp{
