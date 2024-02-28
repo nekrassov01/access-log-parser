@@ -1,78 +1,67 @@
 package parser
 
 import (
-	"fmt"
+	"bytes"
+	"context"
 	"io"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
-
-	"github.com/google/go-cmp/cmp"
 )
 
 func TestNewLTSVParser(t *testing.T) {
 	type handlerArgs struct {
-		labels   []string
-		values   []string
-		index    int
-		hasIndex bool
+		labels        []string
+		values        []string
+		lineNumber    int
+		hasLineNumber bool
+		isFirst       bool
 	}
 	tests := []struct {
 		name        string
 		handlerArgs handlerArgs
 		want        *LTSVParser
-		wantData    string
+		wantWriter  string
 	}{
 		{
-			name: "with index",
+			name: "with lineNumber",
 			handlerArgs: handlerArgs{
-				values:   []string{"value1", "value2", "value3"},
-				labels:   []string{"label1", "label2", "label3"},
-				index:    1,
-				hasIndex: true,
+				labels:        []string{"label1", "label2", "label3"},
+				values:        []string{"value1", "value2", "value3"},
+				lineNumber:    1,
+				hasLineNumber: true,
+			}, want: &LTSVParser{
+				writer:      &bytes.Buffer{},
+				lineDecoder: ltsvLineDecoder,
+				lineHandler: JSONLineHandler,
 			},
-			want: &LTSVParser{
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			wantData: `{"index":"1","label1":"value1","label2":"value2","label3":"value3"}`,
+			wantWriter: `{"no":"1","label1":"value1","label2":"value2","label3":"value3"}`,
 		},
 		{
-			name: "with no index",
+			name: "with no lineNumber",
 			handlerArgs: handlerArgs{
-				values:   []string{"value1", "value2", "value3"},
-				labels:   []string{"label1", "label2", "label3"},
-				index:    1,
-				hasIndex: false,
+				labels:        []string{"label1", "label2", "label3"},
+				values:        []string{"value1", "value2", "value3"},
+				lineNumber:    1,
+				hasLineNumber: false,
+			}, want: &LTSVParser{
+				writer:      &bytes.Buffer{},
+				lineDecoder: ltsvLineDecoder,
+				lineHandler: JSONLineHandler,
 			},
-			want: &LTSVParser{
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			wantData: `{"label1":"value1","label2":"value2","label3":"value3"}`,
+			wantWriter: `{"label1":"value1","label2":"value2","label3":"value3"}`,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewLTSVParser()
-			got1, err := p.lineHandler(tt.handlerArgs.labels, tt.handlerArgs.values, tt.handlerArgs.index, tt.handlerArgs.hasIndex)
+			p := NewLTSVParser(&bytes.Buffer{})
+			got, err := p.lineHandler(tt.handlerArgs.labels, tt.handlerArgs.values, tt.handlerArgs.lineNumber, tt.handlerArgs.hasLineNumber, tt.handlerArgs.isFirst)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !reflect.DeepEqual(got1, tt.wantData) {
-				t.Errorf("NewRegexParser() = %v, want %v", got1, tt.wantData)
-			}
-			metadata := regexAllMatchMetadata
-			wantMetadata := fmt.Sprintf(regexAllMatchMetadataSerialized, "")
-			got2, err := p.metadataHandler(metadata)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !reflect.DeepEqual(got2, wantMetadata) {
-				t.Errorf("NewRegexParser() = %v, want %v", got1, wantMetadata)
+			if !reflect.DeepEqual(got, tt.wantWriter) {
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", got, tt.wantWriter)
 			}
 		})
 	}
@@ -80,160 +69,63 @@ func TestNewLTSVParser(t *testing.T) {
 
 func TestLTSVParser_SetLineHandler(t *testing.T) {
 	type fields struct {
-		decoder         decoder
-		lineHandler     LineHandler
-		metadataHandler MetadataHandler
+		writer      io.Writer
+		lineDecoder lineDecoder
+		lineHandler LineHandler
 	}
 	type args struct {
 		handler LineHandler
 	}
-	type handlerArgs struct {
-		labels   []string
-		values   []string
-		index    int
-		hasIndex bool
-	}
 	tests := []struct {
-		name        string
-		fields      fields
-		args        args
-		handlerArgs handlerArgs
-		want        string
+		name   string
+		fields fields
+		args   args
+		want   string
 	}{
 		{
 			name: "basic",
 			fields: fields{
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				writer:      &bytes.Buffer{},
+				lineDecoder: ltsvLineDecoder,
+				lineHandler: JSONLineHandler,
 			},
 			args: args{
-				handler: JSONLineHandler,
+				handler: PrettyJSONLineHandler,
 			},
-			handlerArgs: handlerArgs{
-				labels:   []string{"label1", "label2", "label3"},
-				values:   []string{"value1", "value2", "value3"},
-				index:    1,
-				hasIndex: true,
-			},
-			want: `{"index":"1","label1":"value1","label2":"value2","label3":"value3"}`,
+			want: `{
+  "no": "1",
+  "label1": "value1",
+  "label2": "value2",
+  "label3": "value3"
+}`,
 		},
 		{
-			name: "nil input",
+			name: "with no handler",
 			fields: fields{
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				writer:      &bytes.Buffer{},
+				lineDecoder: ltsvLineDecoder,
+				lineHandler: JSONLineHandler,
 			},
 			args: args{
 				handler: nil,
 			},
-			handlerArgs: handlerArgs{
-				labels:   []string{"label1", "label2", "label3"},
-				values:   []string{"value1", "value2", "value3"},
-				index:    1,
-				hasIndex: true,
-			},
-			want: `{"index":"1","label1":"value1","label2":"value2","label3":"value3"}`,
+			want: `{"no":"1","label1":"value1","label2":"value2","label3":"value3"}`,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &LTSVParser{
-				decoder:         tt.fields.decoder,
-				lineHandler:     tt.fields.lineHandler,
-				metadataHandler: tt.fields.metadataHandler,
+				writer:      tt.fields.writer,
+				lineDecoder: tt.fields.lineDecoder,
+				lineHandler: tt.fields.lineHandler,
 			}
 			p.SetLineHandler(tt.args.handler)
-			got, err := p.lineHandler(tt.handlerArgs.labels, tt.handlerArgs.values, tt.handlerArgs.index, tt.handlerArgs.hasIndex)
+			got, err := p.lineHandler([]string{"label1", "label2", "label3"}, []string{"value1", "value2", "value3"}, 1, true, false)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("LTSVParser.SetLineHandler() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestLTSVParser_SetMetadataHandler(t *testing.T) {
-	type fields struct {
-		decoder         decoder
-		lineHandler     LineHandler
-		metadataHandler MetadataHandler
-	}
-	type args struct {
-		handler MetadataHandler
-	}
-	type handlerArgs struct {
-		metadata *Metadata
-	}
-	tests := []struct {
-		name        string
-		fields      fields
-		args        args
-		handlerArgs handlerArgs
-		want        string
-	}{
-		{
-			name: "basic",
-			fields: fields{
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			args: args{
-				handler: JSONMetadataHandler,
-			},
-			handlerArgs: handlerArgs{
-				metadata: &Metadata{
-					Total:     5,
-					Matched:   5,
-					Unmatched: 0,
-					Skipped:   0,
-					Source:    "",
-					Errors:    nil,
-				},
-			},
-			want: fmt.Sprintf(regexAllMatchMetadataSerialized, ""),
-		},
-		{
-			name: "nil input",
-			fields: fields{
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			args: args{
-				handler: nil,
-			},
-			handlerArgs: handlerArgs{
-				metadata: &Metadata{
-					Total:     5,
-					Matched:   5,
-					Unmatched: 0,
-					Skipped:   0,
-					Source:    "",
-					Errors:    nil,
-				},
-			},
-			want: fmt.Sprintf(regexAllMatchMetadataSerialized, ""),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			p := &LTSVParser{
-				decoder:         tt.fields.decoder,
-				lineHandler:     tt.fields.lineHandler,
-				metadataHandler: tt.fields.metadataHandler,
-			}
-			p.SetMetadataHandler(tt.args.handler)
-			got, err := p.metadataHandler(tt.handlerArgs.metadata)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("LTSVParser.SetMetadataHandler() = %v, want %v", got, tt.want)
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", got, tt.want)
 			}
 		})
 	}
@@ -241,351 +133,327 @@ func TestLTSVParser_SetMetadataHandler(t *testing.T) {
 
 func TestLTSVParser_Parse(t *testing.T) {
 	type fields struct {
-		decoder         decoder
-		lineHandler     LineHandler
-		metadataHandler MetadataHandler
+		writer      io.Writer
+		lineDecoder lineDecoder
+		lineHandler LineHandler
 	}
 	type args struct {
-		input     io.Reader
-		skipLines []int
-		hasIndex  bool
+		ctx            context.Context
+		reader         io.Reader
+		keywords       []string
+		labels         []string
+		hasPrefix      bool
+		disableUnmatch bool
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *Result
-		wantErr bool
+		name       string
+		fields     fields
+		args       args
+		wantOutput string
+		wantResult wantResult
+		wantErr    bool
 	}{
 		{
 			name: "ltsv: all match",
 			fields: fields{
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				writer:      &bytes.Buffer{},
+				lineDecoder: ltsvLineDecoder,
+				lineHandler: JSONLineHandler,
 			},
 			args: args{
-				input:     strings.NewReader(ltsvAllMatchInput),
-				skipLines: nil,
-				hasIndex:  true,
+				ctx:            context.Background(),
+				reader:         strings.NewReader(ltsvAllMatchInput),
+				keywords:       nil,
+				labels:         nil,
+				hasPrefix:      false,
+				disableUnmatch: false,
 			},
-			want: &Result{
-				Data:     ltsvAllMatchData,
-				Metadata: fmt.Sprintf(ltsvAllMatchMetadataSerialized, ""),
-				Labels:   ltsvAllMatchLabelData,
-				Values:   ltsvAllMatchValueData,
+			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
+			wantResult: wantResult{
+				result:    ltsvAllMatchResult,
+				source:    "",
+				inputType: inputTypeStream,
 			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			output := &bytes.Buffer{}
 			p := &LTSVParser{
-				decoder:         tt.fields.decoder,
-				lineHandler:     tt.fields.lineHandler,
-				metadataHandler: tt.fields.metadataHandler,
+				writer:      output,
+				lineDecoder: tt.fields.lineDecoder,
+				lineHandler: tt.fields.lineHandler,
 			}
-			got, err := p.Parse(tt.args.input, tt.args.skipLines, tt.args.hasIndex)
+			got, err := p.Parse(tt.args.ctx, tt.args.reader, tt.args.keywords, tt.args.labels, tt.args.hasPrefix, tt.args.disableUnmatch)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("LTSVParser.Parse() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
 			}
-			if diff := cmp.Diff(got.Data, tt.want.Data); diff != "" {
-				t.Errorf(diff)
+			if out := output.String(); !reflect.DeepEqual(out, tt.wantOutput) {
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", out, tt.wantOutput)
 			}
-			if diff := cmp.Diff(got.Labels, tt.want.Labels); diff != "" {
-				t.Errorf(diff)
-			}
-			if diff := cmp.Diff(got.Values, tt.want.Values); diff != "" {
-				t.Errorf(diff)
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("LTSVParser.Parse() = %v, want %v", got, tt.want)
-			}
+			assertResult(t, tt.wantResult, got)
 		})
 	}
 }
 
 func TestLTSVParser_ParseString(t *testing.T) {
 	type fields struct {
-		decoder         decoder
-		lineHandler     LineHandler
-		metadataHandler MetadataHandler
+		lineDecoder lineDecoder
+		lineHandler LineHandler
 	}
 	type args struct {
-		input     string
-		skipLines []int
-		hasIndex  bool
+		s             string
+		keywords      []string
+		labels        []string
+		skipLines     []int
+		hasLineNumber bool
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *Result
-		wantErr bool
+		name       string
+		fields     fields
+		args       args
+		wantOutput string
+		wantResult wantResult
+		wantErr    bool
 	}{
 		{
 			name: "ltsv: all match",
 			fields: fields{
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				lineDecoder: ltsvLineDecoder,
+				lineHandler: JSONLineHandler,
 			},
 			args: args{
-				input:     ltsvAllMatchInput,
-				skipLines: nil,
-				hasIndex:  true,
+				s:             ltsvAllMatchInput,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
 			},
-			want: &Result{
-				Data:     ltsvAllMatchData,
-				Metadata: fmt.Sprintf(ltsvAllMatchMetadataSerialized, ""),
-				Labels:   ltsvAllMatchLabelData,
-				Values:   ltsvAllMatchValueData,
+			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
+			wantResult: wantResult{
+				result:    ltsvAllMatchResult,
+				source:    "",
+				inputType: inputTypeString,
 			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			output := &bytes.Buffer{}
 			p := &LTSVParser{
-				decoder:         tt.fields.decoder,
-				lineHandler:     tt.fields.lineHandler,
-				metadataHandler: tt.fields.metadataHandler,
+				writer:      output,
+				lineDecoder: tt.fields.lineDecoder,
+				lineHandler: tt.fields.lineHandler,
 			}
-			got, err := p.ParseString(tt.args.input, tt.args.skipLines, tt.args.hasIndex)
+			got, err := p.ParseString(tt.args.s, tt.args.keywords, tt.args.labels, tt.args.skipLines, tt.args.hasLineNumber)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("LTSVParser.ParseString() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
 			}
-			if diff := cmp.Diff(got.Data, tt.want.Data); diff != "" {
-				t.Errorf(diff)
+			if out := output.String(); !reflect.DeepEqual(out, tt.wantOutput) {
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", out, tt.wantOutput)
 			}
-			if diff := cmp.Diff(got.Labels, tt.want.Labels); diff != "" {
-				t.Errorf(diff)
-			}
-			if diff := cmp.Diff(got.Values, tt.want.Values); diff != "" {
-				t.Errorf(diff)
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("LTSVParser.ParseString() = %v, want %v", got, tt.want)
-			}
+			assertResult(t, tt.wantResult, got)
 		})
 	}
 }
 
 func TestLTSVParser_ParseFile(t *testing.T) {
 	type fields struct {
-		decoder         decoder
-		lineHandler     LineHandler
-		metadataHandler MetadataHandler
+		writer      io.Writer
+		lineDecoder lineDecoder
+		lineHandler LineHandler
 	}
 	type args struct {
-		input     string
-		skipLines []int
-		hasIndex  bool
+		filePath      string
+		keywords      []string
+		labels        []string
+		skipLines     []int
+		hasLineNumber bool
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *Result
-		wantErr bool
+		name       string
+		fields     fields
+		args       args
+		wantOutput string
+		wantResult wantResult
+		wantErr    bool
 	}{
 		{
 			name: "ltsv: all match",
 			fields: fields{
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				writer:      &bytes.Buffer{},
+				lineDecoder: ltsvLineDecoder,
+				lineHandler: JSONLineHandler,
 			},
 			args: args{
-				input:     filepath.Join("testdata", "sample_ltsv_all_match.log"),
-				skipLines: nil,
-				hasIndex:  true,
+				filePath:      filepath.Join("testdata", "sample_ltsv_all_match.log"),
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
 			},
-			want: &Result{
-				Data:     ltsvAllMatchData,
-				Metadata: fmt.Sprintf(ltsvAllMatchMetadataSerialized, "sample_ltsv_all_match.log"),
-				Labels:   ltsvAllMatchLabelData,
-				Values:   ltsvAllMatchValueData,
+			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
+			wantResult: wantResult{
+				result:    ltsvAllMatchResult,
+				source:    "sample_ltsv_all_match.log",
+				inputType: inputTypeFile,
 			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			output := &bytes.Buffer{}
 			p := &LTSVParser{
-				decoder:         tt.fields.decoder,
-				lineHandler:     tt.fields.lineHandler,
-				metadataHandler: tt.fields.metadataHandler,
+				writer:      output,
+				lineDecoder: tt.fields.lineDecoder,
+				lineHandler: tt.fields.lineHandler,
 			}
-			got, err := p.ParseFile(tt.args.input, tt.args.skipLines, tt.args.hasIndex)
+			got, err := p.ParseFile(tt.args.filePath, tt.args.keywords, tt.args.labels, tt.args.skipLines, tt.args.hasLineNumber)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("LTSVParser.ParseFile() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
 			}
-			if diff := cmp.Diff(got.Data, tt.want.Data); diff != "" {
-				t.Errorf(diff)
+			if out := output.String(); !reflect.DeepEqual(out, tt.wantOutput) {
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", out, tt.wantOutput)
 			}
-			if diff := cmp.Diff(got.Labels, tt.want.Labels); diff != "" {
-				t.Errorf(diff)
-			}
-			if diff := cmp.Diff(got.Values, tt.want.Values); diff != "" {
-				t.Errorf(diff)
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("LTSVParser.ParseFile() = %v, want %v", got, tt.want)
-			}
+			assertResult(t, tt.wantResult, got)
 		})
 	}
 }
 
 func TestLTSVParser_ParseGzip(t *testing.T) {
 	type fields struct {
-		decoder         decoder
-		lineHandler     LineHandler
-		metadataHandler MetadataHandler
+		writer      io.Writer
+		lineDecoder lineDecoder
+		lineHandler LineHandler
 	}
 	type args struct {
-		input     string
-		skipLines []int
-		hasIndex  bool
+		gzipPath      string
+		keywords      []string
+		labels        []string
+		skipLines     []int
+		hasLineNumber bool
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *Result
-		wantErr bool
+		name       string
+		fields     fields
+		args       args
+		wantOutput string
+		wantResult wantResult
+		wantErr    bool
 	}{
 		{
 			name: "ltsv: all match",
 			fields: fields{
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				writer:      &bytes.Buffer{},
+				lineDecoder: ltsvLineDecoder,
+				lineHandler: JSONLineHandler,
 			},
 			args: args{
-				input:     filepath.Join("testdata", "sample_ltsv_all_match.log.gz"),
-				skipLines: nil,
-				hasIndex:  true,
+				gzipPath:      filepath.Join("testdata", "sample_ltsv_all_match.log.gz"),
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
 			},
-			want: &Result{
-				Data:     ltsvAllMatchData,
-				Metadata: fmt.Sprintf(ltsvAllMatchMetadataSerialized, "sample_ltsv_all_match.log.gz"),
-				Labels:   ltsvAllMatchLabelData,
-				Values:   ltsvAllMatchValueData,
+			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
+			wantResult: wantResult{
+				result:    ltsvAllMatchResult,
+				source:    "sample_ltsv_all_match.log.gz",
+				inputType: inputTypeGzip,
 			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			output := &bytes.Buffer{}
 			p := &LTSVParser{
-				decoder:         tt.fields.decoder,
-				lineHandler:     tt.fields.lineHandler,
-				metadataHandler: tt.fields.metadataHandler,
+				writer:      output,
+				lineDecoder: tt.fields.lineDecoder,
+				lineHandler: tt.fields.lineHandler,
 			}
-			got, err := p.ParseGzip(tt.args.input, tt.args.skipLines, tt.args.hasIndex)
+			got, err := p.ParseGzip(tt.args.gzipPath, tt.args.keywords, tt.args.labels, tt.args.skipLines, tt.args.hasLineNumber)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("LTSVParser.ParseGzip() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
 			}
-			if diff := cmp.Diff(got.Data, tt.want.Data); diff != "" {
-				t.Errorf(diff)
+			if out := output.String(); !reflect.DeepEqual(out, tt.wantOutput) {
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", out, tt.wantOutput)
 			}
-			if diff := cmp.Diff(got.Labels, tt.want.Labels); diff != "" {
-				t.Errorf(diff)
-			}
-			if diff := cmp.Diff(got.Values, tt.want.Values); diff != "" {
-				t.Errorf(diff)
-			}
-			if !reflect.DeepEqual(got.Data, tt.want.Data) {
-				t.Errorf("LTSVParser.ParseGzip() = %v, want %v", got.Data, tt.want.Data)
-			}
+			assertResult(t, tt.wantResult, got)
 		})
 	}
 }
 
 func TestLTSVParser_ParseZipEntries(t *testing.T) {
 	type fields struct {
-		decoder         decoder
-		lineHandler     LineHandler
-		metadataHandler MetadataHandler
+		writer      io.Writer
+		lineDecoder lineDecoder
+		lineHandler LineHandler
 	}
 	type args struct {
-		input       string
-		skipLines   []int
-		hasIndex    bool
-		globPattern string
+		zipPath       string
+		globPattern   string
+		keywords      []string
+		labels        []string
+		skipLines     []int
+		hasLineNumber bool
 	}
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    []*Result
-		wantErr bool
+		name       string
+		fields     fields
+		args       args
+		wantOutput string
+		wantResult wantResult
+		wantErr    bool
 	}{
 		{
 			name: "ltsv: all match",
 			fields: fields{
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				writer:      &bytes.Buffer{},
+				lineDecoder: ltsvLineDecoder,
+				lineHandler: JSONLineHandler,
 			},
 			args: args{
-				input:       filepath.Join("testdata", "sample_ltsv_all_match.log.zip"),
-				skipLines:   nil,
-				hasIndex:    true,
-				globPattern: "*",
+				zipPath:       filepath.Join("testdata", "sample_ltsv_all_match.log.zip"),
+				globPattern:   "*",
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
 			},
-			want: []*Result{
-				{
-					Data:     ltsvAllMatchData,
-					Metadata: fmt.Sprintf(ltsvAllMatchMetadataSerialized, "sample_ltsv_all_match.log"),
-					Labels:   ltsvAllMatchLabelData,
-					Values:   ltsvAllMatchValueData,
-				},
+			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
+			wantResult: wantResult{
+				result:    ltsvAllMatchResult,
+				source:    "sample_ltsv_all_match.log.zip",
+				inputType: inputTypeZip,
 			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			output := &bytes.Buffer{}
 			p := &LTSVParser{
-				decoder:         tt.fields.decoder,
-				lineHandler:     tt.fields.lineHandler,
-				metadataHandler: tt.fields.metadataHandler,
+				writer:      output,
+				lineDecoder: tt.fields.lineDecoder,
+				lineHandler: tt.fields.lineHandler,
 			}
-			gots, err := p.ParseZipEntries(tt.args.input, tt.args.skipLines, tt.args.hasIndex, tt.args.globPattern)
+			got, err := p.ParseZipEntries(tt.args.zipPath, tt.args.globPattern, tt.args.keywords, tt.args.labels, tt.args.skipLines, tt.args.hasLineNumber)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("LTSVParser.ParseZipEntries() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
 			}
-			for _, got := range gots {
-				for _, w := range tt.want {
-					if diff := cmp.Diff(got.Data, w.Data); diff != "" {
-						t.Errorf(diff)
-					}
-				}
+			if out := output.String(); !reflect.DeepEqual(out, tt.wantOutput) {
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", out, tt.wantOutput)
 			}
-			for _, got := range gots {
-				for _, w := range tt.want {
-					if diff := cmp.Diff(got.Labels, w.Labels); diff != "" {
-						t.Errorf(diff)
-					}
-				}
-			}
-			for _, got := range gots {
-				for _, w := range tt.want {
-					if diff := cmp.Diff(got.Values, w.Values); diff != "" {
-						t.Errorf(diff)
-					}
-				}
-			}
-			if !reflect.DeepEqual(gots, tt.want) {
-				t.Errorf("LTSVParser.ParseZipEntries() = %v, want %v", gots, tt.want)
-			}
+			assertResult(t, tt.wantResult, got)
 		})
 	}
 }

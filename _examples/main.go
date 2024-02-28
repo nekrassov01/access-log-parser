@@ -1,46 +1,99 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
-	"strings"
+	"os"
 
-	"github.com/nekrassov01/access-log-parser"
+	parser "github.com/nekrassov01/access-log-parser"
 )
 
 func main() {
-	s3input := `a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a awsrandombucket43 [16/Feb/2019:11:23:45 +0000] 192.0.2.132 a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a 3E57427F3EXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket43?versioning HTTP/1.1" 200 - 113 - 7 - "-" "S3Console/0.4" - s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234= SigV2 ECDHE-RSA-AES128-GCM-SHA256 AuthHeader awsrandombucket43.s3.us-west-1.amazonaws.com TLSV1.1 -
-3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23 awsrandombucket59 [24/Feb/2019:07:45:11 +0000] 192.0.2.45 3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23 891CE47D2EXAMPLE REST.GET.LOGGING_STATUS - "GET /awsrandombucket59?logging HTTP/1.1" 200 - 242 - 11 - "-" "S3Console/0.4" - 9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234= SigV2 ECDHE-RSA-AES128-GCM-SHA256 AuthHeader awsrandombucket59.s3.us-west-1.amazonaws.com TLSV1.1
-8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2 awsrandombucket12 [12/Feb/2019:18:32:21 +0000] 192.0.2.189 8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2 A1206F460EXAMPLE REST.GET.BUCKETPOLICY - "GET /awsrandombucket12?policy HTTP/1.1" 404 NoSuchBucketPolicy 297 - 38 - "-" "S3Console/0.4" - BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234= SigV2 ECDHE-RSA-AES128-GCM-SHA256 AuthHeader awsrandombucket59.s3.us-west-1.amazonaws.com
-d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket89 [03/Feb/2019:03:54:33 +0000] 192.0.2.76 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 7B4A0FABBEXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket89?versioning HTTP/1.1" 200 - 113 - 33 - "-" "S3Console/0.4" - Ke1bUcazaN1jWuUlPJaxF64cQVpUEhoZKEG/hmy/gijN/I1DeWqDfFvnpybfEseEME/u7ME1234= SigV2 ECDHE-RSA-AES128-SHA AuthHeader
-01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f awsrandombucket77 [28/Feb/2019:14:12:59 +0000] 192.0.2.213 01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f 3E57427F3EXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket77?versioning HTTP/1.1" 200 - 113 - 7 - "-" "S3Console/0.4" -`
+	var p parser.Parser
+	var r *parser.Result
+	var err error
 
-	// instantiate parser for s3
-	p := parser.NewS3RegexParser()
+	/*
+		Example for realtime streaming processing
 
-	// parse from string input
-	out, err := p.ParseString(s3input, nil, true)
+		Args:
+		ctx            : context for signal notify
+		reader         : input reader
+		keywords       : filter lines by keywords
+		labels         : select columns by field name
+		hasPrefix      : enable display of prefixes such as [ PROCESSED | UNMATCHED ]
+		disableUnmatch : disable display of unmatch log line
+
+		$ tail -f testdata/sample_s3_contains_unmatch.log | go run _examples/main.go stream
+
+		Exit with CTRL+C
+	*/
+	if len(os.Args) > 1 && os.Args[1] == "stream" {
+		p = parser.NewS3RegexParser(os.Stdout)
+		p.SetLineHandler(parser.JSONLineHandler)
+		r, err = p.Parse(context.Background(), os.Stdin, nil, nil, true, false)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(r)
+		return
+	}
+
+	p = parser.NewS3RegexParser(os.Stdout)
+	p.SetLineHandler(parser.JSONLineHandler)
+
+	/*
+		Example of parsing from a file path (Same signature for `ParseString` and `ParseGzip`)
+
+		Args:
+		filePath      : file path
+		keywords      : filter lines by keywords
+		labels        : select columns by field name
+		skipLines     : skip lines by line number (not index)
+		hasLineNumber : enable line number display
+	*/
+	r, err = p.ParseFile(
+		"testdata/sample_s3_contains_unmatch.log",
+		[]string{"REST.GET.VERSIONING"},
+		[]string{"bucket_owner", "bucket", "method", "request_uri", "protocol"},
+		[]int{1},
+		true,
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Println(r)
 
-	fmt.Println("-- Processed Data --")
-	fmt.Println(strings.Join(out.Data, "\n"))
-	fmt.Println("")
+	/*
+		Example of parsing from a zip path
 
-	fmt.Println("-- Processed Metadata --")
-	fmt.Println(out.Metadata)
-	fmt.Println("")
-
-	fmt.Println("-- Extracted Labels --")
-	for _, label := range out.Labels {
-		fmt.Println(strings.Join(label, "\t"))
+		Args:
+		filePath      : file path
+		globPattern   : glob pattern to filter zip entries
+		keywords      : filter lines by keywords
+		labels        : select columns by field name
+		skipLines     : skip lines by line number (not index)
+		hasLineNumber : enable line number display
+	*/
+	r, err = p.ParseZipEntries("testdata/sample_s3.zip", "*.log", nil, nil, nil, false)
+	if err != nil {
+		log.Fatal(err)
 	}
-	fmt.Println("")
+	fmt.Println(r)
 
-	fmt.Println("-- Extracted Values --")
-	for _, value := range out.Values {
-		fmt.Println(strings.Join(value, "\t"))
+	p = parser.NewLTSVParser(os.Stdout)
+	p.SetLineHandler(parser.PrettyJSONLineHandler)
+
+	/*
+		Example of parsing from a string
+	*/
+	r, err = p.ParseString(
+		`remote_host:192.168.1.1	remote_logname:-	remote_user:john	datetime:[12/Mar/2023:10:55:36 +0000]	request:GET /index.html HTTP/1.1	status:200	size:1024	referer:http://www.example.com/	user_agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64)`,
+		nil, nil, nil, true,
+	)
+	if err != nil {
+		log.Fatal(err)
 	}
-	fmt.Println("")
+	fmt.Println(r)
 }

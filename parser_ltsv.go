@@ -1,33 +1,32 @@
 package parser
 
 import (
+	"context"
 	"io"
 )
 
 var _ Parser = (*LTSVParser)(nil)
 
-// LTSVParser is a struct for parsing logs in Labeled Tab-separated Values (LTSV) format.
-// LTSV format is a type of delimited text file that uses a tab to separate labels from values.
-// Each line is a record with a simple key-value pair structure, making it suitable for logs and other structured data.
-// The parser utilizes a custom LineHandler and MetadataHandler for processing and formatting the parsed data.
+// LTSVParser implements the Parser interface for parsing logs in LTSV (Labeled Tab-separated Values) format.
+// It allows customization of line and metadata handling for LTSV formatted data.
 type LTSVParser struct {
-	decoder         decoder         // parser is the underlying function that drives the LTSV parsing process.
-	lineHandler     LineHandler     // LineHandler is a user-defined function that processes each line of the log file.
-	metadataHandler MetadataHandler // MetadataHandler is a user-defined function that processes the metadata of the parsed log.
+	writer      io.Writer
+	lineDecoder lineDecoder
+	lineHandler LineHandler
 }
 
-// NewLTSVParser creates a new instance of LTSVParser with default handlers.
-// This parser is specifically configured to parse logs in LTSV format and format the output as JSON.
-// Users can override the default handlers by using SetLineHandler and SetMetadataHandler methods.
-func NewLTSVParser() *LTSVParser {
+// NewLTSVParser initializes a new LTSVParser with default handlers for line decoding, line handling,
+// and metadata handling. This parser is specifically tailored for LTSV formatted log data.
+func NewLTSVParser(writer io.Writer) *LTSVParser {
 	return &LTSVParser{
-		decoder:         ltsvDecoder,         // Use the internal ltsvDecoder function for parsing the logs.
-		lineHandler:     JSONLineHandler,     // Default handler to convert log lines to JSON format.
-		metadataHandler: JSONMetadataHandler, // Default handler to convert metadata to JSON format.
+		writer:      writer,
+		lineDecoder: ltsvLineDecoder,
+		lineHandler: JSONLineHandler,
 	}
 }
 
-// SetLineHandler sets a custom line handler for the parser.
+// SetLineHandler sets the function responsible for processing each line of log data.
+// This allows for custom processing of LTSV formatted lines. The handler is skipped if nil.
 func (p *LTSVParser) SetLineHandler(handler LineHandler) {
 	if handler == nil {
 		return
@@ -35,35 +34,32 @@ func (p *LTSVParser) SetLineHandler(handler LineHandler) {
 	p.lineHandler = handler
 }
 
-// SetMetadataHandler sets a custom metadata handler for the parser.
-func (p *LTSVParser) SetMetadataHandler(handler MetadataHandler) {
-	if handler == nil {
-		return
-	}
-	p.metadataHandler = handler
+// Parse processes log data from an io.Reader, applying the configured line and metadata handlers.
+// This method supports context cancellation, prefixing of lines, and exclusion of specific lines.
+func (p *LTSVParser) Parse(ctx context.Context, reader io.Reader, keywords, labels []string, hasPrefix, disableUnmatch bool) (*Result, error) {
+	return parse(ctx, reader, p.writer, nil, keywords, labels, hasPrefix, disableUnmatch, p.lineDecoder, p.lineHandler)
 }
 
-// Parse processes the given io.Reader input using the configured patterns and handlers.
-func (p *LTSVParser) Parse(input io.Reader, skipLines []int, hasIndex bool) (*Result, error) {
-	return parse(input, skipLines, hasIndex, p.decoder, nil, p.lineHandler, p.metadataHandler)
+// ParseString processes a log string directly, applying configured skip lines and line number handling.
+// It's designed for quick parsing of a single LTSV formatted log string.
+func (p *LTSVParser) ParseString(s string, keywords, labels []string, skipLines []int, hasLineNumber bool) (*Result, error) {
+	return parseString(s, p.writer, nil, keywords, labels, skipLines, hasLineNumber, p.lineDecoder, p.lineHandler)
 }
 
-// ParseString processes the given string input as a reader.
-func (p *LTSVParser) ParseString(input string, skipLines []int, hasIndex bool) (*Result, error) {
-	return parseString(input, skipLines, hasIndex, p.decoder, nil, p.lineHandler, p.metadataHandler)
+// ParseFile reads and parses log data from a file, leveraging the configured patterns and handlers.
+// This method simplifies file-based LTSV log parsing with automatic line and metadata processing.
+func (p *LTSVParser) ParseFile(filePath string, keywords, labels []string, skipLines []int, hasLineNumber bool) (*Result, error) {
+	return parseFile(filePath, p.writer, nil, keywords, labels, skipLines, hasLineNumber, p.lineDecoder, p.lineHandler)
 }
 
-// ParseFile processes the content of the specified file.
-func (p *LTSVParser) ParseFile(input string, skipLines []int, hasIndex bool) (*Result, error) {
-	return parseFile(input, skipLines, hasIndex, p.decoder, nil, p.lineHandler, p.metadataHandler)
+// ParseGzip processes gzip-compressed log data, extending the parser's capabilities to compressed LTSV logs.
+// It applies skip lines and line number handling as configured for gzip-compressed files.
+func (p *LTSVParser) ParseGzip(gzipPath string, keywords, labels []string, skipLines []int, hasLineNumber bool) (*Result, error) {
+	return parseGzip(gzipPath, p.writer, nil, keywords, labels, skipLines, hasLineNumber, p.lineDecoder, p.lineHandler)
 }
 
-// ParseGzip processes the content of a gzipped file.
-func (p *LTSVParser) ParseGzip(input string, skipLines []int, hasIndex bool) (*Result, error) {
-	return parseGzip(input, skipLines, hasIndex, p.decoder, nil, p.lineHandler, p.metadataHandler)
-}
-
-// ParseZipEntries processes the contents of zip file entries matching the specified glob pattern.
-func (p *LTSVParser) ParseZipEntries(input string, skipLines []int, hasIndex bool, globPattern string) ([]*Result, error) {
-	return parseZipEntries(input, skipLines, hasIndex, globPattern, p.decoder, nil, p.lineHandler, p.metadataHandler)
+// ParseZipEntries processes log data within zip archive entries, applying skip lines, line number handling,
+// and optional glob pattern matching. This method is ideal for batch processing of LTSV logs in zip files.
+func (p *LTSVParser) ParseZipEntries(zipPath, globPattern string, keywords, labels []string, skipLines []int, hasLineNumber bool) (*Result, error) {
+	return parseZipEntries(zipPath, globPattern, p.writer, nil, keywords, labels, skipLines, hasLineNumber, p.lineDecoder, p.lineHandler)
 }

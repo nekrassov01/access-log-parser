@@ -1,6 +1,12 @@
+// Package parser provides utilities for parsing various types of logs (plain text, gzip, zip)
+// and converting them into structured formats such as JSON or LTSV. It supports pattern matching,
+// result extraction, and error handling.
 package parser
 
 import (
+	"archive/zip"
+	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -19,88 +25,54 @@ var (
 	regexCapturedGroupNotContainsPatterns      []*regexp.Regexp
 	regexNonNamedCapturedGroupContainsPatterns []*regexp.Regexp
 
-	regexAllMatchInput              string
-	regexAllMatchData               []string
-	regexAllMatchMetadata           *Metadata
-	regexAllMatchMetadataSerialized string
-	regexAllMatchLabelData          [][]string
-	regexAllMatchValueData          [][]string
+	regexAllMatchInput         string
+	regexAllMatchData          []string
+	regexAllMatchResult        *Result
+	regexContainsUnmatchInput  string
+	regexContainsUnmatchData   []string
+	regexContainsUnmatchResult *Result
+	regexContainsKeyword       []string
+	regexContainsKeywordData   []string
+	regexContainsKeywordResult *Result
+	regexContainsSkipLines     []int
+	regexContainsSkipData      []string
+	regexContainsSkipResult    *Result
+	regexAllUnmatchInput       string
+	regexAllUnmatchResult      *Result
+	regexAllSkipLines          []int
+	regexAllSkipResult         *Result
+	regexEmptyResult           *Result
+	regexMixedSkipLines        []int
+	regexMixedData             []string
+	regexMixedResult           *Result
 
-	regexContainsUnmatchInput              string
-	regexContainsUnmatchData               []string
-	regexContainsUnmatchMetadata           *Metadata
-	regexContainsUnmatchMetadataSerialized string
-	regexContainsUnmatchLabelData          [][]string
-	regexContainsUnmatchValueData          [][]string
+	ltsvAllMatchInput         string
+	ltsvAllMatchData          []string
+	ltsvAllMatchResult        *Result
+	ltsvContainsUnmatchInput  string
+	ltsvContainsUnmatchData   []string
+	ltsvContainsUnmatchResult *Result
+	ltsvContainsKeyword       []string
+	ltsvContainsKeywordData   []string
+	ltsvContainsKeywordResult *Result
+	ltsvContainsSkipLines     []int
+	ltsvContainsSkipData      []string
+	ltsvContainsSkipResult    *Result
+	ltsvAllUnmatchInput       string
+	ltsvAllUnmatchResult      *Result
+	ltsvAllSkipLines          []int
+	ltsvAllSkipResult         *Result
+	ltsvEmptyResult           *Result
+	ltsvMixedSkipLines        []int
+	ltsvMixedData             []string
+	ltsvMixedResult           *Result
 
-	regexContainsSkipLines              []int
-	regexContainsSkipData               []string
-	regexContainsSkipMetadata           *Metadata
-	regexContainsSkipMetadataSerialized string
-	regexContainsSkipLabelData          [][]string
-	regexContainsSkipValueData          [][]string
-
-	regexAllUnmatchInput              string
-	regexAllUnmatchMetadata           *Metadata
-	regexAllUnmatchMetadataSerialized string
-
-	regexAllSkipLines              []int
-	regexAllSkipMetadata           *Metadata
-	regexAllSkipMetadataSerialized string
-
-	regexEmptyMetadata           *Metadata
-	regexEmptyMetadataSerialized string
-
-	regexMixedSkipLines          []int
-	regexMixedData               []string
-	regexMixedMetadata           *Metadata
-	regexMixedMetadataSerialized string
-	regexMixedLabelData          [][]string
-	regexMixedValueData          [][]string
-
-	ltsvAllMatchInput              string
-	ltsvAllMatchData               []string
-	ltsvAllMatchMetadata           *Metadata
-	ltsvAllMatchMetadataSerialized string
-	ltsvAllMatchLabelData          [][]string
-	ltsvAllMatchValueData          [][]string
-
-	ltsvContainsUnmatchInput              string
-	ltsvContainsUnmatchData               []string
-	ltsvContainsUnmatchMetadata           *Metadata
-	ltsvContainsUnmatchMetadataSerialized string
-	ltsvContainsUnmatchLabelData          [][]string
-	ltsvContainsUnmatchValueData          [][]string
-
-	ltsvContainsSkipLines              []int
-	ltsvContainsSkipData               []string
-	ltsvContainsSkipMetadata           *Metadata
-	ltsvContainsSkipMetadataSerialized string
-	ltsvContainsSkipLabelData          [][]string
-	ltsvContainsSkipValueData          [][]string
-
-	ltsvAllUnmatchInput              string
-	ltsvAllUnmatchMetadata           *Metadata
-	ltsvAllUnmatchMetadataSerialized string
-
-	ltsvAllSkipLines              []int
-	ltsvAllSkipMetadata           *Metadata
-	ltsvAllSkipMetadataSerialized string
-
-	ltsvEmptyMetadata           *Metadata
-	ltsvEmptyMetadataSerialized string
-
-	ltsvMixedSkipLines          []int
-	ltsvMixedData               []string
-	ltsvMixedMetadata           *Metadata
-	ltsvMixedMetadataSerialized string
-	ltsvMixedLabelData          [][]string
-	ltsvMixedValueData          [][]string
-
-	fileNotFoundMessage        string
-	fileNotFoundMessageWindows string
-	isDirMessage               string
-	isDirMessageWindows        string
+	regexAllMatchDataForStream        []string
+	regexContainsUnmatchDataForStream []string
+	regexAllUnmatchDataForStream      []string
+	ltsvAllMatchDataForStream         []string
+	ltsvContainsUnmatchDataForStream  []string
+	ltsvAllUnmatchDataForStream       []string
 )
 
 func TestMain(m *testing.M) {
@@ -129,34 +101,20 @@ func setup() {
 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket89 [03/Feb/2019:03:54:33 +0000] 192.0.2.76 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 7B4A0FABBEXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket89?versioning HTTP/1.1" 200 - 113 - 33 - "-" "S3Console/0.4" - Ke1bUcazaN1jWuUlPJaxF64cQVpUEhoZKEG/hmy/gijN/I1DeWqDfFvnpybfEseEME/u7ME1234= SigV2 ECDHE-RSA-AES128-SHA AuthHeader
 01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f awsrandombucket77 [28/Feb/2019:14:12:59 +0000] 192.0.2.213 01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f 3E57427F3EXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket77?versioning HTTP/1.1" 200 - 113 - 7 - "-" "S3Console/0.4" -`
 	regexAllMatchData = []string{
-		`{"index":"1","bucket_owner":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","bucket":"awsrandombucket43","time":"[16/Feb/2019:11:23:45 +0000]","remote_ip":"192.0.2.132","requester":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket43?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket43.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1","access_point_arn":"-"}`,
-		`{"index":"2","bucket_owner":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","bucket":"awsrandombucket59","time":"[24/Feb/2019:07:45:11 +0000]","remote_ip":"192.0.2.45","requester":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","request_id":"891CE47D2EXAMPLE","operation":"REST.GET.LOGGING_STATUS","key":"-","method":"GET","request_uri":"/awsrandombucket59?logging","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"242","object_size":"-","total_time":"11","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1"}`,
-		`{"index":"3","bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","bucket":"awsrandombucket12","time":"[12/Feb/2019:18:32:21 +0000]","remote_ip":"192.0.2.189","requester":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","request_id":"A1206F460EXAMPLE","operation":"REST.GET.BUCKETPOLICY","key":"-","method":"GET","request_uri":"/awsrandombucket12?policy","protocol":"HTTP/1.1","http_status":"404","error_code":"NoSuchBucketPolicy","bytes_sent":"297","object_size":"-","total_time":"38","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com"}`,
-		`{"index":"4","bucket_owner":"d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01","bucket":"awsrandombucket89","time":"[03/Feb/2019:03:54:33 +0000]","remote_ip":"192.0.2.76","requester":"d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01","request_id":"7B4A0FABBEXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket89?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"33","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
-		`{"index":"5","bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","bucket":"awsrandombucket77","time":"[28/Feb/2019:14:12:59 +0000]","remote_ip":"192.0.2.213","requester":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket77?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
+		`{"bucket_owner":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","bucket":"awsrandombucket43","time":"[16/Feb/2019:11:23:45 +0000]","remote_ip":"192.0.2.132","requester":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket43?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket43.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1","access_point_arn":"-"}`,
+		`{"bucket_owner":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","bucket":"awsrandombucket59","time":"[24/Feb/2019:07:45:11 +0000]","remote_ip":"192.0.2.45","requester":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","request_id":"891CE47D2EXAMPLE","operation":"REST.GET.LOGGING_STATUS","key":"-","method":"GET","request_uri":"/awsrandombucket59?logging","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"242","object_size":"-","total_time":"11","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1"}`,
+		`{"bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","bucket":"awsrandombucket12","time":"[12/Feb/2019:18:32:21 +0000]","remote_ip":"192.0.2.189","requester":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","request_id":"A1206F460EXAMPLE","operation":"REST.GET.BUCKETPOLICY","key":"-","method":"GET","request_uri":"/awsrandombucket12?policy","protocol":"HTTP/1.1","http_status":"404","error_code":"NoSuchBucketPolicy","bytes_sent":"297","object_size":"-","total_time":"38","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com"}`,
+		`{"bucket_owner":"d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01","bucket":"awsrandombucket89","time":"[03/Feb/2019:03:54:33 +0000]","remote_ip":"192.0.2.76","requester":"d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01","request_id":"7B4A0FABBEXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket89?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"33","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
+		`{"bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","bucket":"awsrandombucket77","time":"[28/Feb/2019:14:12:59 +0000]","remote_ip":"192.0.2.213","requester":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket77?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
 	}
-	regexAllMatchMetadata = &Metadata{
+	regexAllMatchResult = &Result{
 		Total:     5,
 		Matched:   5,
 		Unmatched: 0,
+		Excluded:  0,
 		Skipped:   0,
 		Source:    "",
-		Errors:    nil,
-	}
-	regexAllMatchMetadataSerialized = `{"total":5,"matched":5,"unmatched":0,"skipped":0,"source":"%s","errors":null}`
-	regexAllMatchLabelData = [][]string{
-		{"bucket_owner", "bucket", "time", "remote_ip", "requester", "request_id", "operation", "key", "method", "request_uri", "protocol", "http_status", "error_code", "bytes_sent", "object_size", "total_time", "turn_around_time", "referer", "user_agent", "version_id", "host_id", "signature_version", "cipher_suite", "authentication_type", "host_header", "tls_version", "access_point_arn"},
-		{"bucket_owner", "bucket", "time", "remote_ip", "requester", "request_id", "operation", "key", "method", "request_uri", "protocol", "http_status", "error_code", "bytes_sent", "object_size", "total_time", "turn_around_time", "referer", "user_agent", "version_id", "host_id", "signature_version", "cipher_suite", "authentication_type", "host_header", "tls_version"},
-		{"bucket_owner", "bucket", "time", "remote_ip", "requester", "request_id", "operation", "key", "method", "request_uri", "protocol", "http_status", "error_code", "bytes_sent", "object_size", "total_time", "turn_around_time", "referer", "user_agent", "version_id", "host_id", "signature_version", "cipher_suite", "authentication_type", "host_header"},
-		{"bucket_owner", "bucket", "time", "remote_ip", "requester", "request_id", "operation", "key", "method", "request_uri", "protocol", "http_status", "error_code", "bytes_sent", "object_size", "total_time", "turn_around_time", "referer", "user_agent", "version_id"},
-		{"bucket_owner", "bucket", "time", "remote_ip", "requester", "request_id", "operation", "key", "method", "request_uri", "protocol", "http_status", "error_code", "bytes_sent", "object_size", "total_time", "turn_around_time", "referer", "user_agent", "version_id"},
-	}
-	regexAllMatchValueData = [][]string{
-		{"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a", "awsrandombucket43", "[16/Feb/2019:11:23:45 +0000]", "192.0.2.132", "a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a", "3E57427F3EXAMPLE", "REST.GET.VERSIONING", "-", "GET", "/awsrandombucket43?versioning", "HTTP/1.1", "200", "-", "113", "-", "7", "-", "-", "S3Console/0.4", "-", "s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=", "SigV2", "ECDHE-RSA-AES128-GCM-SHA256", "AuthHeader", "awsrandombucket43.s3.us-west-1.amazonaws.com", "TLSV1.1", "-"},
-		{"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23", "awsrandombucket59", "[24/Feb/2019:07:45:11 +0000]", "192.0.2.45", "3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23", "891CE47D2EXAMPLE", "REST.GET.LOGGING_STATUS", "-", "GET", "/awsrandombucket59?logging", "HTTP/1.1", "200", "-", "242", "-", "11", "-", "-", "S3Console/0.4", "-", "9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234=", "SigV2", "ECDHE-RSA-AES128-GCM-SHA256", "AuthHeader", "awsrandombucket59.s3.us-west-1.amazonaws.com", "TLSV1.1"},
-		{"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2", "awsrandombucket12", "[12/Feb/2019:18:32:21 +0000]", "192.0.2.189", "8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2", "A1206F460EXAMPLE", "REST.GET.BUCKETPOLICY", "-", "GET", "/awsrandombucket12?policy", "HTTP/1.1", "404", "NoSuchBucketPolicy", "297", "-", "38", "-", "-", "S3Console/0.4", "-", "BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=", "SigV2", "ECDHE-RSA-AES128-GCM-SHA256", "AuthHeader", "awsrandombucket59.s3.us-west-1.amazonaws.com"},
-		{"d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01", "awsrandombucket89", "[03/Feb/2019:03:54:33 +0000]", "192.0.2.76", "d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01", "7B4A0FABBEXAMPLE", "REST.GET.VERSIONING", "-", "GET", "/awsrandombucket89?versioning", "HTTP/1.1", "200", "-", "113", "-", "33", "-", "-", "S3Console/0.4", "-"},
-		{"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f", "awsrandombucket77", "[28/Feb/2019:14:12:59 +0000]", "192.0.2.213", "01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f", "3E57427F3EXAMPLE", "REST.GET.VERSIONING", "-", "GET", "/awsrandombucket77?versioning", "HTTP/1.1", "200", "-", "113", "-", "7", "-", "-", "S3Console/0.4", "-"},
+		Errors:    []Errors{},
 	}
 
 	regexContainsUnmatchInput = `a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a awsrandombucket43 [16/Feb/2019:11:23:45 +0000] 192.0.2.132 a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a 3E57427F3EXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket43?versioning HTTP/1.1" 200 - 113 - 7 - "-" "S3Console/0.4" - s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234= SigV2 ECDHE-RSA-AES128-GCM-SHA256 AuthHeader awsrandombucket43.s3.us-west-1.amazonaws.com TLSV1.1 -
@@ -165,62 +123,52 @@ d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket
 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket89 [03/Feb/2019:03:54:33 +0000] 192.0.2.76 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 7B4A0FABBEXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket89?versioning HTTP/1.1" 200 - 113 - 33 - "-" "S3Console/0.4"
 01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f awsrandombucket77 [28/Feb/2019:14:12:59 +0000] 192.0.2.213 01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f 3E57427F3EXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket77?versioning HTTP/1.1" 200 - 113 - 7 - "-" "S3Console/0.4" -`
 	regexContainsUnmatchData = []string{
-		`{"index":"1","bucket_owner":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","bucket":"awsrandombucket43","time":"[16/Feb/2019:11:23:45 +0000]","remote_ip":"192.0.2.132","requester":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket43?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket43.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1","access_point_arn":"-"}`,
-		`{"index":"2","bucket_owner":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","bucket":"awsrandombucket59","time":"[24/Feb/2019:07:45:11 +0000]","remote_ip":"192.0.2.45","requester":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","request_id":"891CE47D2EXAMPLE","operation":"REST.GET.LOGGING_STATUS","key":"-","method":"GET","request_uri":"/awsrandombucket59?logging","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"242","object_size":"-","total_time":"11","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1"}`,
-		`{"index":"3","bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","bucket":"awsrandombucket12","time":"[12/Feb/2019:18:32:21 +0000]","remote_ip":"192.0.2.189","requester":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","request_id":"A1206F460EXAMPLE","operation":"REST.GET.BUCKETPOLICY","key":"-","method":"GET","request_uri":"/awsrandombucket12?policy","protocol":"HTTP/1.1","http_status":"404","error_code":"NoSuchBucketPolicy","bytes_sent":"297","object_size":"-","total_time":"38","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com"}`,
-		`{"index":"5","bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","bucket":"awsrandombucket77","time":"[28/Feb/2019:14:12:59 +0000]","remote_ip":"192.0.2.213","requester":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket77?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
+		`{"bucket_owner":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","bucket":"awsrandombucket43","time":"[16/Feb/2019:11:23:45 +0000]","remote_ip":"192.0.2.132","requester":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket43?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket43.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1","access_point_arn":"-"}`,
+		`{"bucket_owner":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","bucket":"awsrandombucket59","time":"[24/Feb/2019:07:45:11 +0000]","remote_ip":"192.0.2.45","requester":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","request_id":"891CE47D2EXAMPLE","operation":"REST.GET.LOGGING_STATUS","key":"-","method":"GET","request_uri":"/awsrandombucket59?logging","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"242","object_size":"-","total_time":"11","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1"}`,
+		`{"bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","bucket":"awsrandombucket12","time":"[12/Feb/2019:18:32:21 +0000]","remote_ip":"192.0.2.189","requester":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","request_id":"A1206F460EXAMPLE","operation":"REST.GET.BUCKETPOLICY","key":"-","method":"GET","request_uri":"/awsrandombucket12?policy","protocol":"HTTP/1.1","http_status":"404","error_code":"NoSuchBucketPolicy","bytes_sent":"297","object_size":"-","total_time":"38","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com"}`,
+		`{"bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","bucket":"awsrandombucket77","time":"[28/Feb/2019:14:12:59 +0000]","remote_ip":"192.0.2.213","requester":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket77?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
 	}
-	regexContainsUnmatchMetadata = &Metadata{
+	regexContainsUnmatchResult = &Result{
 		Total:     5,
 		Matched:   4,
 		Unmatched: 1,
+		Excluded:  0,
 		Skipped:   0,
 		Source:    "",
-		Errors: []ErrorRecord{
+		Errors: []Errors{
 			{
-				Index:  4,
-				Record: "d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket89 [03/Feb/2019:03:54:33 +0000] 192.0.2.76 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 7B4A0FABBEXAMPLE REST.GET.VERSIONING - \"GET /awsrandombucket89?versioning HTTP/1.1\" 200 - 113 - 33 - \"-\" \"S3Console/0.4\"",
+				LineNumber: 4,
+				Line:       "d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket89 [03/Feb/2019:03:54:33 +0000] 192.0.2.76 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 7B4A0FABBEXAMPLE REST.GET.VERSIONING - \"GET /awsrandombucket89?versioning HTTP/1.1\" 200 - 113 - 33 - \"-\" \"S3Console/0.4\"",
 			},
 		},
 	}
-	regexContainsUnmatchMetadataSerialized = `{"total":5,"matched":4,"unmatched":1,"skipped":0,"source":"%s","errors":[{"index":4,"record":"d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket89 [03/Feb/2019:03:54:33 +0000] 192.0.2.76 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 7B4A0FABBEXAMPLE REST.GET.VERSIONING - \"GET /awsrandombucket89?versioning HTTP/1.1\" 200 - 113 - 33 - \"-\" \"S3Console/0.4\""}]}`
-	regexContainsUnmatchLabelData = [][]string{
-		{"bucket_owner", "bucket", "time", "remote_ip", "requester", "request_id", "operation", "key", "method", "request_uri", "protocol", "http_status", "error_code", "bytes_sent", "object_size", "total_time", "turn_around_time", "referer", "user_agent", "version_id", "host_id", "signature_version", "cipher_suite", "authentication_type", "host_header", "tls_version", "access_point_arn"},
-		{"bucket_owner", "bucket", "time", "remote_ip", "requester", "request_id", "operation", "key", "method", "request_uri", "protocol", "http_status", "error_code", "bytes_sent", "object_size", "total_time", "turn_around_time", "referer", "user_agent", "version_id", "host_id", "signature_version", "cipher_suite", "authentication_type", "host_header", "tls_version"},
-		{"bucket_owner", "bucket", "time", "remote_ip", "requester", "request_id", "operation", "key", "method", "request_uri", "protocol", "http_status", "error_code", "bytes_sent", "object_size", "total_time", "turn_around_time", "referer", "user_agent", "version_id", "host_id", "signature_version", "cipher_suite", "authentication_type", "host_header"},
-		{"bucket_owner", "bucket", "time", "remote_ip", "requester", "request_id", "operation", "key", "method", "request_uri", "protocol", "http_status", "error_code", "bytes_sent", "object_size", "total_time", "turn_around_time", "referer", "user_agent", "version_id"},
-	}
-	regexContainsUnmatchValueData = [][]string{
-		{"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a", "awsrandombucket43", "[16/Feb/2019:11:23:45 +0000]", "192.0.2.132", "a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a", "3E57427F3EXAMPLE", "REST.GET.VERSIONING", "-", "GET", "/awsrandombucket43?versioning", "HTTP/1.1", "200", "-", "113", "-", "7", "-", "-", "S3Console/0.4", "-", "s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=", "SigV2", "ECDHE-RSA-AES128-GCM-SHA256", "AuthHeader", "awsrandombucket43.s3.us-west-1.amazonaws.com", "TLSV1.1", "-"},
-		{"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23", "awsrandombucket59", "[24/Feb/2019:07:45:11 +0000]", "192.0.2.45", "3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23", "891CE47D2EXAMPLE", "REST.GET.LOGGING_STATUS", "-", "GET", "/awsrandombucket59?logging", "HTTP/1.1", "200", "-", "242", "-", "11", "-", "-", "S3Console/0.4", "-", "9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234=", "SigV2", "ECDHE-RSA-AES128-GCM-SHA256", "AuthHeader", "awsrandombucket59.s3.us-west-1.amazonaws.com", "TLSV1.1"},
-		{"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2", "awsrandombucket12", "[12/Feb/2019:18:32:21 +0000]", "192.0.2.189", "8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2", "A1206F460EXAMPLE", "REST.GET.BUCKETPOLICY", "-", "GET", "/awsrandombucket12?policy", "HTTP/1.1", "404", "NoSuchBucketPolicy", "297", "-", "38", "-", "-", "S3Console/0.4", "-", "BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=", "SigV2", "ECDHE-RSA-AES128-GCM-SHA256", "AuthHeader", "awsrandombucket59.s3.us-west-1.amazonaws.com"},
-		{"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f", "awsrandombucket77", "[28/Feb/2019:14:12:59 +0000]", "192.0.2.213", "01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f", "3E57427F3EXAMPLE", "REST.GET.VERSIONING", "-", "GET", "/awsrandombucket77?versioning", "HTTP/1.1", "200", "-", "113", "-", "7", "-", "-", "S3Console/0.4", "-"},
+
+	regexContainsKeyword = []string{"NoSuchBucketPolicy"}
+	regexContainsKeywordData = []string{`{"bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","bucket":"awsrandombucket12","time":"[12/Feb/2019:18:32:21 +0000]","remote_ip":"192.0.2.189","requester":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","request_id":"A1206F460EXAMPLE","operation":"REST.GET.BUCKETPOLICY","key":"-","method":"GET","request_uri":"/awsrandombucket12?policy","protocol":"HTTP/1.1","http_status":"404","error_code":"NoSuchBucketPolicy","bytes_sent":"297","object_size":"-","total_time":"38","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com"}`}
+	regexContainsKeywordResult = &Result{
+		Total:     5,
+		Matched:   1,
+		Unmatched: 0,
+		Excluded:  4,
+		Skipped:   0,
+		Source:    "",
+		Errors:    []Errors{},
 	}
 
 	regexContainsSkipLines = []int{2, 4}
 	regexContainsSkipData = []string{
-		`{"index":"1","bucket_owner":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","bucket":"awsrandombucket43","time":"[16/Feb/2019:11:23:45 +0000]","remote_ip":"192.0.2.132","requester":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket43?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket43.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1","access_point_arn":"-"}`,
-		`{"index":"3","bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","bucket":"awsrandombucket12","time":"[12/Feb/2019:18:32:21 +0000]","remote_ip":"192.0.2.189","requester":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","request_id":"A1206F460EXAMPLE","operation":"REST.GET.BUCKETPOLICY","key":"-","method":"GET","request_uri":"/awsrandombucket12?policy","protocol":"HTTP/1.1","http_status":"404","error_code":"NoSuchBucketPolicy","bytes_sent":"297","object_size":"-","total_time":"38","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com"}`,
-		`{"index":"5","bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","bucket":"awsrandombucket77","time":"[28/Feb/2019:14:12:59 +0000]","remote_ip":"192.0.2.213","requester":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket77?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
+		`{"no":"1","bucket_owner":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","bucket":"awsrandombucket43","time":"[16/Feb/2019:11:23:45 +0000]","remote_ip":"192.0.2.132","requester":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket43?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket43.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1","access_point_arn":"-"}`,
+		`{"no":"3","bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","bucket":"awsrandombucket12","time":"[12/Feb/2019:18:32:21 +0000]","remote_ip":"192.0.2.189","requester":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","request_id":"A1206F460EXAMPLE","operation":"REST.GET.BUCKETPOLICY","key":"-","method":"GET","request_uri":"/awsrandombucket12?policy","protocol":"HTTP/1.1","http_status":"404","error_code":"NoSuchBucketPolicy","bytes_sent":"297","object_size":"-","total_time":"38","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com"}`,
+		`{"no":"5","bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","bucket":"awsrandombucket77","time":"[28/Feb/2019:14:12:59 +0000]","remote_ip":"192.0.2.213","requester":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket77?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
 	}
-	regexContainsSkipMetadata = &Metadata{
+	regexContainsSkipResult = &Result{
 		Total:     5,
 		Matched:   3,
 		Unmatched: 0,
+		Excluded:  0,
 		Skipped:   2,
 		Source:    "",
-		Errors:    nil,
-	}
-	regexContainsSkipMetadataSerialized = `{"total":5,"matched":3,"unmatched":0,"skipped":2,"source":"%s","errors":null}`
-	regexContainsSkipLabelData = [][]string{
-		{"bucket_owner", "bucket", "time", "remote_ip", "requester", "request_id", "operation", "key", "method", "request_uri", "protocol", "http_status", "error_code", "bytes_sent", "object_size", "total_time", "turn_around_time", "referer", "user_agent", "version_id", "host_id", "signature_version", "cipher_suite", "authentication_type", "host_header", "tls_version", "access_point_arn"},
-		{"bucket_owner", "bucket", "time", "remote_ip", "requester", "request_id", "operation", "key", "method", "request_uri", "protocol", "http_status", "error_code", "bytes_sent", "object_size", "total_time", "turn_around_time", "referer", "user_agent", "version_id", "host_id", "signature_version", "cipher_suite", "authentication_type", "host_header"},
-		{"bucket_owner", "bucket", "time", "remote_ip", "requester", "request_id", "operation", "key", "method", "request_uri", "protocol", "http_status", "error_code", "bytes_sent", "object_size", "total_time", "turn_around_time", "referer", "user_agent", "version_id"},
-	}
-	regexContainsSkipValueData = [][]string{
-		{"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a", "awsrandombucket43", "[16/Feb/2019:11:23:45 +0000]", "192.0.2.132", "a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a", "3E57427F3EXAMPLE", "REST.GET.VERSIONING", "-", "GET", "/awsrandombucket43?versioning", "HTTP/1.1", "200", "-", "113", "-", "7", "-", "-", "S3Console/0.4", "-", "s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=", "SigV2", "ECDHE-RSA-AES128-GCM-SHA256", "AuthHeader", "awsrandombucket43.s3.us-west-1.amazonaws.com", "TLSV1.1", "-"},
-		{"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2", "awsrandombucket12", "[12/Feb/2019:18:32:21 +0000]", "192.0.2.189", "8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2", "A1206F460EXAMPLE", "REST.GET.BUCKETPOLICY", "-", "GET", "/awsrandombucket12?policy", "HTTP/1.1", "404", "NoSuchBucketPolicy", "297", "-", "38", "-", "-", "S3Console/0.4", "-", "BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=", "SigV2", "ECDHE-RSA-AES128-GCM-SHA256", "AuthHeader", "awsrandombucket59.s3.us-west-1.amazonaws.com"},
-		{"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f", "awsrandombucket77", "[28/Feb/2019:14:12:59 +0000]", "192.0.2.213", "01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f", "3E57427F3EXAMPLE", "REST.GET.VERSIONING", "-", "GET", "/awsrandombucket77?versioning", "HTTP/1.1", "200", "-", "113", "-", "7", "-", "-", "S3Console/0.4", "-"},
+		Errors:    []Errors{},
 	}
 
 	regexAllUnmatchInput = `a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a awsrandombucket43 [16/Feb/2019:11:23:45 +0000] 192.0.2.132 a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a 3E57427F3EXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket43?versioning HTTP/1.1" 200 - 113 - 7 - "-" "S3Console/0.4"
@@ -228,87 +176,77 @@ d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket
 8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2 awsrandombucket12 [12/Feb/2019:18:32:21 +0000] 192.0.2.189 8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2 A1206F460EXAMPLE REST.GET.BUCKETPOLICY - "GET /awsrandombucket12?policy HTTP/1.1" 404 NoSuchBucketPolicy 297 - 38 -
 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket89 [03/Feb/2019:03:54:33 +0000] 192.0.2.76 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 7B4A0FABBEXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket89?versioning HTTP/1.1" 200 - 113 - 33
 01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f awsrandombucket77 [28/Feb/2019:14:12:59 +0000] 192.0.2.213 01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f 3E57427F3EXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket77?versioning HTTP/1.1" 200 - 113 -`
-	regexAllUnmatchMetadata = &Metadata{
+	regexAllUnmatchResult = &Result{
 		Total:     5,
 		Matched:   0,
 		Unmatched: 5,
+		Excluded:  0,
 		Skipped:   0,
 		Source:    "",
-		Errors: []ErrorRecord{
+		Errors: []Errors{
 			{
-				Index:  1,
-				Record: "a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a awsrandombucket43 [16/Feb/2019:11:23:45 +0000] 192.0.2.132 a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a 3E57427F3EXAMPLE REST.GET.VERSIONING - \"GET /awsrandombucket43?versioning HTTP/1.1\" 200 - 113 - 7 - \"-\" \"S3Console/0.4\"",
+				LineNumber: 1,
+				Line:       "a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a awsrandombucket43 [16/Feb/2019:11:23:45 +0000] 192.0.2.132 a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a 3E57427F3EXAMPLE REST.GET.VERSIONING - \"GET /awsrandombucket43?versioning HTTP/1.1\" 200 - 113 - 7 - \"-\" \"S3Console/0.4\"",
 			},
 			{
-				Index:  2,
-				Record: "3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23 awsrandombucket59 [24/Feb/2019:07:45:11 +0000] 192.0.2.45 3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23 891CE47D2EXAMPLE REST.GET.LOGGING_STATUS - \"GET /awsrandombucket59?logging HTTP/1.1\" 200 - 242 - 11 - \"-\"",
+				LineNumber: 2,
+				Line:       "3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23 awsrandombucket59 [24/Feb/2019:07:45:11 +0000] 192.0.2.45 3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23 891CE47D2EXAMPLE REST.GET.LOGGING_STATUS - \"GET /awsrandombucket59?logging HTTP/1.1\" 200 - 242 - 11 - \"-\"",
 			},
 			{
-				Index:  3,
-				Record: "8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2 awsrandombucket12 [12/Feb/2019:18:32:21 +0000] 192.0.2.189 8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2 A1206F460EXAMPLE REST.GET.BUCKETPOLICY - \"GET /awsrandombucket12?policy HTTP/1.1\" 404 NoSuchBucketPolicy 297 - 38 -",
+				LineNumber: 3,
+				Line:       "8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2 awsrandombucket12 [12/Feb/2019:18:32:21 +0000] 192.0.2.189 8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2 A1206F460EXAMPLE REST.GET.BUCKETPOLICY - \"GET /awsrandombucket12?policy HTTP/1.1\" 404 NoSuchBucketPolicy 297 - 38 -",
 			},
 			{
-				Index:  4,
-				Record: "d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket89 [03/Feb/2019:03:54:33 +0000] 192.0.2.76 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 7B4A0FABBEXAMPLE REST.GET.VERSIONING - \"GET /awsrandombucket89?versioning HTTP/1.1\" 200 - 113 - 33",
+				LineNumber: 4,
+				Line:       "d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket89 [03/Feb/2019:03:54:33 +0000] 192.0.2.76 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 7B4A0FABBEXAMPLE REST.GET.VERSIONING - \"GET /awsrandombucket89?versioning HTTP/1.1\" 200 - 113 - 33",
 			},
 			{
-				Index:  5,
-				Record: "01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f awsrandombucket77 [28/Feb/2019:14:12:59 +0000] 192.0.2.213 01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f 3E57427F3EXAMPLE REST.GET.VERSIONING - \"GET /awsrandombucket77?versioning HTTP/1.1\" 200 - 113 -",
+				LineNumber: 5,
+				Line:       "01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f awsrandombucket77 [28/Feb/2019:14:12:59 +0000] 192.0.2.213 01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f 3E57427F3EXAMPLE REST.GET.VERSIONING - \"GET /awsrandombucket77?versioning HTTP/1.1\" 200 - 113 -",
 			},
 		},
 	}
-	regexAllUnmatchMetadataSerialized = `{"total":5,"matched":0,"unmatched":5,"skipped":0,"source":"%s","errors":[{"index":1,"record":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a awsrandombucket43 [16/Feb/2019:11:23:45 +0000] 192.0.2.132 a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a 3E57427F3EXAMPLE REST.GET.VERSIONING - \"GET /awsrandombucket43?versioning HTTP/1.1\" 200 - 113 - 7 - \"-\" \"S3Console/0.4\""},{"index":2,"record":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23 awsrandombucket59 [24/Feb/2019:07:45:11 +0000] 192.0.2.45 3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23 891CE47D2EXAMPLE REST.GET.LOGGING_STATUS - \"GET /awsrandombucket59?logging HTTP/1.1\" 200 - 242 - 11 - \"-\""},{"index":3,"record":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2 awsrandombucket12 [12/Feb/2019:18:32:21 +0000] 192.0.2.189 8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2 A1206F460EXAMPLE REST.GET.BUCKETPOLICY - \"GET /awsrandombucket12?policy HTTP/1.1\" 404 NoSuchBucketPolicy 297 - 38 -"},{"index":4,"record":"d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket89 [03/Feb/2019:03:54:33 +0000] 192.0.2.76 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 7B4A0FABBEXAMPLE REST.GET.VERSIONING - \"GET /awsrandombucket89?versioning HTTP/1.1\" 200 - 113 - 33"},{"index":5,"record":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f awsrandombucket77 [28/Feb/2019:14:12:59 +0000] 192.0.2.213 01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f 3E57427F3EXAMPLE REST.GET.VERSIONING - \"GET /awsrandombucket77?versioning HTTP/1.1\" 200 - 113 -"}]}`
 
 	regexAllSkipLines = []int{1, 2, 3, 4, 5}
-	regexAllSkipMetadata = &Metadata{
+	regexAllSkipResult = &Result{
 		Total:     5,
 		Matched:   0,
 		Unmatched: 0,
+		Excluded:  0,
 		Skipped:   5,
 		Source:    "",
-		Errors:    nil,
+		Errors:    []Errors{},
 	}
-	regexAllSkipMetadataSerialized = `{"total":5,"matched":0,"unmatched":0,"skipped":5,"source":"%s","errors":null}`
 
-	regexEmptyMetadata = &Metadata{
+	regexEmptyResult = &Result{
 		Total:     0,
 		Matched:   0,
 		Unmatched: 0,
+		Excluded:  0,
 		Skipped:   0,
 		Source:    "",
-		Errors:    nil,
+		Errors:    []Errors{},
 	}
-	regexEmptyMetadataSerialized = `{"total":0,"matched":0,"unmatched":0,"skipped":0,"source":"%s","errors":null}`
 
 	regexMixedSkipLines = []int{1}
 	regexMixedData = []string{
-		`{"index":"2","bucket_owner":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","bucket":"awsrandombucket59","time":"[24/Feb/2019:07:45:11 +0000]","remote_ip":"192.0.2.45","requester":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","request_id":"891CE47D2EXAMPLE","operation":"REST.GET.LOGGING_STATUS","key":"-","method":"GET","request_uri":"/awsrandombucket59?logging","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"242","object_size":"-","total_time":"11","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1"}`,
-		`{"index":"3","bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","bucket":"awsrandombucket12","time":"[12/Feb/2019:18:32:21 +0000]","remote_ip":"192.0.2.189","requester":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","request_id":"A1206F460EXAMPLE","operation":"REST.GET.BUCKETPOLICY","key":"-","method":"GET","request_uri":"/awsrandombucket12?policy","protocol":"HTTP/1.1","http_status":"404","error_code":"NoSuchBucketPolicy","bytes_sent":"297","object_size":"-","total_time":"38","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com"}`,
-		`{"index":"5","bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","bucket":"awsrandombucket77","time":"[28/Feb/2019:14:12:59 +0000]","remote_ip":"192.0.2.213","requester":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket77?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
+		`{"no":"2","bucket_owner":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","bucket":"awsrandombucket59","time":"[24/Feb/2019:07:45:11 +0000]","remote_ip":"192.0.2.45","requester":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","request_id":"891CE47D2EXAMPLE","operation":"REST.GET.LOGGING_STATUS","key":"-","method":"GET","request_uri":"/awsrandombucket59?logging","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"242","object_size":"-","total_time":"11","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1"}`,
+		`{"no":"3","bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","bucket":"awsrandombucket12","time":"[12/Feb/2019:18:32:21 +0000]","remote_ip":"192.0.2.189","requester":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","request_id":"A1206F460EXAMPLE","operation":"REST.GET.BUCKETPOLICY","key":"-","method":"GET","request_uri":"/awsrandombucket12?policy","protocol":"HTTP/1.1","http_status":"404","error_code":"NoSuchBucketPolicy","bytes_sent":"297","object_size":"-","total_time":"38","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com"}`,
+		`{"no":"5","bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","bucket":"awsrandombucket77","time":"[28/Feb/2019:14:12:59 +0000]","remote_ip":"192.0.2.213","requester":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket77?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
 	}
-	regexMixedMetadata = &Metadata{
+	regexMixedResult = &Result{
 		Total:     5,
 		Matched:   3,
 		Unmatched: 1,
+		Excluded:  0,
 		Skipped:   1,
 		Source:    "",
-		Errors: []ErrorRecord{
+		Errors: []Errors{
 			{
-				Index:  4,
-				Record: "d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket89 [03/Feb/2019:03:54:33 +0000] 192.0.2.76 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 7B4A0FABBEXAMPLE REST.GET.VERSIONING - \"GET /awsrandombucket89?versioning HTTP/1.1\" 200 - 113 - 33 - \"-\" \"S3Console/0.4\"",
+				LineNumber: 4,
+				Line:       "d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket89 [03/Feb/2019:03:54:33 +0000] 192.0.2.76 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 7B4A0FABBEXAMPLE REST.GET.VERSIONING - \"GET /awsrandombucket89?versioning HTTP/1.1\" 200 - 113 - 33 - \"-\" \"S3Console/0.4\"",
 			},
 		},
-	}
-	regexMixedMetadataSerialized = `{"total":5,"matched":3,"unmatched":1,"skipped":1,"source":"%s","errors":[{"index":4,"record":"d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket89 [03/Feb/2019:03:54:33 +0000] 192.0.2.76 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 7B4A0FABBEXAMPLE REST.GET.VERSIONING - \"GET /awsrandombucket89?versioning HTTP/1.1\" 200 - 113 - 33 - \"-\" \"S3Console/0.4\""}]}`
-	regexMixedLabelData = [][]string{
-		{"bucket_owner", "bucket", "time", "remote_ip", "requester", "request_id", "operation", "key", "method", "request_uri", "protocol", "http_status", "error_code", "bytes_sent", "object_size", "total_time", "turn_around_time", "referer", "user_agent", "version_id", "host_id", "signature_version", "cipher_suite", "authentication_type", "host_header", "tls_version"},
-		{"bucket_owner", "bucket", "time", "remote_ip", "requester", "request_id", "operation", "key", "method", "request_uri", "protocol", "http_status", "error_code", "bytes_sent", "object_size", "total_time", "turn_around_time", "referer", "user_agent", "version_id", "host_id", "signature_version", "cipher_suite", "authentication_type", "host_header"},
-		{"bucket_owner", "bucket", "time", "remote_ip", "requester", "request_id", "operation", "key", "method", "request_uri", "protocol", "http_status", "error_code", "bytes_sent", "object_size", "total_time", "turn_around_time", "referer", "user_agent", "version_id"},
-	}
-	regexMixedValueData = [][]string{
-		{"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23", "awsrandombucket59", "[24/Feb/2019:07:45:11 +0000]", "192.0.2.45", "3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23", "891CE47D2EXAMPLE", "REST.GET.LOGGING_STATUS", "-", "GET", "/awsrandombucket59?logging", "HTTP/1.1", "200", "-", "242", "-", "11", "-", "-", "S3Console/0.4", "-", "9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234=", "SigV2", "ECDHE-RSA-AES128-GCM-SHA256", "AuthHeader", "awsrandombucket59.s3.us-west-1.amazonaws.com", "TLSV1.1"},
-		{"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2", "awsrandombucket12", "[12/Feb/2019:18:32:21 +0000]", "192.0.2.189", "8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2", "A1206F460EXAMPLE", "REST.GET.BUCKETPOLICY", "-", "GET", "/awsrandombucket12?policy", "HTTP/1.1", "404", "NoSuchBucketPolicy", "297", "-", "38", "-", "-", "S3Console/0.4", "-", "BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=", "SigV2", "ECDHE-RSA-AES128-GCM-SHA256", "AuthHeader", "awsrandombucket59.s3.us-west-1.amazonaws.com"},
-		{"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f", "awsrandombucket77", "[28/Feb/2019:14:12:59 +0000]", "192.0.2.213", "01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f", "3E57427F3EXAMPLE", "REST.GET.VERSIONING", "-", "GET", "/awsrandombucket77?versioning", "HTTP/1.1", "200", "-", "113", "-", "7", "-", "-", "S3Console/0.4", "-"},
 	}
 
 	ltsvAllMatchInput = `remote_host:192.168.1.1	remote_logname:-	remote_user:john	datetime:[12/Mar/2023:10:55:36 +0000]	request:GET /index.html HTTP/1.1	status:200	size:1024	referer:http://www.example.com/	user_agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64)
@@ -317,34 +255,21 @@ remote_host:10.0.0.3	remote_logname:-	remote_user:mike	datetime:[12/Mar/2023:10:
 remote_host:192.168.1.4	remote_logname:-	remote_user:anna	datetime:[12/Mar/2023:10:58:24 +0000]	request:GET /products HTTP/1.1	status:404	size:0
 remote_host:192.168.1.10	remote_logname:-	remote_user:chris	datetime:[12/Mar/2023:11:04:16 +0000]	request:DELETE /account HTTP/1.1	status:200	size:204`
 	ltsvAllMatchData = []string{
-		`{"index":"1","remote_host":"192.168.1.1","remote_logname":"-","remote_user":"john","datetime":"[12/Mar/2023:10:55:36 +0000]","request":"GET /index.html HTTP/1.1","status":"200","size":"1024","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}`,
-		`{"index":"2","remote_host":"172.16.0.2","remote_logname":"-","remote_user":"jane","datetime":"[12/Mar/2023:10:56:10 +0000]","request":"POST /login HTTP/1.1","status":"303","size":"532","referer":"http://www.example.com/login","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}`,
-		`{"index":"3","remote_host":"10.0.0.3","remote_logname":"-","remote_user":"mike","datetime":"[12/Mar/2023:10:57:15 +0000]","request":"GET /about.html HTTP/1.1","status":"200","size":"749","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"}`,
-		`{"index":"4","remote_host":"192.168.1.4","remote_logname":"-","remote_user":"anna","datetime":"[12/Mar/2023:10:58:24 +0000]","request":"GET /products HTTP/1.1","status":"404","size":"0"}`,
-		`{"index":"5","remote_host":"192.168.1.10","remote_logname":"-","remote_user":"chris","datetime":"[12/Mar/2023:11:04:16 +0000]","request":"DELETE /account HTTP/1.1","status":"200","size":"204"}`,
+		`{"remote_host":"192.168.1.1","remote_logname":"-","remote_user":"john","datetime":"[12/Mar/2023:10:55:36 +0000]","request":"GET /index.html HTTP/1.1","status":"200","size":"1024","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}`,
+		`{"remote_host":"172.16.0.2","remote_logname":"-","remote_user":"jane","datetime":"[12/Mar/2023:10:56:10 +0000]","request":"POST /login HTTP/1.1","status":"303","size":"532","referer":"http://www.example.com/login","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}`,
+		`{"remote_host":"10.0.0.3","remote_logname":"-","remote_user":"mike","datetime":"[12/Mar/2023:10:57:15 +0000]","request":"GET /about.html HTTP/1.1","status":"200","size":"749","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"}`,
+		`{"remote_host":"192.168.1.4","remote_logname":"-","remote_user":"anna","datetime":"[12/Mar/2023:10:58:24 +0000]","request":"GET /products HTTP/1.1","status":"404","size":"0"}`,
+		`{"remote_host":"192.168.1.10","remote_logname":"-","remote_user":"chris","datetime":"[12/Mar/2023:11:04:16 +0000]","request":"DELETE /account HTTP/1.1","status":"200","size":"204"}`,
 	}
-	ltsvAllMatchMetadata = &Metadata{
-		Total:     5,
-		Matched:   5,
-		Unmatched: 0,
-		Skipped:   0,
-		Source:    "",
-		Errors:    nil,
-	}
-	ltsvAllMatchMetadataSerialized = `{"total":5,"matched":5,"unmatched":0,"skipped":0,"source":"%s","errors":null}`
-	ltsvAllMatchLabelData = [][]string{
-		{"remote_host", "remote_logname", "remote_user", "datetime", "request", "status", "size", "referer", "user_agent"},
-		{"remote_host", "remote_logname", "remote_user", "datetime", "request", "status", "size", "referer", "user_agent"},
-		{"remote_host", "remote_logname", "remote_user", "datetime", "request", "status", "size", "referer", "user_agent"},
-		{"remote_host", "remote_logname", "remote_user", "datetime", "request", "status", "size"},
-		{"remote_host", "remote_logname", "remote_user", "datetime", "request", "status", "size"},
-	}
-	ltsvAllMatchValueData = [][]string{
-		{"192.168.1.1", "-", "john", "[12/Mar/2023:10:55:36 +0000]", "GET /index.html HTTP/1.1", "200", "1024", "http://www.example.com/", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
-		{"172.16.0.2", "-", "jane", "[12/Mar/2023:10:56:10 +0000]", "POST /login HTTP/1.1", "303", "532", "http://www.example.com/login", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"},
-		{"10.0.0.3", "-", "mike", "[12/Mar/2023:10:57:15 +0000]", "GET /about.html HTTP/1.1", "200", "749", "http://www.example.com/", "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"},
-		{"192.168.1.4", "-", "anna", "[12/Mar/2023:10:58:24 +0000]", "GET /products HTTP/1.1", "404", "0"},
-		{"192.168.1.10", "-", "chris", "[12/Mar/2023:11:04:16 +0000]", "DELETE /account HTTP/1.1", "200", "204"},
+	ltsvAllMatchResult = &Result{
+		Total:      5,
+		Matched:    5,
+		Unmatched:  0,
+		Excluded:   0,
+		Skipped:    0,
+		Source:     "",
+		ZipEntries: nil,
+		Errors:     []Errors{},
 	}
 
 	ltsvContainsUnmatchInput = `remote_host:192.168.1.1	remote_logname:-	remote_user:john	datetime:[12/Mar/2023:10:55:36 +0000]	request:GET /index.html HTTP/1.1	status:200	size:1024	referer:http://www.example.com/	user_agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64)
@@ -353,62 +278,52 @@ remote_host:10.0.0.3	remote_logname:-	remote_user:mike	datetime:[12/Mar/2023:10:
 remote_host:192.168.1.4	remote_logname:-	remote_user:anna	datetime:[12/Mar/2023:10:58:24 +0000]	request:GET /products HTTP/1.1	404	size:0
 remote_host:192.168.1.10	remote_logname:-	remote_user:chris	datetime:[12/Mar/2023:11:04:16 +0000]	request:DELETE /account HTTP/1.1	status:200	size:204`
 	ltsvContainsUnmatchData = []string{
-		`{"index":"1","remote_host":"192.168.1.1","remote_logname":"-","remote_user":"john","datetime":"[12/Mar/2023:10:55:36 +0000]","request":"GET /index.html HTTP/1.1","status":"200","size":"1024","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}`,
-		`{"index":"2","remote_host":"172.16.0.2","remote_logname":"-","remote_user":"jane","datetime":"[12/Mar/2023:10:56:10 +0000]","request":"POST /login HTTP/1.1","status":"303","size":"532","referer":"http://www.example.com/login","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}`,
-		`{"index":"3","remote_host":"10.0.0.3","remote_logname":"-","remote_user":"mike","datetime":"[12/Mar/2023:10:57:15 +0000]","request":"GET /about.html HTTP/1.1","status":"200","size":"749","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"}`,
-		`{"index":"5","remote_host":"192.168.1.10","remote_logname":"-","remote_user":"chris","datetime":"[12/Mar/2023:11:04:16 +0000]","request":"DELETE /account HTTP/1.1","status":"200","size":"204"}`,
+		`{"no":"1","remote_host":"192.168.1.1","remote_logname":"-","remote_user":"john","datetime":"[12/Mar/2023:10:55:36 +0000]","request":"GET /index.html HTTP/1.1","status":"200","size":"1024","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}`,
+		`{"no":"2","remote_host":"172.16.0.2","remote_logname":"-","remote_user":"jane","datetime":"[12/Mar/2023:10:56:10 +0000]","request":"POST /login HTTP/1.1","status":"303","size":"532","referer":"http://www.example.com/login","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}`,
+		`{"no":"3","remote_host":"10.0.0.3","remote_logname":"-","remote_user":"mike","datetime":"[12/Mar/2023:10:57:15 +0000]","request":"GET /about.html HTTP/1.1","status":"200","size":"749","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"}`,
+		`{"no":"5","remote_host":"192.168.1.10","remote_logname":"-","remote_user":"chris","datetime":"[12/Mar/2023:11:04:16 +0000]","request":"DELETE /account HTTP/1.1","status":"200","size":"204"}`,
 	}
-	ltsvContainsUnmatchMetadata = &Metadata{
+	ltsvContainsUnmatchResult = &Result{
 		Total:     5,
 		Matched:   4,
 		Unmatched: 1,
+		Excluded:  0,
 		Skipped:   0,
 		Source:    "",
-		Errors: []ErrorRecord{
+		Errors: []Errors{
 			{
-				Index:  4,
-				Record: "remote_host:192.168.1.4\tremote_logname:-\tremote_user:anna\tdatetime:[12/Mar/2023:10:58:24 +0000]\trequest:GET /products HTTP/1.1\t404\tsize:0",
+				LineNumber: 4,
+				Line:       "remote_host:192.168.1.4\tremote_logname:-\tremote_user:anna\tdatetime:[12/Mar/2023:10:58:24 +0000]\trequest:GET /products HTTP/1.1\t404\tsize:0",
 			},
 		},
 	}
-	ltsvContainsUnmatchMetadataSerialized = `{"total":5,"matched":4,"unmatched":1,"skipped":0,"source":"%s","errors":[{"index":4,"record":"remote_host:192.168.1.4\tremote_logname:-\tremote_user:anna\tdatetime:[12/Mar/2023:10:58:24 +0000]\trequest:GET /products HTTP/1.1\t404\tsize:0"}]}`
-	ltsvContainsUnmatchLabelData = [][]string{
-		{"remote_host", "remote_logname", "remote_user", "datetime", "request", "status", "size", "referer", "user_agent"},
-		{"remote_host", "remote_logname", "remote_user", "datetime", "request", "status", "size", "referer", "user_agent"},
-		{"remote_host", "remote_logname", "remote_user", "datetime", "request", "status", "size", "referer", "user_agent"},
-		{"remote_host", "remote_logname", "remote_user", "datetime", "request", "status", "size"},
-	}
-	ltsvContainsUnmatchValueData = [][]string{
-		{"192.168.1.1", "-", "john", "[12/Mar/2023:10:55:36 +0000]", "GET /index.html HTTP/1.1", "200", "1024", "http://www.example.com/", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
-		{"172.16.0.2", "-", "jane", "[12/Mar/2023:10:56:10 +0000]", "POST /login HTTP/1.1", "303", "532", "http://www.example.com/login", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"},
-		{"10.0.0.3", "-", "mike", "[12/Mar/2023:10:57:15 +0000]", "GET /about.html HTTP/1.1", "200", "749", "http://www.example.com/", "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"},
-		{"192.168.1.10", "-", "chris", "[12/Mar/2023:11:04:16 +0000]", "DELETE /account HTTP/1.1", "200", "204"},
+
+	ltsvContainsKeyword = []string{"mike"}
+	ltsvContainsKeywordData = []string{`{"remote_host":"10.0.0.3","remote_logname":"-","remote_user":"mike","datetime":"[12/Mar/2023:10:57:15 +0000]","request":"GET /about.html HTTP/1.1","status":"200","size":"749","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"}`}
+	ltsvContainsKeywordResult = &Result{
+		Total:     5,
+		Matched:   1,
+		Unmatched: 0,
+		Excluded:  4,
+		Skipped:   0,
+		Source:    "",
+		Errors:    []Errors{},
 	}
 
 	ltsvContainsSkipLines = []int{2, 4}
 	ltsvContainsSkipData = []string{
-		`{"index":"1","remote_host":"192.168.1.1","remote_logname":"-","remote_user":"john","datetime":"[12/Mar/2023:10:55:36 +0000]","request":"GET /index.html HTTP/1.1","status":"200","size":"1024","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}`,
-		`{"index":"3","remote_host":"10.0.0.3","remote_logname":"-","remote_user":"mike","datetime":"[12/Mar/2023:10:57:15 +0000]","request":"GET /about.html HTTP/1.1","status":"200","size":"749","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"}`,
-		`{"index":"5","remote_host":"192.168.1.10","remote_logname":"-","remote_user":"chris","datetime":"[12/Mar/2023:11:04:16 +0000]","request":"DELETE /account HTTP/1.1","status":"200","size":"204"}`,
+		`{"no":"1","remote_host":"192.168.1.1","remote_logname":"-","remote_user":"john","datetime":"[12/Mar/2023:10:55:36 +0000]","request":"GET /index.html HTTP/1.1","status":"200","size":"1024","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}`,
+		`{"no":"3","remote_host":"10.0.0.3","remote_logname":"-","remote_user":"mike","datetime":"[12/Mar/2023:10:57:15 +0000]","request":"GET /about.html HTTP/1.1","status":"200","size":"749","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"}`,
+		`{"no":"5","remote_host":"192.168.1.10","remote_logname":"-","remote_user":"chris","datetime":"[12/Mar/2023:11:04:16 +0000]","request":"DELETE /account HTTP/1.1","status":"200","size":"204"}`,
 	}
-	ltsvContainsSkipMetadata = &Metadata{
+	ltsvContainsSkipResult = &Result{
 		Total:     5,
 		Matched:   3,
 		Unmatched: 0,
+		Excluded:  0,
 		Skipped:   2,
 		Source:    "",
-		Errors:    nil,
-	}
-	ltsvContainsSkipMetadataSerialized = `{"total":5,"matched":3,"unmatched":0,"skipped":2,"source":"%s","errors":null}`
-	ltsvContainsSkipLabelData = [][]string{
-		{"remote_host", "remote_logname", "remote_user", "datetime", "request", "status", "size", "referer", "user_agent"},
-		{"remote_host", "remote_logname", "remote_user", "datetime", "request", "status", "size", "referer", "user_agent"},
-		{"remote_host", "remote_logname", "remote_user", "datetime", "request", "status", "size"},
-	}
-	ltsvContainsSkipValueData = [][]string{
-		{"192.168.1.1", "-", "john", "[12/Mar/2023:10:55:36 +0000]", "GET /index.html HTTP/1.1", "200", "1024", "http://www.example.com/", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
-		{"10.0.0.3", "-", "mike", "[12/Mar/2023:10:57:15 +0000]", "GET /about.html HTTP/1.1", "200", "749", "http://www.example.com/", "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"},
-		{"192.168.1.10", "-", "chris", "[12/Mar/2023:11:04:16 +0000]", "DELETE /account HTTP/1.1", "200", "204"},
+		Errors:    []Errors{},
 	}
 
 	ltsvAllUnmatchInput = `192.168.1.1	remote_logname:-	remote_user:john	datetime:[12/Mar/2023:10:55:36 +0000]	request:GET /index.html HTTP/1.1	status:200	size:1024	referer:http://www.example.com/	user_agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64)
@@ -416,2315 +331,1745 @@ remote_host:172.16.0.2	-	remote_user:jane	datetime:[12/Mar/2023:10:56:10 +0000]	
 remote_host:10.0.0.3	remote_logname:-	mike	datetime:[12/Mar/2023:10:57:15 +0000]	request:GET /about.html HTTP/1.1	status:200	size:749	referer:http://www.example.com/	user_agent:Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)
 remote_host:192.168.1.4	remote_logname:-	remote_user:anna	datetime:[12/Mar/2023:10:58:24 +0000]	GET /products HTTP/1.1	status:404	size:0
 remote_host:192.168.1.10	remote_logname:-	remote_user:chris	datetime:[12/Mar/2023:11:04:16 +0000]	request:DELETE /account HTTP/1.1	200	size:204`
-	ltsvAllUnmatchMetadata = &Metadata{
+	ltsvAllUnmatchResult = &Result{
 		Total:     5,
 		Matched:   0,
 		Unmatched: 5,
+		Excluded:  0,
 		Skipped:   0,
 		Source:    "",
-		Errors: []ErrorRecord{
+		Errors: []Errors{
 			{
-				Index:  1,
-				Record: "192.168.1.1\tremote_logname:-\tremote_user:john\tdatetime:[12/Mar/2023:10:55:36 +0000]\trequest:GET /index.html HTTP/1.1\tstatus:200\tsize:1024\treferer:http://www.example.com/\tuser_agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+				LineNumber: 1,
+				Line:       "192.168.1.1\tremote_logname:-\tremote_user:john\tdatetime:[12/Mar/2023:10:55:36 +0000]\trequest:GET /index.html HTTP/1.1\tstatus:200\tsize:1024\treferer:http://www.example.com/\tuser_agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
 			},
 			{
-				Index:  2,
-				Record: "remote_host:172.16.0.2\t-\tremote_user:jane\tdatetime:[12/Mar/2023:10:56:10 +0000]\trequest:POST /login HTTP/1.1\tstatus:303\tsize:532\treferer:http://www.example.com/login\tuser_agent:Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+				LineNumber: 2,
+				Line:       "remote_host:172.16.0.2\t-\tremote_user:jane\tdatetime:[12/Mar/2023:10:56:10 +0000]\trequest:POST /login HTTP/1.1\tstatus:303\tsize:532\treferer:http://www.example.com/login\tuser_agent:Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
 			},
 			{
-				Index:  3,
-				Record: "remote_host:10.0.0.3\tremote_logname:-\tmike\tdatetime:[12/Mar/2023:10:57:15 +0000]\trequest:GET /about.html HTTP/1.1\tstatus:200\tsize:749\treferer:http://www.example.com/\tuser_agent:Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)",
+				LineNumber: 3,
+				Line:       "remote_host:10.0.0.3\tremote_logname:-\tmike\tdatetime:[12/Mar/2023:10:57:15 +0000]\trequest:GET /about.html HTTP/1.1\tstatus:200\tsize:749\treferer:http://www.example.com/\tuser_agent:Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)",
 			},
 			{
-				Index:  4,
-				Record: "remote_host:192.168.1.4\tremote_logname:-\tremote_user:anna\tdatetime:[12/Mar/2023:10:58:24 +0000]\tGET /products HTTP/1.1\tstatus:404\tsize:0",
+				LineNumber: 4,
+				Line:       "remote_host:192.168.1.4\tremote_logname:-\tremote_user:anna\tdatetime:[12/Mar/2023:10:58:24 +0000]\tGET /products HTTP/1.1\tstatus:404\tsize:0",
 			},
 			{
-				Index:  5,
-				Record: "remote_host:192.168.1.10\tremote_logname:-\tremote_user:chris\tdatetime:[12/Mar/2023:11:04:16 +0000]\trequest:DELETE /account HTTP/1.1\t200\tsize:204",
+				LineNumber: 5,
+				Line:       "remote_host:192.168.1.10\tremote_logname:-\tremote_user:chris\tdatetime:[12/Mar/2023:11:04:16 +0000]\trequest:DELETE /account HTTP/1.1\t200\tsize:204",
 			},
 		},
 	}
-	ltsvAllUnmatchMetadataSerialized = `{"total":5,"matched":0,"unmatched":5,"skipped":0,"source":"%s","errors":[{"index":1,"record":"192.168.1.1\tremote_logname:-\tremote_user:john\tdatetime:[12/Mar/2023:10:55:36 +0000]\trequest:GET /index.html HTTP/1.1\tstatus:200\tsize:1024\treferer:http://www.example.com/\tuser_agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},{"index":2,"record":"remote_host:172.16.0.2\t-\tremote_user:jane\tdatetime:[12/Mar/2023:10:56:10 +0000]\trequest:POST /login HTTP/1.1\tstatus:303\tsize:532\treferer:http://www.example.com/login\tuser_agent:Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"},{"index":3,"record":"remote_host:10.0.0.3\tremote_logname:-\tmike\tdatetime:[12/Mar/2023:10:57:15 +0000]\trequest:GET /about.html HTTP/1.1\tstatus:200\tsize:749\treferer:http://www.example.com/\tuser_agent:Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"},{"index":4,"record":"remote_host:192.168.1.4\tremote_logname:-\tremote_user:anna\tdatetime:[12/Mar/2023:10:58:24 +0000]\tGET /products HTTP/1.1\tstatus:404\tsize:0"},{"index":5,"record":"remote_host:192.168.1.10\tremote_logname:-\tremote_user:chris\tdatetime:[12/Mar/2023:11:04:16 +0000]\trequest:DELETE /account HTTP/1.1\t200\tsize:204"}]}`
 
 	ltsvAllSkipLines = []int{1, 2, 3, 4, 5}
-	ltsvAllSkipMetadata = &Metadata{
+	ltsvAllSkipResult = &Result{
 		Total:     5,
 		Matched:   0,
 		Unmatched: 0,
+		Excluded:  0,
 		Skipped:   5,
 		Source:    "",
-		Errors:    nil,
+		Errors:    []Errors{},
 	}
-	ltsvAllSkipMetadataSerialized = `{"total":5,"matched":0,"unmatched":0,"skipped":5,"source":"%s","errors":null}`
 
-	ltsvEmptyMetadata = &Metadata{
+	ltsvEmptyResult = &Result{
 		Total:     0,
 		Matched:   0,
 		Unmatched: 0,
+		Excluded:  0,
 		Skipped:   0,
 		Source:    "",
-		Errors:    nil,
+		Errors:    []Errors{},
 	}
-	ltsvEmptyMetadataSerialized = `{"total":0,"matched":0,"unmatched":0,"skipped":0,"source":"%s","errors":null}`
 
 	ltsvMixedSkipLines = []int{1}
 	ltsvMixedData = []string{
-		`{"index":"2","remote_host":"172.16.0.2","remote_logname":"-","remote_user":"jane","datetime":"[12/Mar/2023:10:56:10 +0000]","request":"POST /login HTTP/1.1","status":"303","size":"532","referer":"http://www.example.com/login","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}`,
-		`{"index":"3","remote_host":"10.0.0.3","remote_logname":"-","remote_user":"mike","datetime":"[12/Mar/2023:10:57:15 +0000]","request":"GET /about.html HTTP/1.1","status":"200","size":"749","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"}`,
-		`{"index":"5","remote_host":"192.168.1.10","remote_logname":"-","remote_user":"chris","datetime":"[12/Mar/2023:11:04:16 +0000]","request":"DELETE /account HTTP/1.1","status":"200","size":"204"}`,
+		`{"no":"2","remote_host":"172.16.0.2","remote_logname":"-","remote_user":"jane","datetime":"[12/Mar/2023:10:56:10 +0000]","request":"POST /login HTTP/1.1","status":"303","size":"532","referer":"http://www.example.com/login","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}`,
+		`{"no":"3","remote_host":"10.0.0.3","remote_logname":"-","remote_user":"mike","datetime":"[12/Mar/2023:10:57:15 +0000]","request":"GET /about.html HTTP/1.1","status":"200","size":"749","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"}`,
+		`{"no":"5","remote_host":"192.168.1.10","remote_logname":"-","remote_user":"chris","datetime":"[12/Mar/2023:11:04:16 +0000]","request":"DELETE /account HTTP/1.1","status":"200","size":"204"}`,
 	}
-	ltsvMixedMetadata = &Metadata{
+	ltsvMixedResult = &Result{
 		Total:     5,
 		Matched:   3,
 		Unmatched: 1,
+		Excluded:  0,
 		Skipped:   1,
 		Source:    "",
-		Errors: []ErrorRecord{
+		Errors: []Errors{
 			{
-				Index:  4,
-				Record: "remote_host:192.168.1.4\tremote_logname:-\tremote_user:anna\tdatetime:[12/Mar/2023:10:58:24 +0000]\trequest:GET /products HTTP/1.1\t404\tsize:0",
+				LineNumber: 4,
+				Line:       "remote_host:192.168.1.4\tremote_logname:-\tremote_user:anna\tdatetime:[12/Mar/2023:10:58:24 +0000]\trequest:GET /products HTTP/1.1\t404\tsize:0",
 			},
 		},
 	}
-	ltsvMixedMetadataSerialized = `{"total":5,"matched":3,"unmatched":1,"skipped":1,"source":"%s","errors":[{"index":4,"record":"remote_host:192.168.1.4\tremote_logname:-\tremote_user:anna\tdatetime:[12/Mar/2023:10:58:24 +0000]\trequest:GET /products HTTP/1.1\t404\tsize:0"}]}`
-	ltsvMixedLabelData = [][]string{
-		{"remote_host", "remote_logname", "remote_user", "datetime", "request", "status", "size", "referer", "user_agent"},
-		{"remote_host", "remote_logname", "remote_user", "datetime", "request", "status", "size", "referer", "user_agent"},
-		{"remote_host", "remote_logname", "remote_user", "datetime", "request", "status", "size"},
-	}
-	ltsvMixedValueData = [][]string{
-		{"172.16.0.2", "-", "jane", "[12/Mar/2023:10:56:10 +0000]", "POST /login HTTP/1.1", "303", "532", "http://www.example.com/login", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"},
-		{"10.0.0.3", "-", "mike", "[12/Mar/2023:10:57:15 +0000]", "GET /about.html HTTP/1.1", "200", "749", "http://www.example.com/", "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"},
-		{"192.168.1.10", "-", "chris", "[12/Mar/2023:11:04:16 +0000]", "DELETE /account HTTP/1.1", "200", "204"},
-	}
 
-	fileNotFoundMessage = "no such file or directory"
-	fileNotFoundMessageWindows = "The system cannot find the file specified."
-	isDirMessage = "is a directory"
-	isDirMessageWindows = "Incorrect function."
+	regexAllMatchDataForStream = []string{
+		"\033[1;32m" + "[ PROCESSED ] " + "\033[0m" + `{"bucket_owner":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","bucket":"awsrandombucket43","time":"[16/Feb/2019:11:23:45 +0000]","remote_ip":"192.0.2.132","requester":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket43?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket43.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1","access_point_arn":"-"}`,
+		"\033[1;32m" + "[ PROCESSED ] " + "\033[0m" + `{"bucket_owner":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","bucket":"awsrandombucket59","time":"[24/Feb/2019:07:45:11 +0000]","remote_ip":"192.0.2.45","requester":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","request_id":"891CE47D2EXAMPLE","operation":"REST.GET.LOGGING_STATUS","key":"-","method":"GET","request_uri":"/awsrandombucket59?logging","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"242","object_size":"-","total_time":"11","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1"}`,
+		"\033[1;32m" + "[ PROCESSED ] " + "\033[0m" + `{"bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","bucket":"awsrandombucket12","time":"[12/Feb/2019:18:32:21 +0000]","remote_ip":"192.0.2.189","requester":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","request_id":"A1206F460EXAMPLE","operation":"REST.GET.BUCKETPOLICY","key":"-","method":"GET","request_uri":"/awsrandombucket12?policy","protocol":"HTTP/1.1","http_status":"404","error_code":"NoSuchBucketPolicy","bytes_sent":"297","object_size":"-","total_time":"38","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com"}`,
+		"\033[1;32m" + "[ PROCESSED ] " + "\033[0m" + `{"bucket_owner":"d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01","bucket":"awsrandombucket89","time":"[03/Feb/2019:03:54:33 +0000]","remote_ip":"192.0.2.76","requester":"d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01","request_id":"7B4A0FABBEXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket89?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"33","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
+		"\033[1;32m" + "[ PROCESSED ] " + "\033[0m" + `{"bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","bucket":"awsrandombucket77","time":"[28/Feb/2019:14:12:59 +0000]","remote_ip":"192.0.2.213","requester":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket77?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
+	}
+	regexContainsUnmatchDataForStream = []string{
+		"\033[1;32m" + "[ PROCESSED ] " + "\033[0m" + `{"bucket_owner":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","bucket":"awsrandombucket43","time":"[16/Feb/2019:11:23:45 +0000]","remote_ip":"192.0.2.132","requester":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket43?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket43.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1","access_point_arn":"-"}`,
+		"\033[1;32m" + "[ PROCESSED ] " + "\033[0m" + `{"bucket_owner":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","bucket":"awsrandombucket59","time":"[24/Feb/2019:07:45:11 +0000]","remote_ip":"192.0.2.45","requester":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","request_id":"891CE47D2EXAMPLE","operation":"REST.GET.LOGGING_STATUS","key":"-","method":"GET","request_uri":"/awsrandombucket59?logging","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"242","object_size":"-","total_time":"11","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1"}`,
+		"\033[1;32m" + "[ PROCESSED ] " + "\033[0m" + `{"bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","bucket":"awsrandombucket12","time":"[12/Feb/2019:18:32:21 +0000]","remote_ip":"192.0.2.189","requester":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","request_id":"A1206F460EXAMPLE","operation":"REST.GET.BUCKETPOLICY","key":"-","method":"GET","request_uri":"/awsrandombucket12?policy","protocol":"HTTP/1.1","http_status":"404","error_code":"NoSuchBucketPolicy","bytes_sent":"297","object_size":"-","total_time":"38","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com"}`,
+		"\033[1;31m" + "[ UNMATCHED ] " + "\033[0m" + `d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket89 [03/Feb/2019:03:54:33 +0000] 192.0.2.76 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 7B4A0FABBEXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket89?versioning HTTP/1.1" 200 - 113 - 33 - "-" "S3Console/0.4"`,
+		"\033[1;32m" + "[ PROCESSED ] " + "\033[0m" + `{"bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","bucket":"awsrandombucket77","time":"[28/Feb/2019:14:12:59 +0000]","remote_ip":"192.0.2.213","requester":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket77?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}`,
+	}
+	regexAllUnmatchDataForStream = []string{
+		"\033[1;31m" + "[ UNMATCHED ] " + "\033[0m" + `a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a awsrandombucket43 [16/Feb/2019:11:23:45 +0000] 192.0.2.132 a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a 3E57427F3EXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket43?versioning HTTP/1.1" 200 - 113 - 7 - "-" "S3Console/0.4"`,
+		"\033[1;31m" + "[ UNMATCHED ] " + "\033[0m" + `3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23 awsrandombucket59 [24/Feb/2019:07:45:11 +0000] 192.0.2.45 3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23 891CE47D2EXAMPLE REST.GET.LOGGING_STATUS - "GET /awsrandombucket59?logging HTTP/1.1" 200 - 242 - 11 - "-"`,
+		"\033[1;31m" + "[ UNMATCHED ] " + "\033[0m" + `8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2 awsrandombucket12 [12/Feb/2019:18:32:21 +0000] 192.0.2.189 8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2 A1206F460EXAMPLE REST.GET.BUCKETPOLICY - "GET /awsrandombucket12?policy HTTP/1.1" 404 NoSuchBucketPolicy 297 - 38 -`,
+		"\033[1;31m" + "[ UNMATCHED ] " + "\033[0m" + `d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket89 [03/Feb/2019:03:54:33 +0000] 192.0.2.76 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 7B4A0FABBEXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket89?versioning HTTP/1.1" 200 - 113 - 33`,
+		"\033[1;31m" + "[ UNMATCHED ] " + "\033[0m" + `01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f awsrandombucket77 [28/Feb/2019:14:12:59 +0000] 192.0.2.213 01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f 3E57427F3EXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket77?versioning HTTP/1.1" 200 - 113 -`,
+	}
+	ltsvAllMatchDataForStream = []string{
+		"\033[1;32m" + "[ PROCESSED ] " + "\033[0m" + `{"remote_host":"192.168.1.1","remote_logname":"-","remote_user":"john","datetime":"[12/Mar/2023:10:55:36 +0000]","request":"GET /index.html HTTP/1.1","status":"200","size":"1024","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}`,
+		"\033[1;32m" + "[ PROCESSED ] " + "\033[0m" + `{"remote_host":"172.16.0.2","remote_logname":"-","remote_user":"jane","datetime":"[12/Mar/2023:10:56:10 +0000]","request":"POST /login HTTP/1.1","status":"303","size":"532","referer":"http://www.example.com/login","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}`,
+		"\033[1;32m" + "[ PROCESSED ] " + "\033[0m" + `{"remote_host":"10.0.0.3","remote_logname":"-","remote_user":"mike","datetime":"[12/Mar/2023:10:57:15 +0000]","request":"GET /about.html HTTP/1.1","status":"200","size":"749","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"}`,
+		"\033[1;32m" + "[ PROCESSED ] " + "\033[0m" + `{"remote_host":"192.168.1.4","remote_logname":"-","remote_user":"anna","datetime":"[12/Mar/2023:10:58:24 +0000]","request":"GET /products HTTP/1.1","status":"404","size":"0"}`,
+		"\033[1;32m" + "[ PROCESSED ] " + "\033[0m" + `{"remote_host":"192.168.1.10","remote_logname":"-","remote_user":"chris","datetime":"[12/Mar/2023:11:04:16 +0000]","request":"DELETE /account HTTP/1.1","status":"200","size":"204"}`,
+	}
+	ltsvContainsUnmatchDataForStream = []string{
+		"\033[1;32m" + "[ PROCESSED ] " + "\033[0m" + `{"remote_host":"192.168.1.1","remote_logname":"-","remote_user":"john","datetime":"[12/Mar/2023:10:55:36 +0000]","request":"GET /index.html HTTP/1.1","status":"200","size":"1024","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}`,
+		"\033[1;32m" + "[ PROCESSED ] " + "\033[0m" + `{"remote_host":"172.16.0.2","remote_logname":"-","remote_user":"jane","datetime":"[12/Mar/2023:10:56:10 +0000]","request":"POST /login HTTP/1.1","status":"303","size":"532","referer":"http://www.example.com/login","user_agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"}`,
+		"\033[1;32m" + "[ PROCESSED ] " + "\033[0m" + `{"remote_host":"10.0.0.3","remote_logname":"-","remote_user":"mike","datetime":"[12/Mar/2023:10:57:15 +0000]","request":"GET /about.html HTTP/1.1","status":"200","size":"749","referer":"http://www.example.com/","user_agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)"}`,
+		"\033[1;31m" + "[ UNMATCHED ] " + "\033[0m" + `remote_host:192.168.1.4	remote_logname:-	remote_user:anna	datetime:[12/Mar/2023:10:58:24 +0000]	request:GET /products HTTP/1.1	404	size:0`,
+		"\033[1;32m" + "[ PROCESSED ] " + "\033[0m" + `{"remote_host":"192.168.1.10","remote_logname":"-","remote_user":"chris","datetime":"[12/Mar/2023:11:04:16 +0000]","request":"DELETE /account HTTP/1.1","status":"200","size":"204"}`,
+	}
+	ltsvAllUnmatchDataForStream = []string{
+		"\033[1;31m" + "[ UNMATCHED ] " + "\033[0m" + `192.168.1.1	remote_logname:-	remote_user:john	datetime:[12/Mar/2023:10:55:36 +0000]	request:GET /index.html HTTP/1.1	status:200	size:1024	referer:http://www.example.com/	user_agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64)`,
+		"\033[1;31m" + "[ UNMATCHED ] " + "\033[0m" + `remote_host:172.16.0.2	-	remote_user:jane	datetime:[12/Mar/2023:10:56:10 +0000]	request:POST /login HTTP/1.1	status:303	size:532	referer:http://www.example.com/login	user_agent:Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)`,
+		"\033[1;31m" + "[ UNMATCHED ] " + "\033[0m" + `remote_host:10.0.0.3	remote_logname:-	mike	datetime:[12/Mar/2023:10:57:15 +0000]	request:GET /about.html HTTP/1.1	status:200	size:749	referer:http://www.example.com/	user_agent:Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)`,
+		"\033[1;31m" + "[ UNMATCHED ] " + "\033[0m" + `remote_host:192.168.1.4	remote_logname:-	remote_user:anna	datetime:[12/Mar/2023:10:58:24 +0000]	GET /products HTTP/1.1	status:404	size:0`,
+		"\033[1;31m" + "[ UNMATCHED ] " + "\033[0m" + `remote_host:192.168.1.10	remote_logname:-	remote_user:chris	datetime:[12/Mar/2023:11:04:16 +0000]	request:DELETE /account HTTP/1.1	200	size:204`,
+	}
+}
+
+type wantResult struct {
+	result    *Result
+	source    string
+	inputType inputType
+}
+
+func assertResult(t *testing.T, want wantResult, got *Result) {
+	t.Helper()
+	if want.result == nil {
+		return
+	}
+	if !reflect.DeepEqual(got.Total, want.result.Total) {
+		t.Errorf("\ngot:\n%v\nwant:\n%v\n", got.Total, want.result.Total)
+	}
+	if !reflect.DeepEqual(got.Matched, want.result.Matched) {
+		t.Errorf("\ngot:\n%v\nwant:\n%v\n", got.Matched, want.result.Matched)
+	}
+	if !reflect.DeepEqual(got.Unmatched, want.result.Unmatched) {
+		t.Errorf("\ngot:\n%v\nwant:\n%v\n", got.Unmatched, want.result.Unmatched)
+	}
+	if !reflect.DeepEqual(got.Excluded, want.result.Excluded) {
+		t.Errorf("\ngot:\n%v\nwant:\n%v\n", got.Excluded, want.result.Excluded)
+	}
+	if !reflect.DeepEqual(got.Skipped, want.result.Skipped) {
+		t.Errorf("\ngot:\n%v\nwant:\n%v\n", got.Skipped, want.result.Skipped)
+	}
+	if !reflect.DeepEqual(got.Errors, want.result.Errors) {
+		t.Errorf("\ngot:\n%v\nwant:\n%v\n", got.Errors, want.result.Errors)
+	}
+	if !reflect.DeepEqual(got.Source, want.source) {
+		t.Errorf("\ngot:\n%v\nwant:\n%v\n", got.Source, want.source)
+	}
+	if !reflect.DeepEqual(got.inputType, want.inputType) {
+		t.Errorf("\ngot:\n%v\nwant:\n%v\n", got.inputType, want.inputType)
+	}
 }
 
 func Test_parse(t *testing.T) {
+	ctx := context.Background()
 	type args struct {
-		input           io.Reader
-		skipLines       []int
-		hasIndex        bool
-		decoder         decoder
-		patterns        []*regexp.Regexp
-		lineHandler     LineHandler
-		metadataHandler MetadataHandler
+		ctx            context.Context
+		input          io.Reader
+		patterns       []*regexp.Regexp
+		keywords       []string
+		labels         []string
+		hasPrefix      bool
+		disableUnmatch bool
+		decoder        lineDecoder
+		handler        LineHandler
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    *Result
-		wantErr bool
+		name       string
+		args       args
+		wantOutput string
+		wantResult wantResult
+		wantErr    bool
 	}{
 		{
 			name: "regex: all match",
 			args: args{
-				input:           strings.NewReader(regexAllMatchInput),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				ctx:       ctx,
+				input:     strings.NewReader(regexAllMatchInput),
+				patterns:  regexPatterns,
+				keywords:  nil,
+				labels:    nil,
+				hasPrefix: false,
+				decoder:   regexLineDecoder,
+				handler:   JSONLineHandler,
 			},
-			want: &Result{
-				Data:     regexAllMatchData,
-				Metadata: fmt.Sprintf(regexAllMatchMetadataSerialized, ""),
-				Labels:   regexAllMatchLabelData,
-				Values:   regexAllMatchValueData,
+			wantOutput: strings.Join(regexAllMatchData, "\n") + "\n",
+			wantResult: wantResult{
+				result:    regexAllMatchResult,
+				source:    "",
+				inputType: inputTypeStream,
 			},
 			wantErr: false,
 		},
 		{
 			name: "ltsv: all match",
 			args: args{
-				input:           strings.NewReader(ltsvAllMatchInput),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				patterns:        nil,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				ctx:       ctx,
+				input:     strings.NewReader(ltsvAllMatchInput),
+				patterns:  nil,
+				keywords:  nil,
+				labels:    nil,
+				hasPrefix: false,
+				decoder:   ltsvLineDecoder,
+				handler:   JSONLineHandler,
 			},
-			want: &Result{
-				Data:     ltsvAllMatchData,
-				Metadata: fmt.Sprintf(ltsvAllMatchMetadataSerialized, ""),
-				Labels:   ltsvAllMatchLabelData,
-				Values:   ltsvAllMatchValueData,
+			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
+			wantResult: wantResult{
+				result:    ltsvAllMatchResult,
+				source:    "",
+				inputType: inputTypeStream,
 			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parse(tt.args.input, tt.args.skipLines, tt.args.hasIndex, tt.args.decoder, tt.args.patterns, tt.args.lineHandler, tt.args.metadataHandler)
+			output := &bytes.Buffer{}
+			got, err := parse(tt.args.ctx, tt.args.input, output, tt.args.patterns, tt.args.keywords, tt.args.labels, tt.args.hasPrefix, tt.args.disableUnmatch, tt.args.decoder, tt.args.handler)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parse() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parse() = %v, want %v", got, tt.want)
+			if out := output.String(); !reflect.DeepEqual(out, tt.wantOutput) {
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", out, tt.wantOutput)
 			}
+			assertResult(t, tt.wantResult, got)
 		})
 	}
 }
 
 func Test_parseString(t *testing.T) {
 	type args struct {
-		input           string
-		skipLines       []int
-		hasIndex        bool
-		decoder         decoder
-		patterns        []*regexp.Regexp
-		lineHandler     LineHandler
-		metadataHandler MetadataHandler
+		s             string
+		patterns      []*regexp.Regexp
+		keywords      []string
+		labels        []string
+		skipLines     []int
+		hasLineNumber bool
+		decoder       lineDecoder
+		handler       LineHandler
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    *Result
-		wantErr bool
+		name       string
+		args       args
+		wantOutput string
+		wantResult wantResult
+		wantErr    bool
 	}{
 		{
 			name: "regex: all match",
 			args: args{
-				input:           regexAllMatchInput,
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				s:             regexAllMatchInput,
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want: &Result{
-				Data:     regexAllMatchData,
-				Metadata: fmt.Sprintf(regexAllMatchMetadataSerialized, ""),
-				Labels:   regexAllMatchLabelData,
-				Values:   regexAllMatchValueData,
-			},
-			wantErr: false,
-		},
-		{
-			name: "regex: contains unmatch",
-			args: args{
-				input:           regexContainsUnmatchInput,
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     regexContainsUnmatchData,
-				Metadata: fmt.Sprintf(regexContainsUnmatchMetadataSerialized, ""),
-				Labels:   regexContainsUnmatchLabelData,
-				Values:   regexContainsUnmatchValueData,
+			wantOutput: strings.Join(regexAllMatchData, "\n") + "\n",
+			wantResult: wantResult{
+				result:    regexAllMatchResult,
+				source:    "",
+				inputType: inputTypeString,
 			},
 			wantErr: false,
 		},
 		{
-			name: "regex: contains skip flag",
+			name: "ltsv: all match",
 			args: args{
-				input:           regexAllMatchInput,
-				skipLines:       regexContainsSkipLines,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				s:             ltsvAllMatchInput,
+				patterns:      nil,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       ltsvLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want: &Result{
-				Data:     regexContainsSkipData,
-				Metadata: fmt.Sprintf(regexContainsSkipMetadataSerialized, ""),
-				Labels:   regexContainsSkipLabelData,
-				Values:   regexContainsSkipValueData,
-			},
-			wantErr: false,
-		},
-		{
-			name: "regex: all unmatch",
-			args: args{
-				input:           regexAllUnmatchInput,
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     nil,
-				Metadata: fmt.Sprintf(regexAllUnmatchMetadataSerialized, ""),
-				Labels:   nil,
-				Values:   nil,
-			},
-			wantErr: false,
-		},
-		{
-			name: "regex: all skip",
-			args: args{
-				input:           regexAllMatchInput,
-				skipLines:       regexAllSkipLines,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     nil,
-				Metadata: fmt.Sprintf(regexAllSkipMetadataSerialized, ""),
-				Labels:   nil,
-				Values:   nil,
-			},
-			wantErr: false,
-		},
-		{
-			name: "regex: mixed",
-			args: args{
-				input:           regexContainsUnmatchInput,
-				skipLines:       regexMixedSkipLines,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     regexMixedData,
-				Metadata: fmt.Sprintf(regexMixedMetadataSerialized, ""),
-				Labels:   regexMixedLabelData,
-				Values:   regexMixedValueData,
-			},
-			wantErr: false,
-		},
-		{
-			name: "regex: nil input",
-			args: args{
-				input:           "",
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     nil,
-				Metadata: fmt.Sprintf(regexEmptyMetadataSerialized, ""),
-				Labels:   nil,
-				Values:   nil,
+			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
+			wantResult: wantResult{
+				result:    ltsvAllMatchResult,
+				source:    "",
+				inputType: inputTypeString,
 			},
 			wantErr: false,
 		},
 		{
 			name: "regex: line handler returns error",
 			args: args{
-				input:     regexAllMatchInput,
-				skipLines: nil,
-				hasIndex:  true,
-				decoder:   regexDecoder,
-				patterns:  regexPatterns,
-				lineHandler: func(labels []string, values []string, index int, hasIndex bool) (string, error) {
-					return "", fmt.Errorf("error")
-				},
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "regex: metadata handler returns error",
-			args: args{
-				input:       regexAllMatchInput,
-				skipLines:   nil,
-				hasIndex:    true,
-				decoder:     regexDecoder,
-				patterns:    regexPatterns,
-				lineHandler: JSONLineHandler,
-				metadataHandler: func(metadata *Metadata) (string, error) {
+				s:             regexAllMatchInput,
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       regexLineDecoder,
+				handler: func(labels, values []string, lineNumber int, hasLineNumber, isFirst bool) (string, error) {
 					return "", fmt.Errorf("error")
 				},
 			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "ltsv: all match",
-			args: args{
-				input:           ltsvAllMatchInput,
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				patterns:        nil,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+			wantResult: wantResult{
+				result:    nil,
+				source:    "",
+				inputType: inputTypeString,
 			},
-			want: &Result{
-				Data:     ltsvAllMatchData,
-				Metadata: fmt.Sprintf(ltsvAllMatchMetadataSerialized, ""),
-				Labels:   ltsvAllMatchLabelData,
-				Values:   ltsvAllMatchValueData,
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: contains unmatch",
-			args: args{
-				input:           ltsvContainsUnmatchInput,
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				patterns:        nil,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     ltsvContainsUnmatchData,
-				Metadata: fmt.Sprintf(ltsvContainsUnmatchMetadataSerialized, ""),
-				Labels:   ltsvContainsUnmatchLabelData,
-				Values:   ltsvContainsUnmatchValueData,
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: contains skip flag",
-			args: args{
-				input:           ltsvAllMatchInput,
-				skipLines:       ltsvContainsSkipLines,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				patterns:        nil,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     ltsvContainsSkipData,
-				Metadata: fmt.Sprintf(ltsvContainsSkipMetadataSerialized, ""),
-				Labels:   ltsvContainsSkipLabelData,
-				Values:   ltsvContainsSkipValueData,
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: all unmatch",
-			args: args{
-				input:           ltsvAllUnmatchInput,
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				patterns:        nil,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     nil,
-				Metadata: fmt.Sprintf(ltsvAllUnmatchMetadataSerialized, ""),
-				Labels:   nil,
-				Values:   nil,
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: all skip",
-			args: args{
-				input:           ltsvAllMatchInput,
-				skipLines:       ltsvAllSkipLines,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				patterns:        nil,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     nil,
-				Metadata: fmt.Sprintf(ltsvAllSkipMetadataSerialized, ""),
-				Labels:   nil,
-				Values:   nil,
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: mixed",
-			args: args{
-				input:           ltsvContainsUnmatchInput,
-				skipLines:       ltsvMixedSkipLines,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				patterns:        nil,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     ltsvMixedData,
-				Metadata: fmt.Sprintf(ltsvMixedMetadataSerialized, ""),
-				Labels:   ltsvMixedLabelData,
-				Values:   ltsvMixedValueData,
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: nil input",
-			args: args{
-				input:           "",
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				patterns:        nil,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     nil,
-				Metadata: fmt.Sprintf(ltsvEmptyMetadataSerialized, ""),
-				Labels:   nil,
-				Values:   nil,
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: line handler returns error",
-			args: args{
-				input:     ltsvAllMatchInput,
-				skipLines: nil,
-				hasIndex:  true,
-				decoder:   ltsvDecoder,
-				patterns:  nil,
-				lineHandler: func(labels []string, values []string, index int, hasIndex bool) (string, error) {
-					return "", fmt.Errorf("error")
-				},
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "ltsv: metadata handler returns error",
-			args: args{
-				input:       ltsvAllMatchInput,
-				skipLines:   nil,
-				hasIndex:    true,
-				decoder:     ltsvDecoder,
-				patterns:    nil,
-				lineHandler: JSONLineHandler,
-				metadataHandler: func(metadata *Metadata) (string, error) {
-					return "", fmt.Errorf("error")
-				},
-			},
-			want:    nil,
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseString(tt.args.input, tt.args.skipLines, tt.args.hasIndex, tt.args.decoder, tt.args.patterns, tt.args.lineHandler, tt.args.metadataHandler)
+			output := &bytes.Buffer{}
+			got, err := parseString(tt.args.s, output, tt.args.patterns, tt.args.keywords, tt.args.labels, tt.args.skipLines, tt.args.hasLineNumber, tt.args.decoder, tt.args.handler)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseString() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseString() = %v, want %v", got, tt.want)
+			if out := output.String(); !reflect.DeepEqual(out, tt.wantOutput) {
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", out, tt.wantOutput)
 			}
+			assertResult(t, tt.wantResult, got)
 		})
 	}
 }
 
 func Test_parseFile(t *testing.T) {
 	type args struct {
-		input           string
-		skipLines       []int
-		hasIndex        bool
-		decoder         decoder
-		patterns        []*regexp.Regexp
-		lineHandler     LineHandler
-		metadataHandler MetadataHandler
+		filePath      string
+		patterns      []*regexp.Regexp
+		keywords      []string
+		labels        []string
+		skipLines     []int
+		hasLineNumber bool
+		decoder       lineDecoder
+		handler       LineHandler
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    *Result
-		wantErr bool
+		name       string
+		args       args
+		wantOutput string
+		wantResult wantResult
+		wantErr    bool
 	}{
 		{
 			name: "regex: all match",
 			args: args{
-				input:           filepath.Join("testdata", "sample_s3_all_match.log"),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				filePath:      filepath.Join("testdata", "sample_s3_all_match.log"),
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want: &Result{
-				Data:     regexAllMatchData,
-				Metadata: fmt.Sprintf(regexAllMatchMetadataSerialized, "sample_s3_all_match.log"),
-				Labels:   regexAllMatchLabelData,
-				Values:   regexAllMatchValueData,
-			},
-			wantErr: false,
-		},
-		{
-			name: "regex: contains unmatch",
-			args: args{
-				input:           filepath.Join("testdata", "sample_s3_contains_unmatch.log"),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     regexContainsUnmatchData,
-				Metadata: fmt.Sprintf(regexContainsUnmatchMetadataSerialized, "sample_s3_contains_unmatch.log"),
-				Labels:   regexContainsUnmatchLabelData,
-				Values:   regexContainsUnmatchValueData,
+			wantOutput: strings.Join(regexAllMatchData, "\n") + "\n",
+			wantResult: wantResult{
+				result:    regexAllMatchResult,
+				source:    "sample_s3_all_match.log",
+				inputType: inputTypeFile,
 			},
 			wantErr: false,
 		},
 		{
-			name: "regex: contains skip flag",
+			name: "ltsv: all match",
 			args: args{
-				input:           filepath.Join("testdata", "sample_s3_all_match.log"),
-				skipLines:       regexContainsSkipLines,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				filePath:      filepath.Join("testdata", "sample_s3_all_match.log"),
+				patterns:      nil,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       ltsvLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want: &Result{
-				Data:     regexContainsSkipData,
-				Metadata: fmt.Sprintf(regexContainsSkipMetadataSerialized, "sample_s3_all_match.log"),
-				Labels:   regexContainsSkipLabelData,
-				Values:   regexContainsSkipValueData,
+			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
+			wantResult: wantResult{
+				result:    ltsvAllMatchResult,
+				source:    "sample_s3_all_match.log",
+				inputType: inputTypeFile,
 			},
 			wantErr: false,
-		},
-		{
-			name: "regex: all unmatch",
-			args: args{
-				input:           filepath.Join("testdata", "sample_s3_all_unmatch.log"),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     nil,
-				Metadata: fmt.Sprintf(regexAllUnmatchMetadataSerialized, "sample_s3_all_unmatch.log"),
-				Labels:   nil,
-				Values:   nil,
-			},
-			wantErr: false,
-		},
-		{
-			name: "regex: all skip",
-			args: args{
-				input:           filepath.Join("testdata", "sample_s3_all_match.log"),
-				skipLines:       regexAllSkipLines,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     nil,
-				Metadata: fmt.Sprintf(regexAllSkipMetadataSerialized, "sample_s3_all_match.log"),
-				Labels:   nil,
-				Values:   nil,
-			},
-			wantErr: false,
-		},
-		{
-			name: "regex: mixed",
-			args: args{
-				input:           filepath.Join("testdata", "sample_s3_contains_unmatch.log"),
-				skipLines:       regexMixedSkipLines,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     regexMixedData,
-				Metadata: fmt.Sprintf(regexMixedMetadataSerialized, "sample_s3_contains_unmatch.log"),
-				Labels:   regexMixedLabelData,
-				Values:   regexMixedValueData,
-			},
-			wantErr: false,
-		},
-		{
-			name: "regex: nil input",
-			args: args{
-				input:           "",
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
-			wantErr: true,
 		},
 		{
 			name: "regex: line handler returns error",
 			args: args{
-				input:     filepath.Join("testdata", "sample_s3_all_match.log"),
-				skipLines: nil,
-				hasIndex:  true,
-				decoder:   regexDecoder,
-				patterns:  regexPatterns,
-				lineHandler: func(labels []string, values []string, index int, hasIndex bool) (string, error) {
-					return "", fmt.Errorf("error")
-				},
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "regex: metadata handler returns error",
-			args: args{
-				input:       filepath.Join("testdata", "sample_s3_all_match.log"),
-				skipLines:   nil,
-				decoder:     regexDecoder,
-				hasIndex:    true,
-				patterns:    regexPatterns,
-				lineHandler: JSONLineHandler,
-				metadataHandler: func(metadata *Metadata) (string, error) {
+				filePath:      filepath.Join("testdata", "sample_s3_all_match.log"),
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       regexLineDecoder,
+				handler: func(labels, values []string, lineNumber int, hasLineNumber, isFirst bool) (string, error) {
 					return "", fmt.Errorf("error")
 				},
 			},
-			want:    nil,
+			wantResult: wantResult{
+				result:    nil,
+				source:    "",
+				inputType: inputTypeFile,
+			},
 			wantErr: true,
 		},
 		{
 			name: "regex: input file does not exists",
 			args: args{
-				input:           filepath.Join("testdata", "sample_s3_all_match.log.dummy"),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				filePath:      filepath.Join("testdata", "sample_ltsv_all_match.log.dummy"),
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    nil,
+			wantResult: wantResult{
+				result:    nil,
+				source:    "",
+				inputType: inputTypeFile,
+			},
 			wantErr: true,
 		},
 		{
 			name: "regex: input path is directory not file",
 			args: args{
-				input:           "testdata",
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				filePath:      "testdata",
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "ltsv: all match",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_all_match.log"),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+			wantResult: wantResult{
+				result:    nil,
+				source:    "",
+				inputType: inputTypeFile,
 			},
-			want: &Result{
-				Data:     ltsvAllMatchData,
-				Metadata: fmt.Sprintf(ltsvAllMatchMetadataSerialized, "sample_ltsv_all_match.log"),
-				Labels:   ltsvAllMatchLabelData,
-				Values:   ltsvAllMatchValueData,
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: contains unmatch",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_contains_unmatch.log"),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     ltsvContainsUnmatchData,
-				Metadata: fmt.Sprintf(ltsvContainsUnmatchMetadataSerialized, "sample_ltsv_contains_unmatch.log"),
-				Labels:   ltsvContainsUnmatchLabelData,
-				Values:   ltsvContainsUnmatchValueData,
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: contains skip flag",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_all_match.log"),
-				skipLines:       regexContainsSkipLines,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     ltsvContainsSkipData,
-				Metadata: fmt.Sprintf(ltsvContainsSkipMetadataSerialized, "sample_ltsv_all_match.log"),
-				Labels:   ltsvContainsSkipLabelData,
-				Values:   ltsvContainsSkipValueData,
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: all unmatch",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_all_unmatch.log"),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     nil,
-				Metadata: fmt.Sprintf(ltsvAllUnmatchMetadataSerialized, "sample_ltsv_all_unmatch.log"),
-				Labels:   nil,
-				Values:   nil,
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: all skip",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_all_match.log"),
-				skipLines:       regexAllSkipLines,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     nil,
-				Metadata: fmt.Sprintf(ltsvAllSkipMetadataSerialized, "sample_ltsv_all_match.log"),
-				Labels:   nil,
-				Values:   nil,
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: mixed",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_contains_unmatch.log"),
-				skipLines:       ltsvMixedSkipLines,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     ltsvMixedData,
-				Metadata: fmt.Sprintf(ltsvMixedMetadataSerialized, "sample_ltsv_contains_unmatch.log"),
-				Labels:   ltsvMixedLabelData,
-				Values:   ltsvMixedValueData,
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: nil input",
-			args: args{
-				input:           "",
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "ltsv: line handler returns error",
-			args: args{
-				input:     filepath.Join("testdata", "sample_ltsv_all_match.log"),
-				skipLines: nil,
-				hasIndex:  true,
-				decoder:   ltsvDecoder,
-				lineHandler: func(labels []string, values []string, index int, hasIndex bool) (string, error) {
-					return "", fmt.Errorf("error")
-				},
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "ltsv: metadata handler returns error",
-			args: args{
-				input:       filepath.Join("testdata", "sample_ltsv_all_match.log"),
-				skipLines:   nil,
-				hasIndex:    true,
-				decoder:     ltsvDecoder,
-				lineHandler: JSONLineHandler,
-				metadataHandler: func(metadata *Metadata) (string, error) {
-					return "", fmt.Errorf("error")
-				},
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "ltsv: input file does not exists",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_all_match.log.dummy"),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "ltsv: input path is directory not file",
-			args: args{
-				input:           "testdata",
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseFile(tt.args.input, tt.args.skipLines, tt.args.hasIndex, tt.args.decoder, tt.args.patterns, tt.args.lineHandler, tt.args.metadataHandler)
+			output := &bytes.Buffer{}
+			got, err := parseFile(tt.args.filePath, output, tt.args.patterns, tt.args.keywords, tt.args.labels, tt.args.skipLines, tt.args.hasLineNumber, tt.args.decoder, tt.args.handler)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseFile() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseFile() = %v, want %v", got, tt.want)
-			}
+			assertResult(t, tt.wantResult, got)
 		})
 	}
 }
 
 func Test_parseGzip(t *testing.T) {
 	type args struct {
-		input           string
-		skipLines       []int
-		hasIndex        bool
-		decoder         decoder
-		patterns        []*regexp.Regexp
-		lineHandler     LineHandler
-		metadataHandler MetadataHandler
+		gzipPath      string
+		patterns      []*regexp.Regexp
+		keywords      []string
+		labels        []string
+		skipLines     []int
+		hasLineNumber bool
+		decoder       lineDecoder
+		handler       LineHandler
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    *Result
-		wantErr bool
+		name       string
+		args       args
+		wantOutput string
+		wantResult wantResult
+		wantErr    bool
 	}{
 		{
 			name: "regex: all match",
 			args: args{
-				input:           filepath.Join("testdata", "sample_s3_all_match.log.gz"),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				gzipPath:      filepath.Join("testdata", "sample_s3_all_match.log.gz"),
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want: &Result{
-				Data:     regexAllMatchData,
-				Metadata: fmt.Sprintf(regexAllMatchMetadataSerialized, "sample_s3_all_match.log.gz"),
-				Labels:   regexAllMatchLabelData,
-				Values:   regexAllMatchValueData,
-			},
-			wantErr: false,
-		},
-		{
-			name: "regex: contains unmatch",
-			args: args{
-				input:           filepath.Join("testdata", "sample_s3_contains_unmatch.log.gz"),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     regexContainsUnmatchData,
-				Metadata: fmt.Sprintf(regexContainsUnmatchMetadataSerialized, "sample_s3_contains_unmatch.log.gz"),
-				Labels:   regexContainsUnmatchLabelData,
-				Values:   regexContainsUnmatchValueData,
+			wantOutput: strings.Join(regexAllMatchData, "\n") + "\n",
+			wantResult: wantResult{
+				result:    regexAllMatchResult,
+				source:    "sample_s3_all_match.log.gz",
+				inputType: inputTypeGzip,
 			},
 			wantErr: false,
 		},
 		{
-			name: "regex: contains skip flag",
+			name: "ltsv: all match",
 			args: args{
-				input:           filepath.Join("testdata", "sample_s3_all_match.log.gz"),
-				skipLines:       regexContainsSkipLines,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				gzipPath:      filepath.Join("testdata", "sample_ltsv_all_match.log.gz"),
+				patterns:      nil,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       ltsvLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want: &Result{
-				Data:     regexContainsSkipData,
-				Metadata: fmt.Sprintf(regexContainsSkipMetadataSerialized, "sample_s3_all_match.log.gz"),
-				Labels:   regexContainsSkipLabelData,
-				Values:   regexContainsSkipValueData,
+			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
+			wantResult: wantResult{
+				result:    ltsvAllMatchResult,
+				source:    "sample_ltsv_all_match.log.gz",
+				inputType: inputTypeGzip,
 			},
 			wantErr: false,
-		},
-		{
-			name: "regex: all unmatch",
-			args: args{
-				input:           filepath.Join("testdata", "sample_s3_all_unmatch.log.gz"),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     nil,
-				Metadata: fmt.Sprintf(regexAllUnmatchMetadataSerialized, "sample_s3_all_unmatch.log.gz"),
-				Labels:   nil,
-				Values:   nil,
-			},
-			wantErr: false,
-		},
-		{
-			name: "regex: all skip",
-			args: args{
-				input:           filepath.Join("testdata", "sample_s3_all_match.log.gz"),
-				skipLines:       regexAllSkipLines,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     nil,
-				Metadata: fmt.Sprintf(regexAllSkipMetadataSerialized, "sample_s3_all_match.log.gz"),
-				Labels:   nil,
-				Values:   nil,
-			},
-			wantErr: false,
-		},
-		{
-			name: "regex: mixed",
-			args: args{
-				input:           filepath.Join("testdata", "sample_s3_contains_unmatch.log.gz"),
-				skipLines:       regexMixedSkipLines,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     regexMixedData,
-				Metadata: fmt.Sprintf(regexMixedMetadataSerialized, "sample_s3_contains_unmatch.log.gz"),
-				Labels:   regexMixedLabelData,
-				Values:   regexMixedValueData,
-			},
-			wantErr: false,
-		},
-		{
-			name: "regex: nil input",
-			args: args{
-				input:           "",
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
-			wantErr: true,
 		},
 		{
 			name: "regex: line handler returns error",
 			args: args{
-				input:     filepath.Join("testdata", "sample_s3_all_match.log.gz"),
-				skipLines: nil,
-				hasIndex:  true,
-				decoder:   regexDecoder,
-				patterns:  regexPatterns,
-				lineHandler: func(labels []string, values []string, index int, hasIndex bool) (string, error) {
-					return "", fmt.Errorf("error")
-				},
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "regex: metadata handler returns error",
-			args: args{
-				input:       filepath.Join("testdata", "sample_s3_all_match.log.gz"),
-				skipLines:   nil,
-				decoder:     regexDecoder,
-				patterns:    regexPatterns,
-				lineHandler: JSONLineHandler,
-				metadataHandler: func(metadata *Metadata) (string, error) {
+				gzipPath:      filepath.Join("testdata", "sample_s3_all_match.log.gz"),
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       regexLineDecoder,
+				handler: func(labels, values []string, lineNumber int, hasLineNumber, isFirst bool) (string, error) {
 					return "", fmt.Errorf("error")
 				},
 			},
-			want:    nil,
+			wantResult: wantResult{
+				result:    nil,
+				source:    "",
+				inputType: inputTypeGzip,
+			},
 			wantErr: true,
 		},
 		{
 			name: "regex: input file does not exists",
 			args: args{
-				input:           filepath.Join("testdata", "sample_s3_all_match.log.gz.dummy"),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				gzipPath:      filepath.Join("testdata", "sample_ltsv_all_match.log.gz.dummy"),
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    nil,
+			wantResult: wantResult{
+				result:    nil,
+				source:    "",
+				inputType: inputTypeGzip,
+			},
 			wantErr: true,
 		},
 		{
 			name: "regex: input path is directory not file",
 			args: args{
-				input:           "testdata",
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				gzipPath:      "testdata",
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    nil,
+			wantResult: wantResult{
+				result:    nil,
+				source:    "",
+				inputType: inputTypeGzip,
+			},
 			wantErr: true,
 		},
 		{
 			name: "regex: input file is not gzip",
 			args: args{
-				input:           filepath.Join("testdata", "sample_s3_all_match.log"),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				gzipPath:      filepath.Join("testdata", "sample_s3_all_match.log"),
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "ltsv: all match",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_all_match.log.gz"),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+			wantResult: wantResult{
+				result:    nil,
+				source:    "",
+				inputType: inputTypeGzip,
 			},
-			want: &Result{
-				Data:     ltsvAllMatchData,
-				Metadata: fmt.Sprintf(ltsvAllMatchMetadataSerialized, "sample_ltsv_all_match.log.gz"),
-				Labels:   ltsvAllMatchLabelData,
-				Values:   ltsvAllMatchValueData,
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: contains unmatch",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_contains_unmatch.log.gz"),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     ltsvContainsUnmatchData,
-				Metadata: fmt.Sprintf(ltsvContainsUnmatchMetadataSerialized, "sample_ltsv_contains_unmatch.log.gz"),
-				Labels:   ltsvContainsUnmatchLabelData,
-				Values:   ltsvContainsUnmatchValueData,
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: contains skip flag",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_all_match.log.gz"),
-				skipLines:       ltsvContainsSkipLines,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     ltsvContainsSkipData,
-				Metadata: fmt.Sprintf(ltsvContainsSkipMetadataSerialized, "sample_ltsv_all_match.log.gz"),
-				Labels:   ltsvContainsSkipLabelData,
-				Values:   ltsvContainsSkipValueData,
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: all unmatch",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_all_unmatch.log.gz"),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     nil,
-				Metadata: fmt.Sprintf(ltsvAllUnmatchMetadataSerialized, "sample_ltsv_all_unmatch.log.gz"),
-				Labels:   nil,
-				Values:   nil,
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: all skip",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_all_match.log.gz"),
-				skipLines:       ltsvAllSkipLines,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     nil,
-				Metadata: fmt.Sprintf(ltsvAllSkipMetadataSerialized, "sample_ltsv_all_match.log.gz"),
-				Labels:   nil,
-				Values:   nil,
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: mixed",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_contains_unmatch.log.gz"),
-				skipLines:       ltsvMixedSkipLines,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: &Result{
-				Data:     ltsvMixedData,
-				Metadata: fmt.Sprintf(ltsvMixedMetadataSerialized, "sample_ltsv_contains_unmatch.log.gz"),
-				Labels:   ltsvMixedLabelData,
-				Values:   ltsvMixedValueData,
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: nil input",
-			args: args{
-				input:           "",
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "ltsv: line handler returns error",
-			args: args{
-				input:     filepath.Join("testdata", "sample_ltsv_all_match.log.gz"),
-				skipLines: nil,
-				hasIndex:  true,
-				decoder:   ltsvDecoder,
-				lineHandler: func(labels []string, values []string, index int, hasIndex bool) (string, error) {
-					return "", fmt.Errorf("error")
-				},
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "ltsv: metadata handler returns error",
-			args: args{
-				input:       filepath.Join("testdata", "sample_ltsv_all_match.log.gz"),
-				skipLines:   nil,
-				hasIndex:    true,
-				decoder:     ltsvDecoder,
-				lineHandler: JSONLineHandler,
-				metadataHandler: func(metadata *Metadata) (string, error) {
-					return "", fmt.Errorf("error")
-				},
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "ltsv: input file does not exists",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_all_match.log.gz.dummy"),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "ltsv: input path is directory not file",
-			args: args{
-				input:           "testdata",
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "ltsv: input file is not gzip",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_all_match.log"),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseGzip(tt.args.input, tt.args.skipLines, tt.args.hasIndex, tt.args.decoder, tt.args.patterns, tt.args.lineHandler, tt.args.metadataHandler)
+			output := &bytes.Buffer{}
+			got, err := parseGzip(tt.args.gzipPath, output, tt.args.patterns, tt.args.keywords, tt.args.labels, tt.args.skipLines, tt.args.hasLineNumber, tt.args.decoder, tt.args.handler)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseGzip() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseGzip() = %v, want %v", got, tt.want)
-			}
+			assertResult(t, tt.wantResult, got)
 		})
 	}
 }
 
 func Test_parseZipEntries(t *testing.T) {
 	type args struct {
-		input           string
-		skipLines       []int
-		hasIndex        bool
-		globPattern     string
-		decoder         decoder
-		patterns        []*regexp.Regexp
-		lineHandler     LineHandler
-		metadataHandler MetadataHandler
+		zipPath       string
+		globPattern   string
+		patterns      []*regexp.Regexp
+		keywords      []string
+		labels        []string
+		skipLines     []int
+		hasLineNumber bool
+		decoder       lineDecoder
+		handler       LineHandler
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    []*Result
-		wantErr bool
+		name       string
+		args       args
+		wantOutput string
+		wantResult wantResult
+		wantErr    bool
 	}{
 		{
-			name: "regex: all match/one entry",
+			name: "regex: all match",
 			args: args{
-				input:           filepath.Join("testdata", "sample_s3_all_match.log.zip"),
-				skipLines:       nil,
-				hasIndex:        true,
-				globPattern:     "*",
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				zipPath:       filepath.Join("testdata", "sample_s3_all_match.log.zip"),
+				globPattern:   "*",
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want: []*Result{
-				{
-					Data:     regexAllMatchData,
-					Metadata: fmt.Sprintf(regexAllMatchMetadataSerialized, "sample_s3_all_match.log"),
-					Labels:   regexAllMatchLabelData,
-					Values:   regexAllMatchValueData,
-				},
+			wantOutput: strings.Join(regexAllMatchData, "\n") + "\n",
+			wantResult: wantResult{
+				result:    regexAllMatchResult,
+				source:    "sample_s3_all_match.log.zip",
+				inputType: inputTypeZip,
 			},
 			wantErr: false,
 		},
 		{
-			name: "regex: contains unmatch/one entry",
+			name: "ltsv: all match",
 			args: args{
-				input:           filepath.Join("testdata", "sample_s3_contains_unmatch.log.zip"),
-				skipLines:       nil,
-				hasIndex:        true,
-				globPattern:     "*",
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				zipPath:       filepath.Join("testdata", "sample_ltsv_all_match.log.zip"),
+				globPattern:   "*",
+				patterns:      nil,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       ltsvLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want: []*Result{
-				{
-					Data:     regexContainsUnmatchData,
-					Metadata: fmt.Sprintf(regexContainsUnmatchMetadataSerialized, "sample_s3_contains_unmatch.log"),
-					Labels:   regexContainsUnmatchLabelData,
-					Values:   regexContainsUnmatchValueData,
-				},
+			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
+			wantResult: wantResult{
+				result:    ltsvAllMatchResult,
+				source:    "sample_ltsv_all_match.log.zip",
+				inputType: inputTypeZip,
 			},
 			wantErr: false,
-		},
-		{
-			name: "regex: contains skip flag/one entry",
-			args: args{
-				input:           filepath.Join("testdata", "sample_s3_all_match.log.zip"),
-				skipLines:       regexAllSkipLines,
-				hasIndex:        true,
-				globPattern:     "*",
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: []*Result{
-				{
-					Data:     nil,
-					Metadata: fmt.Sprintf(regexAllSkipMetadataSerialized, "sample_s3_all_match.log"),
-					Labels:   nil,
-					Values:   nil,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "regex: all unmatch/one entry",
-			args: args{
-				input:           filepath.Join("testdata", "sample_s3_all_unmatch.log.zip"),
-				skipLines:       nil,
-				hasIndex:        true,
-				globPattern:     "*",
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: []*Result{
-				{
-					Data:     nil,
-					Metadata: fmt.Sprintf(regexAllUnmatchMetadataSerialized, "sample_s3_all_unmatch.log"),
-					Labels:   nil,
-					Values:   nil,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "regex: all skip/one entry",
-			args: args{
-				input:           filepath.Join("testdata", "sample_s3_all_match.log.zip"),
-				skipLines:       regexAllSkipLines,
-				hasIndex:        true,
-				globPattern:     "*",
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: []*Result{
-				{
-					Data:     nil,
-					Metadata: fmt.Sprintf(regexAllSkipMetadataSerialized, "sample_s3_all_match.log"),
-					Labels:   nil,
-					Values:   nil,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "regex: mixed",
-			args: args{
-				input:           filepath.Join("testdata", "sample_s3_contains_unmatch.log.zip"),
-				skipLines:       regexMixedSkipLines,
-				hasIndex:        true,
-				globPattern:     "*",
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: []*Result{
-				{
-					Data:     regexMixedData,
-					Metadata: fmt.Sprintf(regexMixedMetadataSerialized, "sample_s3_contains_unmatch.log"),
-					Labels:   regexMixedLabelData,
-					Values:   regexMixedValueData,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "regex: nil input",
-			args: args{
-				input:           "",
-				skipLines:       nil,
-				hasIndex:        true,
-				globPattern:     "*",
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
-			wantErr: true,
 		},
 		{
 			name: "regex: line handler returns error",
 			args: args{
-				input:       filepath.Join("testdata", "sample_s3_all_match.log.zip"),
-				skipLines:   nil,
-				hasIndex:    true,
-				globPattern: "*",
-				decoder:     regexDecoder,
-				patterns:    regexPatterns,
-				lineHandler: func(labels []string, values []string, index int, hasIndex bool) (string, error) {
-					return "", fmt.Errorf("error")
-				},
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "regex: metadata handler returns error",
-			args: args{
-				input:       filepath.Join("testdata", "sample_s3_all_match.log.zip"),
-				skipLines:   nil,
-				globPattern: "*",
-				decoder:     regexDecoder,
-				patterns:    regexPatterns,
-				lineHandler: JSONLineHandler,
-				metadataHandler: func(metadata *Metadata) (string, error) {
+				zipPath:       filepath.Join("testdata", "sample_s3_all_match.log.zip"),
+				globPattern:   "*",
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       regexLineDecoder,
+				handler: func(labels, values []string, lineNumber int, hasLineNumber, isFirst bool) (string, error) {
 					return "", fmt.Errorf("error")
 				},
 			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "regex: input file does not exists",
-			args: args{
-				input:           filepath.Join("testdata", "sample_s3_all_match.log.zip.dummy"),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+			wantOutput: "",
+			wantResult: wantResult{
+				result:    nil,
+				source:    "",
+				inputType: inputTypeZip,
 			},
-			want:    nil,
 			wantErr: true,
 		},
 		{
 			name: "regex: input path is directory not file",
 			args: args{
-				input:           "testdata",
-				skipLines:       nil,
-				hasIndex:        true,
-				globPattern:     "*",
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				zipPath:       "testdata",
+				globPattern:   "*",
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    nil,
+			wantOutput: "",
+			wantResult: wantResult{
+				result:    nil,
+				source:    "",
+				inputType: inputTypeZip,
+			},
 			wantErr: true,
 		},
 		{
 			name: "regex: input file is not zip",
 			args: args{
-				input:           filepath.Join("testdata", "sample_s3_all_match.log.gz"),
-				skipLines:       nil,
-				hasIndex:        true,
-				globPattern:     "*",
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				zipPath:       filepath.Join("testdata", "sample_s3_all_match.log.gz"),
+				globPattern:   "*",
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    nil,
+			wantOutput: "",
+			wantResult: wantResult{
+				result:    nil,
+				source:    "",
+				inputType: inputTypeZip,
+			},
+			wantErr: true,
+		},
+		{
+			name: "regex: input file does not exists",
+			args: args{
+				zipPath:       filepath.Join("testdata", "sample_s3_all_match.log.zip.dummy"),
+				globPattern:   "*",
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
+			},
+			wantOutput: "",
+			wantResult: wantResult{
+				result:    nil,
+				source:    "",
+				inputType: inputTypeZip,
+			},
 			wantErr: true,
 		},
 		{
 			name: "regex: multi entries",
 			args: args{
-				input:           filepath.Join("testdata", "sample_s3.zip"),
-				skipLines:       nil,
-				hasIndex:        true,
-				globPattern:     "*",
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				zipPath:       filepath.Join("testdata", "sample_s3.zip"),
+				globPattern:   "*",
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want: []*Result{
-				{
-					Data:     regexAllMatchData,
-					Metadata: fmt.Sprintf(regexAllMatchMetadataSerialized, "sample_s3_all_match.log"),
-					Labels:   regexAllMatchLabelData,
-					Values:   regexAllMatchValueData,
+			wantOutput: `{"bucket_owner":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","bucket":"awsrandombucket43","time":"[16/Feb/2019:11:23:45 +0000]","remote_ip":"192.0.2.132","requester":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket43?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket43.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1","access_point_arn":"-"}
+{"bucket_owner":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","bucket":"awsrandombucket59","time":"[24/Feb/2019:07:45:11 +0000]","remote_ip":"192.0.2.45","requester":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","request_id":"891CE47D2EXAMPLE","operation":"REST.GET.LOGGING_STATUS","key":"-","method":"GET","request_uri":"/awsrandombucket59?logging","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"242","object_size":"-","total_time":"11","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1"}
+{"bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","bucket":"awsrandombucket12","time":"[12/Feb/2019:18:32:21 +0000]","remote_ip":"192.0.2.189","requester":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","request_id":"A1206F460EXAMPLE","operation":"REST.GET.BUCKETPOLICY","key":"-","method":"GET","request_uri":"/awsrandombucket12?policy","protocol":"HTTP/1.1","http_status":"404","error_code":"NoSuchBucketPolicy","bytes_sent":"297","object_size":"-","total_time":"38","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com"}
+{"bucket_owner":"d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01","bucket":"awsrandombucket89","time":"[03/Feb/2019:03:54:33 +0000]","remote_ip":"192.0.2.76","requester":"d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01","request_id":"7B4A0FABBEXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket89?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"33","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}
+{"bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","bucket":"awsrandombucket77","time":"[28/Feb/2019:14:12:59 +0000]","remote_ip":"192.0.2.213","requester":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket77?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}
+{"bucket_owner":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","bucket":"awsrandombucket43","time":"[16/Feb/2019:11:23:45 +0000]","remote_ip":"192.0.2.132","requester":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket43?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket43.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1","access_point_arn":"-"}
+{"bucket_owner":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","bucket":"awsrandombucket59","time":"[24/Feb/2019:07:45:11 +0000]","remote_ip":"192.0.2.45","requester":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","request_id":"891CE47D2EXAMPLE","operation":"REST.GET.LOGGING_STATUS","key":"-","method":"GET","request_uri":"/awsrandombucket59?logging","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"242","object_size":"-","total_time":"11","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1"}
+{"bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","bucket":"awsrandombucket12","time":"[12/Feb/2019:18:32:21 +0000]","remote_ip":"192.0.2.189","requester":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2","request_id":"A1206F460EXAMPLE","operation":"REST.GET.BUCKETPOLICY","key":"-","method":"GET","request_uri":"/awsrandombucket12?policy","protocol":"HTTP/1.1","http_status":"404","error_code":"NoSuchBucketPolicy","bytes_sent":"297","object_size":"-","total_time":"38","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"BNaBsXZQQDbssi6xMBdBU2sLt+Yf5kZDmeBUP35sFoKa3sLLeMC78iwEIWxs99CRUrbS4n11234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com"}
+{"bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","bucket":"awsrandombucket77","time":"[28/Feb/2019:14:12:59 +0000]","remote_ip":"192.0.2.213","requester":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket77?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-"}
+`,
+			wantResult: wantResult{
+				result: &Result{
+					Total:     15,
+					Matched:   9,
+					Unmatched: 6,
+					Excluded:  0,
+					Skipped:   0,
+					Source:    "sample_s3.zip",
+					ZipEntries: []string{
+						"sample_s3_all_match.log",
+						"sample_s3_contains_unmatch.log",
+						"sample_s3_all_unmatch.log",
+					},
+					Errors: []Errors{
+						{
+							Entry:      "sample_s3_contains_unmatch.log",
+							LineNumber: 4,
+							Line:       `d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket89 [03/Feb/2019:03:54:33 +0000] 192.0.2.76 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 7B4A0FABBEXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket89?versioning HTTP/1.1" 200 - 113 - 33 - "-" "S3Console/0.4"`,
+						},
+						{
+							Entry:      "sample_s3_all_unmatch.log",
+							LineNumber: 1,
+							Line:       "a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a awsrandombucket43 [16/Feb/2019:11:23:45 +0000] 192.0.2.132 a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a 3E57427F3EXAMPLE REST.GET.VERSIONING - \"GET /awsrandombucket43?versioning HTTP/1.1\" 200 - 113 - 7 - \"-\" \"S3Console/0.4\"",
+						},
+						{
+							Entry:      "sample_s3_all_unmatch.log",
+							LineNumber: 2,
+							Line:       "3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23 awsrandombucket59 [24/Feb/2019:07:45:11 +0000] 192.0.2.45 3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23 891CE47D2EXAMPLE REST.GET.LOGGING_STATUS - \"GET /awsrandombucket59?logging HTTP/1.1\" 200 - 242 - 11 - \"-\"",
+						},
+						{
+							Entry:      "sample_s3_all_unmatch.log",
+							LineNumber: 3,
+							Line:       "8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2 awsrandombucket12 [12/Feb/2019:18:32:21 +0000] 192.0.2.189 8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2 A1206F460EXAMPLE REST.GET.BUCKETPOLICY - \"GET /awsrandombucket12?policy HTTP/1.1\" 404 NoSuchBucketPolicy 297 - 38 -",
+						},
+						{
+							Entry:      "sample_s3_all_unmatch.log",
+							LineNumber: 4,
+							Line:       "d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket89 [03/Feb/2019:03:54:33 +0000] 192.0.2.76 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 7B4A0FABBEXAMPLE REST.GET.VERSIONING - \"GET /awsrandombucket89?versioning HTTP/1.1\" 200 - 113 - 33",
+						},
+						{
+							Entry:      "sample_s3_all_unmatch.log",
+							LineNumber: 5,
+							Line:       "01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f awsrandombucket77 [28/Feb/2019:14:12:59 +0000] 192.0.2.213 01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f 3E57427F3EXAMPLE REST.GET.VERSIONING - \"GET /awsrandombucket77?versioning HTTP/1.1\" 200 - 113 -",
+						},
+					},
+					inputType: inputTypeZip,
 				},
-				{
-					Data:     regexContainsUnmatchData,
-					Metadata: fmt.Sprintf(regexContainsUnmatchMetadataSerialized, "sample_s3_contains_unmatch.log"),
-					Labels:   regexContainsUnmatchLabelData,
-					Values:   regexContainsUnmatchValueData,
-				},
-				{
-					Data:     nil,
-					Metadata: fmt.Sprintf(regexAllUnmatchMetadataSerialized, "sample_s3_all_unmatch.log"),
-					Labels:   nil,
-					Values:   nil,
-				},
+				source:    "sample_s3.zip",
+				inputType: inputTypeZip,
 			},
 			wantErr: false,
 		},
 		{
 			name: "regex: multi entries and glob pattern filtering",
 			args: args{
-				input:           filepath.Join("testdata", "sample_s3.zip"),
-				skipLines:       nil,
-				hasIndex:        true,
-				globPattern:     "*all_match*",
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				zipPath:       filepath.Join("testdata", "sample_s3.zip"),
+				globPattern:   "*all_match*",
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want: []*Result{
-				{
-					Data:     regexAllMatchData,
-					Metadata: fmt.Sprintf(regexAllMatchMetadataSerialized, "sample_s3_all_match.log"),
-					Labels:   regexAllMatchLabelData,
-					Values:   regexAllMatchValueData,
-				},
+			wantOutput: strings.Join(regexAllMatchData, "\n") + "\n",
+			wantResult: wantResult{
+				result:    nil,
+				source:    "sample_s3_all_match.log",
+				inputType: inputTypeZip,
 			},
 			wantErr: false,
 		},
 		{
 			name: "regex: multi entries and glob pattern returns error",
 			args: args{
-				input:           filepath.Join("testdata", "log.zip"),
-				skipLines:       nil,
-				hasIndex:        true,
-				globPattern:     "[",
-				decoder:         regexDecoder,
-				patterns:        regexPatterns,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+				zipPath:       filepath.Join("testdata", "log.zip"),
+				globPattern:   "[",
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "ltsv: all match/one entry",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_all_match.log.zip"),
-				skipLines:       nil,
-				hasIndex:        true,
-				globPattern:     "*",
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
+			wantOutput: "",
+			wantResult: wantResult{
+				result:    nil,
+				source:    "",
+				inputType: inputTypeZip,
 			},
-			want: []*Result{
-				{
-					Data:     ltsvAllMatchData,
-					Metadata: fmt.Sprintf(ltsvAllMatchMetadataSerialized, "sample_ltsv_all_match.log"),
-					Labels:   ltsvAllMatchLabelData,
-					Values:   ltsvAllMatchValueData,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: contains unmatch/one entry",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_contains_unmatch.log.zip"),
-				skipLines:       nil,
-				hasIndex:        true,
-				globPattern:     "*",
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: []*Result{
-				{
-					Data:     ltsvContainsUnmatchData,
-					Metadata: fmt.Sprintf(ltsvContainsUnmatchMetadataSerialized, "sample_ltsv_contains_unmatch.log"),
-					Labels:   ltsvContainsUnmatchLabelData,
-					Values:   ltsvContainsUnmatchValueData,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: contains skip flag/one entry",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_all_match.log.zip"),
-				skipLines:       ltsvAllSkipLines,
-				hasIndex:        true,
-				globPattern:     "*",
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: []*Result{
-				{
-					Data:     nil,
-					Metadata: fmt.Sprintf(ltsvAllSkipMetadataSerialized, "sample_ltsv_all_match.log"),
-					Labels:   nil,
-					Values:   nil,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: all unmatch/one entry",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_all_unmatch.log.zip"),
-				skipLines:       nil,
-				hasIndex:        true,
-				globPattern:     "*",
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: []*Result{
-				{
-					Data:     nil,
-					Metadata: fmt.Sprintf(ltsvAllUnmatchMetadataSerialized, "sample_ltsv_all_unmatch.log"),
-					Labels:   nil,
-					Values:   nil,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: all skip/one entry",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_all_match.log.zip"),
-				skipLines:       ltsvAllSkipLines,
-				hasIndex:        true,
-				globPattern:     "*",
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: []*Result{
-				{
-					Data:     nil,
-					Metadata: fmt.Sprintf(ltsvAllSkipMetadataSerialized, "sample_ltsv_all_match.log"),
-					Labels:   nil,
-					Values:   nil,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: mixed",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_contains_unmatch.log.zip"),
-				skipLines:       ltsvMixedSkipLines,
-				hasIndex:        true,
-				globPattern:     "*",
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: []*Result{
-				{
-					Data:     ltsvMixedData,
-					Metadata: fmt.Sprintf(ltsvMixedMetadataSerialized, "sample_ltsv_contains_unmatch.log"),
-					Labels:   ltsvMixedLabelData,
-					Values:   ltsvMixedValueData,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: nil input",
-			args: args{
-				input:           "",
-				skipLines:       nil,
-				hasIndex:        true,
-				globPattern:     "*",
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "ltsv: line handler returns error",
-			args: args{
-				input:       filepath.Join("testdata", "sample_ltsv_all_match.log.zip"),
-				skipLines:   nil,
-				hasIndex:    true,
-				globPattern: "*",
-				decoder:     ltsvDecoder,
-				lineHandler: func(labels []string, values []string, index int, hasIndex bool) (string, error) {
-					return "", fmt.Errorf("error")
-				},
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "ltsv: metadata handler returns error",
-			args: args{
-				input:       filepath.Join("testdata", "sample_ltsv_all_match.log.zip"),
-				skipLines:   nil,
-				hasIndex:    true,
-				globPattern: "*",
-				decoder:     ltsvDecoder,
-				lineHandler: JSONLineHandler,
-				metadataHandler: func(metadata *Metadata) (string, error) {
-					return "", fmt.Errorf("error")
-				},
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "ltsv: input file does not exists",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_all_match.log.zip.dummy"),
-				skipLines:       nil,
-				hasIndex:        true,
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "ltsv: input path is directory not file",
-			args: args{
-				input:           "testdata",
-				skipLines:       nil,
-				hasIndex:        true,
-				globPattern:     "*",
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "ltsv: input file is not zip",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv_all_match.log.gz"),
-				skipLines:       nil,
-				hasIndex:        true,
-				globPattern:     "*",
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "ltsv: multi entries",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv.zip"),
-				skipLines:       nil,
-				hasIndex:        true,
-				globPattern:     "*",
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: []*Result{
-				{
-					Data:     ltsvAllMatchData,
-					Metadata: fmt.Sprintf(ltsvAllMatchMetadataSerialized, "sample_ltsv_all_match.log"),
-					Labels:   ltsvAllMatchLabelData,
-					Values:   ltsvAllMatchValueData,
-				},
-				{
-					Data:     ltsvContainsUnmatchData,
-					Metadata: fmt.Sprintf(ltsvContainsUnmatchMetadataSerialized, "sample_ltsv_contains_unmatch.log"),
-					Labels:   ltsvContainsUnmatchLabelData,
-					Values:   ltsvContainsUnmatchValueData,
-				},
-				{
-					Data:     nil,
-					Metadata: fmt.Sprintf(ltsvAllUnmatchMetadataSerialized, "sample_ltsv_all_unmatch.log"),
-					Labels:   nil,
-					Values:   nil,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: multi entries and glob pattern filtering",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv.zip"),
-				skipLines:       nil,
-				hasIndex:        true,
-				globPattern:     "*all_match*",
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want: []*Result{
-				{
-					Data:     ltsvAllMatchData,
-					Metadata: fmt.Sprintf(ltsvAllMatchMetadataSerialized, "sample_ltsv_all_match.log"),
-					Labels:   ltsvAllMatchLabelData,
-					Values:   ltsvAllMatchValueData,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "ltsv: multi entries and glob pattern returns error",
-			args: args{
-				input:           filepath.Join("testdata", "sample_ltsv.zip"),
-				skipLines:       nil,
-				hasIndex:        true,
-				globPattern:     "[",
-				decoder:         ltsvDecoder,
-				lineHandler:     JSONLineHandler,
-				metadataHandler: JSONMetadataHandler,
-			},
-			want:    nil,
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gots, err := parseZipEntries(tt.args.input, tt.args.skipLines, tt.args.hasIndex, tt.args.globPattern, tt.args.decoder, tt.args.patterns, tt.args.lineHandler, tt.args.metadataHandler)
+			output := &bytes.Buffer{}
+			got, err := parseZipEntries(tt.args.zipPath, tt.args.globPattern, output, tt.args.patterns, tt.args.keywords, tt.args.labels, tt.args.skipLines, tt.args.hasLineNumber, tt.args.decoder, tt.args.handler)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseZipEntries() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(gots, tt.want) {
-				t.Errorf("parseZipEntries() = %v, want %v", gots, tt.want)
+			if out := output.String(); !reflect.DeepEqual(out, tt.wantOutput) {
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", out, tt.wantOutput)
 			}
+			assertResult(t, tt.wantResult, got)
 		})
 	}
 }
 
 func Test_parser(t *testing.T) {
 	type args struct {
-		input     io.Reader
-		skipLines []int
-		hasIndex  bool
-		patterns  []*regexp.Regexp
-		decoder   decoder
-		handler   LineHandler
+		input         io.Reader
+		patterns      []*regexp.Regexp
+		keywords      []string
+		labels        []string
+		skipLines     []int
+		hasLineNumber bool
+		decoder       lineDecoder
+		handler       LineHandler
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    []string
-		want1   *Metadata
-		want2   [][]string
-		want3   [][]string
-		wantErr bool
+		name       string
+		args       args
+		wantOutput string
+		wantResult wantResult
+		wantErr    bool
 	}{
 		{
 			name: "regex: all match",
 			args: args{
-				input:     strings.NewReader(regexAllMatchInput),
-				skipLines: nil,
-				hasIndex:  true,
-				patterns:  regexPatterns,
-				decoder:   regexDecoder,
-				handler:   JSONLineHandler,
+				input:         strings.NewReader(regexAllMatchInput),
+				skipLines:     nil,
+				hasLineNumber: false,
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    regexAllMatchData,
-			want1:   regexAllMatchMetadata,
-			want2:   regexAllMatchLabelData,
-			want3:   regexAllMatchValueData,
+			wantOutput: strings.Join(regexAllMatchData, "\n") + "\n",
+			wantResult: wantResult{
+				result: regexAllMatchResult,
+			},
 			wantErr: false,
 		},
 		{
 			name: "regex: contains unmatch",
 			args: args{
-				input:     strings.NewReader(regexContainsUnmatchInput),
-				skipLines: nil,
-				hasIndex:  true,
-				patterns:  regexPatterns,
-				decoder:   regexDecoder,
-				handler:   JSONLineHandler,
+				input:         strings.NewReader(regexContainsUnmatchInput),
+				skipLines:     nil,
+				hasLineNumber: false,
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    regexContainsUnmatchData,
-			want1:   regexContainsUnmatchMetadata,
-			want2:   regexContainsUnmatchLabelData,
-			want3:   regexContainsUnmatchValueData,
+			wantOutput: strings.Join(regexContainsUnmatchData, "\n") + "\n",
+			wantResult: wantResult{
+				result: regexContainsUnmatchResult,
+			},
 			wantErr: false,
 		},
 		{
 			name: "regex: contains skip flag",
 			args: args{
-				input:     strings.NewReader(regexAllMatchInput),
-				skipLines: regexContainsSkipLines,
-				hasIndex:  true,
-				patterns:  regexPatterns,
-				decoder:   regexDecoder,
-				handler:   JSONLineHandler,
+				input:         strings.NewReader(regexAllMatchInput),
+				skipLines:     regexContainsSkipLines,
+				hasLineNumber: true,
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    regexContainsSkipData,
-			want1:   regexContainsSkipMetadata,
-			want2:   regexContainsSkipLabelData,
-			want3:   regexContainsSkipValueData,
+			wantOutput: strings.Join(regexContainsSkipData, "\n") + "\n",
+			wantResult: wantResult{
+				result: regexContainsSkipResult,
+			},
 			wantErr: false,
 		},
 		{
 			name: "regex: all unmatch",
 			args: args{
-				input:     strings.NewReader(regexAllUnmatchInput),
-				skipLines: nil,
-				hasIndex:  true,
-				patterns:  regexPatterns,
-				decoder:   regexDecoder,
-				handler:   JSONLineHandler,
+				input:         strings.NewReader(regexAllUnmatchInput),
+				skipLines:     nil,
+				hasLineNumber: true,
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    nil,
-			want1:   regexAllUnmatchMetadata,
-			want2:   nil,
-			want3:   nil,
+			wantOutput: "",
+			wantResult: wantResult{
+				result: regexAllUnmatchResult,
+			},
 			wantErr: false,
 		},
 		{
 			name: "regex: all skip",
 			args: args{
-				input:     strings.NewReader(regexAllMatchInput),
-				skipLines: regexAllSkipLines,
-				hasIndex:  true,
-				patterns:  regexPatterns,
-				decoder:   regexDecoder,
-				handler:   JSONLineHandler,
+				input:         strings.NewReader(regexAllMatchInput),
+				skipLines:     regexAllSkipLines,
+				hasLineNumber: true,
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    nil,
-			want1:   regexAllSkipMetadata,
-			want2:   nil,
-			want3:   nil,
+			wantOutput: "",
+			wantResult: wantResult{
+				result: regexAllSkipResult,
+			},
 			wantErr: false,
 		},
 		{
 			name: "regex: mixed",
 			args: args{
-				input:     strings.NewReader(regexContainsUnmatchInput),
-				skipLines: regexMixedSkipLines,
-				hasIndex:  true,
-				patterns:  regexPatterns,
-				decoder:   regexDecoder,
-				handler:   JSONLineHandler,
+				input:         strings.NewReader(regexContainsUnmatchInput),
+				skipLines:     regexMixedSkipLines,
+				hasLineNumber: true,
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    regexMixedData,
-			want1:   regexMixedMetadata,
-			want2:   regexMixedLabelData,
-			want3:   regexMixedValueData,
+			wantOutput: strings.Join(regexMixedData, "\n") + "\n",
+			wantResult: wantResult{
+				result: regexMixedResult,
+			},
 			wantErr: false,
 		},
 		{
 			name: "regex: nil input",
 			args: args{
-				input:     strings.NewReader(""),
-				skipLines: nil,
-				hasIndex:  true,
-				patterns:  regexPatterns,
-				decoder:   regexDecoder,
-				handler:   JSONLineHandler,
+				input:         strings.NewReader(""),
+				skipLines:     nil,
+				hasLineNumber: true,
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    nil,
-			want1:   regexEmptyMetadata,
-			want2:   nil,
-			want3:   nil,
+			wantOutput: "",
+			wantResult: wantResult{
+				result: regexEmptyResult,
+			},
 			wantErr: false,
 		},
 		{
 			name: "regex: line handler returns error",
 			args: args{
-				input:     strings.NewReader(regexAllMatchInput),
-				skipLines: nil,
-				hasIndex:  true,
-				patterns:  regexPatterns,
-				decoder:   regexDecoder,
-				handler: func(labels []string, values []string, index int, hasIndex bool) (string, error) {
+				input:         strings.NewReader(regexAllMatchInput),
+				skipLines:     nil,
+				hasLineNumber: true,
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				decoder:       regexLineDecoder,
+				handler: func(labels, values []string, lineNumber int, hasLineNumber, isFirst bool) (string, error) {
 					return "", fmt.Errorf("error")
 				},
 			},
-			want:    nil,
-			want1:   nil,
-			want2:   nil,
-			want3:   nil,
+			wantOutput: "",
+			wantResult: wantResult{
+				result: nil,
+			},
 			wantErr: true,
 		},
 		{
 			name: "regex: nil pattern",
 			args: args{
-				input:     strings.NewReader(regexAllMatchInput),
-				skipLines: nil,
-				hasIndex:  true,
-				patterns:  nil,
-				decoder:   regexDecoder,
-				handler:   JSONLineHandler,
+				input:         strings.NewReader(regexAllMatchInput),
+				skipLines:     nil,
+				hasLineNumber: true,
+				patterns:      nil,
+				keywords:      nil,
+				labels:        nil,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    nil,
-			want1:   nil,
-			want2:   nil,
-			want3:   nil,
+			wantOutput: "",
+			wantResult: wantResult{
+				result: nil,
+			},
 			wantErr: true,
 		},
 		{
 			name: "ltsv: all match",
 			args: args{
-				input:     strings.NewReader(ltsvAllMatchInput),
-				skipLines: nil,
-				hasIndex:  true,
-				decoder:   ltsvDecoder,
-				handler:   JSONLineHandler,
+				input:         strings.NewReader(ltsvAllMatchInput),
+				skipLines:     nil,
+				hasLineNumber: false,
+				patterns:      nil,
+				keywords:      nil,
+				labels:        nil,
+				decoder:       ltsvLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    ltsvAllMatchData,
-			want1:   ltsvAllMatchMetadata,
-			want2:   ltsvAllMatchLabelData,
-			want3:   ltsvAllMatchValueData,
+			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
+			wantResult: wantResult{
+				result: ltsvAllMatchResult,
+			},
 			wantErr: false,
 		},
 		{
 			name: "ltsv: contains unmatch",
 			args: args{
-				input:     strings.NewReader(ltsvContainsUnmatchInput),
-				skipLines: nil,
-				hasIndex:  true,
-				decoder:   ltsvDecoder,
-				handler:   JSONLineHandler,
+				input:         strings.NewReader(ltsvContainsUnmatchInput),
+				skipLines:     nil,
+				hasLineNumber: true,
+				patterns:      nil,
+				keywords:      nil,
+				labels:        nil,
+				decoder:       ltsvLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    ltsvContainsUnmatchData,
-			want1:   ltsvContainsUnmatchMetadata,
-			want2:   ltsvContainsUnmatchLabelData,
-			want3:   ltsvContainsUnmatchValueData,
+			wantOutput: strings.Join(ltsvContainsUnmatchData, "\n") + "\n",
+			wantResult: wantResult{
+				result: ltsvContainsUnmatchResult,
+			},
 			wantErr: false,
 		},
 		{
 			name: "ltsv: contains skip flag",
 			args: args{
-				input:     strings.NewReader(ltsvAllMatchInput),
-				skipLines: ltsvContainsSkipLines,
-				hasIndex:  true,
-				decoder:   ltsvDecoder,
-				handler:   JSONLineHandler,
+				input:         strings.NewReader(ltsvAllMatchInput),
+				skipLines:     ltsvContainsSkipLines,
+				hasLineNumber: true,
+				patterns:      nil,
+				keywords:      nil,
+				labels:        nil,
+				decoder:       ltsvLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    ltsvContainsSkipData,
-			want1:   ltsvContainsSkipMetadata,
-			want2:   ltsvContainsSkipLabelData,
-			want3:   ltsvContainsSkipValueData,
+			wantOutput: strings.Join(ltsvContainsSkipData, "\n") + "\n",
+			wantResult: wantResult{
+				result: ltsvContainsSkipResult,
+			},
+			wantErr: false,
+		},
+		{
+			name: "regex: keyword filtering",
+			args: args{
+				input:         strings.NewReader(regexAllMatchInput),
+				patterns:      regexPatterns,
+				skipLines:     nil,
+				hasLineNumber: false,
+				keywords:      regexContainsKeyword,
+				labels:        nil,
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
+			},
+			wantOutput: strings.Join(regexContainsKeywordData, "\n") + "\n",
+			wantResult: wantResult{
+				result: regexContainsKeywordResult,
+			},
+			wantErr: false,
+		},
+		{
+			name: "regex: select by columns",
+			args: args{
+				input:         strings.NewReader(regexAllMatchInput),
+				patterns:      regexPatterns,
+				skipLines:     nil,
+				hasLineNumber: true,
+				keywords:      nil,
+				labels:        []string{"no", "bucket_owner"},
+				decoder:       regexLineDecoder,
+				handler:       JSONLineHandler,
+			},
+			wantOutput: `{"no":"1","bucket_owner":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a"}
+{"no":"2","bucket_owner":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23"}
+{"no":"3","bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2"}
+{"no":"4","bucket_owner":"d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01"}
+{"no":"5","bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f"}
+`,
+			wantResult: wantResult{
+				result: regexAllMatchResult,
+			},
 			wantErr: false,
 		},
 		{
 			name: "ltsv: all unmatch",
 			args: args{
-				input:     strings.NewReader(ltsvAllUnmatchInput),
-				skipLines: nil,
-				hasIndex:  true,
-				decoder:   ltsvDecoder,
-				handler:   JSONLineHandler,
+				input:         strings.NewReader(ltsvAllUnmatchInput),
+				skipLines:     nil,
+				hasLineNumber: true,
+				patterns:      nil,
+				keywords:      nil,
+				labels:        nil,
+				decoder:       ltsvLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    nil,
-			want1:   ltsvAllUnmatchMetadata,
-			want2:   nil,
-			want3:   nil,
+			wantOutput: "",
+			wantResult: wantResult{
+				result: ltsvAllUnmatchResult,
+			},
 			wantErr: false,
 		},
 		{
 			name: "ltsv: all skip",
 			args: args{
-				input:     strings.NewReader(ltsvAllMatchInput),
-				skipLines: ltsvAllSkipLines,
-				hasIndex:  true,
-				decoder:   ltsvDecoder,
-				handler:   JSONLineHandler,
+				input:         strings.NewReader(ltsvAllUnmatchInput),
+				skipLines:     ltsvAllSkipLines,
+				hasLineNumber: true,
+				patterns:      nil,
+				keywords:      nil,
+				labels:        nil,
+				decoder:       ltsvLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    nil,
-			want1:   ltsvAllSkipMetadata,
-			want2:   nil,
-			want3:   nil,
+			wantOutput: "",
+			wantResult: wantResult{
+				result: ltsvAllSkipResult,
+			},
 			wantErr: false,
 		},
 		{
 			name: "ltsv: mixed",
 			args: args{
-				input:     strings.NewReader(ltsvContainsUnmatchInput),
-				skipLines: ltsvMixedSkipLines,
-				hasIndex:  true,
-				decoder:   ltsvDecoder,
-				handler:   JSONLineHandler,
+				input:         strings.NewReader(ltsvContainsUnmatchInput),
+				skipLines:     ltsvMixedSkipLines,
+				hasLineNumber: true,
+				patterns:      nil,
+				keywords:      nil,
+				labels:        nil,
+				decoder:       ltsvLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    ltsvMixedData,
-			want1:   ltsvMixedMetadata,
-			want2:   ltsvMixedLabelData,
-			want3:   ltsvMixedValueData,
+			wantOutput: strings.Join(ltsvMixedData, "\n") + "\n",
+			wantResult: wantResult{
+				result: ltsvMixedResult,
+			},
 			wantErr: false,
 		},
 		{
 			name: "ltsv: nil input",
 			args: args{
-				input:     strings.NewReader(""),
-				skipLines: nil,
-				hasIndex:  true,
-				decoder:   ltsvDecoder,
-				handler:   JSONLineHandler,
+				input:         strings.NewReader(""),
+				skipLines:     nil,
+				hasLineNumber: true,
+				patterns:      nil,
+				keywords:      nil,
+				labels:        nil,
+				decoder:       ltsvLineDecoder,
+				handler:       JSONLineHandler,
 			},
-			want:    nil,
-			want1:   ltsvEmptyMetadata,
-			want2:   nil,
-			want3:   nil,
+			wantOutput: "",
+			wantResult: wantResult{
+				result: ltsvEmptyResult,
+			},
 			wantErr: false,
 		},
 		{
 			name: "ltsv: line handler returns error",
 			args: args{
-				input:     strings.NewReader(ltsvAllMatchInput),
-				skipLines: nil,
-				hasIndex:  true,
-				decoder:   ltsvDecoder,
-				handler: func(labels []string, values []string, index int, hasIndex bool) (string, error) {
+				input:         strings.NewReader(ltsvAllMatchInput),
+				skipLines:     nil,
+				hasLineNumber: true,
+				patterns:      regexPatterns,
+				keywords:      nil,
+				labels:        nil,
+				decoder:       ltsvLineDecoder,
+				handler: func(labels, values []string, lineNumber int, hasLineNumber, isFirst bool) (string, error) {
 					return "", fmt.Errorf("error")
 				},
 			},
-			want:    nil,
-			want1:   nil,
-			want2:   nil,
-			want3:   nil,
+			wantOutput: "",
+			wantResult: wantResult{
+				result: nil,
+			},
+			wantErr: true,
+		},
+		{
+			name: "ltsv: keyword filtering",
+			args: args{
+				input:         strings.NewReader(ltsvAllMatchInput),
+				patterns:      nil,
+				skipLines:     nil,
+				hasLineNumber: false,
+				keywords:      ltsvContainsKeyword,
+				labels:        nil,
+				decoder:       ltsvLineDecoder,
+				handler:       JSONLineHandler,
+			},
+			wantOutput: strings.Join(ltsvContainsKeywordData, "\n") + "\n",
+			wantResult: wantResult{
+				result: ltsvContainsKeywordResult,
+			},
+			wantErr: false,
+		},
+		{
+			name: "ltsv: select by columns",
+			args: args{
+				input:         strings.NewReader(ltsvAllMatchInput),
+				patterns:      nil,
+				skipLines:     nil,
+				hasLineNumber: true,
+				keywords:      nil,
+				labels:        []string{"no", "remote_host"},
+				decoder:       ltsvLineDecoder,
+				handler:       JSONLineHandler,
+			},
+			wantOutput: `{"no":"1","remote_host":"192.168.1.1"}
+{"no":"2","remote_host":"172.16.0.2"}
+{"no":"3","remote_host":"10.0.0.3"}
+{"no":"4","remote_host":"192.168.1.4"}
+{"no":"5","remote_host":"192.168.1.10"}
+`,
+			wantResult: wantResult{
+				result: regexAllMatchResult,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := &bytes.Buffer{}
+			got, err := parser(tt.args.input, output, tt.args.patterns, tt.args.keywords, tt.args.labels, tt.args.skipLines, tt.args.hasLineNumber, tt.args.decoder, tt.args.handler)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
+				return
+			}
+			if out := output.String(); !reflect.DeepEqual(out, tt.wantOutput) {
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", out, tt.wantOutput)
+			}
+			assertResult(t, tt.wantResult, got)
+		})
+	}
+}
+
+func Test_streamer(t *testing.T) {
+	ctx := context.Background()
+	type args struct {
+		ctx            context.Context
+		input          io.Reader
+		patterns       []*regexp.Regexp
+		keywords       []string
+		labels         []string
+		hasPrefix      bool
+		disableUnmatch bool
+		decoder        lineDecoder
+		handler        LineHandler
+	}
+	tests := []struct {
+		name       string
+		args       args
+		wantOutput string
+		wantResult wantResult
+		wantErr    bool
+	}{
+		{
+			name: "regex: all match",
+			args: args{
+				ctx:            ctx,
+				input:          strings.NewReader(regexAllMatchInput),
+				patterns:       regexPatterns,
+				keywords:       nil,
+				labels:         nil,
+				hasPrefix:      true,
+				disableUnmatch: false,
+				decoder:        regexLineDecoder,
+				handler:        JSONLineHandler,
+			},
+			wantOutput: strings.Join(regexAllMatchDataForStream, "\n") + "\n",
+			wantResult: wantResult{
+				result: regexAllMatchResult,
+			},
+			wantErr: false,
+		},
+		{
+			name: "regex: contains unmatch",
+			args: args{
+				ctx:            ctx,
+				input:          strings.NewReader(regexContainsUnmatchInput),
+				patterns:       regexPatterns,
+				keywords:       nil,
+				labels:         nil,
+				hasPrefix:      true,
+				disableUnmatch: false,
+				decoder:        regexLineDecoder,
+				handler:        JSONLineHandler,
+			},
+			wantOutput: strings.Join(regexContainsUnmatchDataForStream, "\n") + "\n",
+			wantResult: wantResult{
+				result: regexContainsUnmatchResult,
+			},
+			wantErr: false,
+		},
+		{
+			name: "regex: all unmatch",
+			args: args{
+				ctx:            ctx,
+				input:          strings.NewReader(regexAllUnmatchInput),
+				patterns:       regexPatterns,
+				keywords:       nil,
+				labels:         nil,
+				hasPrefix:      true,
+				disableUnmatch: false,
+				decoder:        regexLineDecoder,
+				handler:        JSONLineHandler,
+			},
+			wantOutput: strings.Join(regexAllUnmatchDataForStream, "\n") + "\n",
+			wantResult: wantResult{
+				result: regexAllUnmatchResult,
+			},
+			wantErr: false,
+		},
+		{
+			name: "regex: nil input",
+			args: args{
+				ctx:            ctx,
+				input:          strings.NewReader(""),
+				patterns:       regexPatterns,
+				keywords:       nil,
+				labels:         nil,
+				hasPrefix:      false,
+				disableUnmatch: false,
+				decoder:        regexLineDecoder,
+				handler:        JSONLineHandler,
+			},
+			wantOutput: "",
+			wantResult: wantResult{
+				result: regexEmptyResult,
+			},
+			wantErr: false,
+		},
+		{
+			name: "regex: line handler returns error",
+			args: args{
+				ctx:            ctx,
+				input:          strings.NewReader(regexAllMatchInput),
+				patterns:       regexPatterns,
+				keywords:       nil,
+				labels:         nil,
+				hasPrefix:      true,
+				disableUnmatch: false,
+				decoder:        regexLineDecoder,
+				handler: func(labels, values []string, lineNumber int, hasLineNumber, isFirst bool) (string, error) {
+					return "", fmt.Errorf("error")
+				},
+			},
+			wantOutput: "",
+			wantResult: wantResult{
+				result: nil,
+			},
+			wantErr: true,
+		},
+		{
+			name: "regex: nil pattern",
+			args: args{
+				ctx:            ctx,
+				input:          strings.NewReader(regexAllMatchInput),
+				patterns:       nil,
+				keywords:       nil,
+				labels:         nil,
+				hasPrefix:      true,
+				disableUnmatch: false,
+				decoder:        regexLineDecoder,
+				handler:        JSONLineHandler,
+			},
+			wantOutput: "",
+			wantResult: wantResult{
+				result: nil,
+			},
+			wantErr: true,
+		},
+		{
+			name: "regex: keyword filtering",
+			args: args{
+				ctx:            ctx,
+				input:          strings.NewReader(regexAllMatchInput),
+				patterns:       regexPatterns,
+				keywords:       regexContainsKeyword,
+				labels:         nil,
+				hasPrefix:      false,
+				disableUnmatch: false,
+				decoder:        regexLineDecoder,
+				handler:        JSONLineHandler,
+			},
+			wantOutput: strings.Join(regexContainsKeywordData, "\n") + "\n",
+			wantResult: wantResult{
+				result: regexContainsKeywordResult,
+			},
+			wantErr: false,
+		},
+		{
+			name: "regex: select by columns",
+			args: args{
+				ctx:            ctx,
+				input:          strings.NewReader(regexAllMatchInput),
+				patterns:       regexPatterns,
+				keywords:       nil,
+				labels:         []string{"no", "bucket_owner"},
+				hasPrefix:      false,
+				disableUnmatch: false,
+				decoder:        regexLineDecoder,
+				handler:        JSONLineHandler,
+			},
+			wantOutput: `{"bucket_owner":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a"}
+{"bucket_owner":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23"}
+{"bucket_owner":"8f90a1b23c45d67e89a01b23c45d6789f01a23b45c67890d12e34f56a78901b2"}
+{"bucket_owner":"d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01"}
+{"bucket_owner":"01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f"}
+`,
+			wantResult: wantResult{
+				result: regexAllMatchResult,
+			},
+			wantErr: false,
+		},
+		{
+			name: "ltsv: all match",
+			args: args{
+				ctx:            ctx,
+				input:          strings.NewReader(ltsvAllMatchInput),
+				patterns:       nil,
+				keywords:       nil,
+				labels:         nil,
+				hasPrefix:      true,
+				disableUnmatch: false,
+				decoder:        ltsvLineDecoder,
+				handler:        JSONLineHandler,
+			},
+			wantOutput: strings.Join(ltsvAllMatchDataForStream, "\n") + "\n",
+			wantResult: wantResult{
+				result: ltsvAllMatchResult,
+			},
+			wantErr: false,
+		},
+		{
+			name: "ltsv: contains unmatch",
+			args: args{
+				ctx:            ctx,
+				input:          strings.NewReader(ltsvContainsUnmatchInput),
+				patterns:       nil,
+				keywords:       nil,
+				labels:         nil,
+				hasPrefix:      true,
+				disableUnmatch: false,
+				decoder:        ltsvLineDecoder,
+				handler:        JSONLineHandler,
+			},
+			wantOutput: strings.Join(ltsvContainsUnmatchDataForStream, "\n") + "\n",
+			wantResult: wantResult{
+				result: ltsvContainsUnmatchResult,
+			},
+			wantErr: false,
+		},
+		{
+			name: "ltsv: all unmatch",
+			args: args{
+				ctx:            ctx,
+				input:          strings.NewReader(ltsvAllUnmatchInput),
+				patterns:       nil,
+				keywords:       nil,
+				labels:         nil,
+				hasPrefix:      true,
+				disableUnmatch: false,
+				decoder:        ltsvLineDecoder,
+				handler:        JSONLineHandler,
+			},
+			wantOutput: strings.Join(ltsvAllUnmatchDataForStream, "\n") + "\n",
+			wantResult: wantResult{
+				result: ltsvAllUnmatchResult,
+			},
+			wantErr: false,
+		},
+		{
+			name: "ltsv: nil input",
+			args: args{
+				ctx:            ctx,
+				input:          strings.NewReader(""),
+				patterns:       nil,
+				keywords:       nil,
+				labels:         nil,
+				hasPrefix:      true,
+				disableUnmatch: false,
+				decoder:        ltsvLineDecoder,
+				handler:        JSONLineHandler,
+			},
+			wantOutput: "",
+			wantResult: wantResult{
+				result: ltsvEmptyResult,
+			},
+			wantErr: false,
+		},
+		{
+			name: "ltsv: line handler returns error",
+			args: args{
+				ctx:            ctx,
+				input:          strings.NewReader(ltsvAllMatchInput),
+				patterns:       nil,
+				keywords:       nil,
+				labels:         nil,
+				hasPrefix:      true,
+				disableUnmatch: false,
+				decoder:        ltsvLineDecoder,
+				handler: func(labels, values []string, lineNumber int, hasLineNumber, isFirst bool) (string, error) {
+					return "", fmt.Errorf("error")
+				},
+			},
+			wantOutput: "",
+			wantResult: wantResult{
+				result: nil,
+			},
+			wantErr: true,
+		},
+		{
+			name: "ltsv: keyword filtering",
+			args: args{
+				ctx:            ctx,
+				input:          strings.NewReader(ltsvAllMatchInput),
+				patterns:       nil,
+				keywords:       ltsvContainsKeyword,
+				labels:         nil,
+				hasPrefix:      false,
+				disableUnmatch: false,
+				decoder:        ltsvLineDecoder,
+				handler:        JSONLineHandler,
+			},
+			wantOutput: strings.Join(ltsvContainsKeywordData, "\n") + "\n",
+			wantResult: wantResult{
+				result: ltsvContainsKeywordResult,
+			},
+			wantErr: false,
+		},
+		{
+			name: "ltsv: select by columns",
+			args: args{
+				ctx:            ctx,
+				input:          strings.NewReader(ltsvAllMatchInput),
+				patterns:       nil,
+				keywords:       nil,
+				labels:         []string{"no", "remote_host"},
+				hasPrefix:      false,
+				disableUnmatch: false,
+				decoder:        ltsvLineDecoder,
+				handler:        JSONLineHandler,
+			},
+			wantOutput: `{"remote_host":"192.168.1.1"}
+{"remote_host":"172.16.0.2"}
+{"remote_host":"10.0.0.3"}
+{"remote_host":"192.168.1.4"}
+{"remote_host":"192.168.1.10"}
+`,
+			wantResult: wantResult{
+				result: ltsvAllMatchResult,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := &bytes.Buffer{}
+			got, err := streamer(tt.args.ctx, tt.args.input, output, tt.args.patterns, tt.args.keywords, tt.args.labels, tt.args.hasPrefix, tt.args.disableUnmatch, tt.args.decoder, tt.args.handler)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
+				return
+			}
+			if out := output.String(); !reflect.DeepEqual(out, tt.wantOutput) {
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", out, tt.wantOutput)
+			}
+			assertResult(t, tt.wantResult, got)
+		})
+	}
+}
+
+func Test_handleFile(t *testing.T) {
+	type args struct {
+		filePath string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "empty path",
+			args: args{
+				filePath: "",
+			},
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, got2, got3, err := parser(tt.args.input, tt.args.skipLines, tt.args.hasIndex, tt.args.patterns, tt.args.decoder, tt.args.handler)
+			_, _, err := handleFile(tt.args.filePath)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("regex() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parser() got = %v, want %v", got, tt.want)
-			}
-			if !reflect.DeepEqual(got1, tt.want1) {
-				t.Errorf("parser() got1 = %v, want %v", got1, tt.want1)
-			}
-			if !reflect.DeepEqual(got2, tt.want2) {
-				t.Errorf("parser() got2 = %v, want %v", got2, tt.want2)
-			}
-			if !reflect.DeepEqual(got3, tt.want3) {
-				t.Errorf("parser() got3 = %v, want %v", got3, tt.want3)
 			}
 		})
 	}
 }
 
-func Test_createResult(t *testing.T) {
+func Test_handleGzip(t *testing.T) {
 	type args struct {
-		data     []string
-		metadata *Metadata
-		labels   [][]string
-		values   [][]string
-		handler  MetadataHandler
+		gzipPath string
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    *Result
 		wantErr bool
 	}{
 		{
-			name: "basic",
+			name: "empty path",
 			args: args{
-				data:     regexAllMatchData,
-				metadata: regexAllMatchMetadata,
-				labels:   regexAllMatchLabelData,
-				values:   regexAllMatchValueData,
-				handler:  JSONMetadataHandler,
+				gzipPath: "",
 			},
-			want: &Result{
-				Data:     regexAllMatchData,
-				Metadata: fmt.Sprintf(regexAllMatchMetadataSerialized, ""),
-				Labels:   regexAllMatchLabelData,
-				Values:   regexAllMatchValueData,
-			},
-			wantErr: false,
-		},
-		{
-			name: "metadata handler returns error",
-			args: args{
-				data:     regexAllMatchData,
-				metadata: regexAllMatchMetadata,
-				labels:   regexAllMatchLabelData,
-				values:   regexAllMatchValueData,
-				handler: func(metadata *Metadata) (string, error) {
-					return "", fmt.Errorf("error")
-				},
-			},
-			want:    nil,
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := createResult(tt.args.data, tt.args.metadata, tt.args.labels, tt.args.values, tt.args.handler)
+			_, _, err := handleGzip(tt.args.gzipPath)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("createResult() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("createResult() = %v, want %v", got, tt.want)
+		})
+	}
+}
+
+func Test_handleZipEntries(t *testing.T) {
+	type args struct {
+		zipPath     string
+		globPattern string
+		fn          func(f *zip.File) error
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "empty path",
+			args: args{
+				zipPath: "",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid glob pattern",
+			args: args{
+				zipPath:     filepath.Join("testdata", "sample_s3_all_match.log.zip"),
+				globPattern: "[",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := handleZipEntries(tt.args.zipPath, tt.args.globPattern, tt.args.fn); (err != nil) != tt.wantErr {
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 			}
 		})
 	}
