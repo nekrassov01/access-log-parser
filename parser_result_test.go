@@ -1,14 +1,12 @@
 package parser
 
 import (
-	"bytes"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/nekrassov01/mintab"
 )
 
 func TestResult_String(t *testing.T) {
@@ -113,7 +111,7 @@ func TestResult_String(t *testing.T) {
 						Line:       strings.Repeat("a", 120),
 					},
 					{
-						Entry:      "2.log",
+						Entry:      strings.Repeat("a", 20),
 						LineNumber: 3,
 						Line:       "aaa",
 					},
@@ -195,30 +193,31 @@ func TestResult_String(t *testing.T) {
 				"/* UNMATCH LINES */" +
 				"\033[0m" +
 				"\n\n" +
-				"+-------+------------+------------------------------------------------------------------------------------------------------+\n" +
-				"| Entry | LineNumber | Line                                                                                                 |\n" +
-				"+-------+------------+------------------------------------------------------------------------------------------------------+\n" +
-				"| 2.log |          2 | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa |\n" +
-				"|       |            | aaaaaaaaaaaaaaaaaaaa                                                                                 |\n" +
-				"+-------+------------+------------------------------------------------------------------------------------------------------+\n" +
-				"| 2.log |          3 | aaa                                                                                                  |\n" +
-				"+-------+------------+------------------------------------------------------------------------------------------------------+\n" +
-				"| 2.log |          4 | aaa                                                                                                  |\n" +
-				"+-------+------------+------------------------------------------------------------------------------------------------------+\n" +
-				"| 2.log |          5 | aaa                                                                                                  |\n" +
-				"+-------+------------+------------------------------------------------------------------------------------------------------+\n" +
-				"| 2.log |          6 | aaa                                                                                                  |\n" +
-				"+-------+------------+------------------------------------------------------------------------------------------------------+\n" +
-				"| 2.log |          7 | aaa                                                                                                  |\n" +
-				"+-------+------------+------------------------------------------------------------------------------------------------------+\n" +
-				"| 3.log |          2 | bbb                                                                                                  |\n" +
-				"+-------+------------+------------------------------------------------------------------------------------------------------+\n" +
-				"| 3.log |          3 | bbb                                                                                                  |\n" +
-				"+-------+------------+------------------------------------------------------------------------------------------------------+\n" +
-				"| 3.log |          4 | bbb                                                                                                  |\n" +
-				"+-------+------------+------------------------------------------------------------------------------------------------------+\n" +
-				"| 3.log |          5 | bbb                                                                                                  |\n" +
-				"+-------+------------+------------------------------------------------------------------------------------------------------+\n" +
+				"+--------------------+------------+------------------------------------------------------------------------------------------------+\n" +
+				"| Entry              | LineNumber | Line                                                                                           |\n" +
+				"+--------------------+------------+------------------------------------------------------------------------------------------------+\n" +
+				"| 2.log              |          2 | aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa |\n" +
+				"|                    |            | aaaaaaaaaaaaaaaaaaaaaaaaaa                                                                     |\n" +
+				"+--------------------+------------+------------------------------------------------------------------------------------------------+\n" +
+				"| aaaaaaaaaaaaaaaaaa |          3 | aaa                                                                                            |\n" +
+				"| aa                 |            |                                                                                                |\n" +
+				"+--------------------+------------+------------------------------------------------------------------------------------------------+\n" +
+				"| 2.log              |          4 | aaa                                                                                            |\n" +
+				"+--------------------+------------+------------------------------------------------------------------------------------------------+\n" +
+				"| 2.log              |          5 | aaa                                                                                            |\n" +
+				"+--------------------+------------+------------------------------------------------------------------------------------------------+\n" +
+				"| 2.log              |          6 | aaa                                                                                            |\n" +
+				"+--------------------+------------+------------------------------------------------------------------------------------------------+\n" +
+				"| 2.log              |          7 | aaa                                                                                            |\n" +
+				"+--------------------+------------+------------------------------------------------------------------------------------------------+\n" +
+				"| 3.log              |          2 | bbb                                                                                            |\n" +
+				"+--------------------+------------+------------------------------------------------------------------------------------------------+\n" +
+				"| 3.log              |          3 | bbb                                                                                            |\n" +
+				"+--------------------+------------+------------------------------------------------------------------------------------------------+\n" +
+				"| 3.log              |          4 | bbb                                                                                            |\n" +
+				"+--------------------+------------+------------------------------------------------------------------------------------------------+\n" +
+				"| 3.log              |          5 | bbb                                                                                            |\n" +
+				"+--------------------+------------+------------------------------------------------------------------------------------------------+\n" +
 				"\033[33m" +
 				"// Show only the first 10 of 12 errors\n" +
 				"\033[0m" +
@@ -301,217 +300,6 @@ func TestResult_String(t *testing.T) {
 			}
 			if !reflect.DeepEqual(r.String(), tt.want) {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", r.String(), tt.want)
-			}
-		})
-	}
-}
-
-func TestResult_newSummaryTable(t *testing.T) {
-	type fields struct {
-		Total       int
-		Matched     int
-		Unmatched   int
-		Excluded    int
-		Skipped     int
-		ElapsedTime time.Duration
-		Source      string
-		ZipEntries  []string
-		Errors      []Errors
-		inputType   inputType
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		want    *mintab.Table
-		wantW   string
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := &Result{
-				Total:       tt.fields.Total,
-				Matched:     tt.fields.Matched,
-				Unmatched:   tt.fields.Unmatched,
-				Excluded:    tt.fields.Excluded,
-				Skipped:     tt.fields.Skipped,
-				ElapsedTime: tt.fields.ElapsedTime,
-				Source:      tt.fields.Source,
-				ZipEntries:  tt.fields.ZipEntries,
-				Errors:      tt.fields.Errors,
-				inputType:   tt.fields.inputType,
-			}
-			w := &bytes.Buffer{}
-			got, err := r.newSummaryTable(w)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Result.newSummaryTable() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Result.newSummaryTable() = %v, want %v", got, tt.want)
-			}
-			if gotW := w.String(); gotW != tt.wantW {
-				t.Errorf("Result.newSummaryTable() = %v, want %v", gotW, tt.wantW)
-			}
-		})
-	}
-}
-
-func TestResult_newErrorsTable(t *testing.T) {
-	type fields struct {
-		Total       int
-		Matched     int
-		Unmatched   int
-		Excluded    int
-		Skipped     int
-		ElapsedTime time.Duration
-		Source      string
-		ZipEntries  []string
-		Errors      []Errors
-		inputType   inputType
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		want    *mintab.Table
-		wantW   string
-		wantErr bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := &Result{
-				Total:       tt.fields.Total,
-				Matched:     tt.fields.Matched,
-				Unmatched:   tt.fields.Unmatched,
-				Excluded:    tt.fields.Excluded,
-				Skipped:     tt.fields.Skipped,
-				ElapsedTime: tt.fields.ElapsedTime,
-				Source:      tt.fields.Source,
-				ZipEntries:  tt.fields.ZipEntries,
-				Errors:      tt.fields.Errors,
-				inputType:   tt.fields.inputType,
-			}
-			w := &bytes.Buffer{}
-			got, err := r.newErrorsTable(w)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Result.newErrorsTable() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Result.newErrorsTable() = %v, want %v", got, tt.want)
-			}
-			if gotW := w.String(); gotW != tt.wantW {
-				t.Errorf("Result.newErrorsTable() = %v, want %v", gotW, tt.wantW)
-			}
-		})
-	}
-}
-
-func TestResult_beforeErrorsTable(t *testing.T) {
-	type fields struct {
-		Total       int
-		Matched     int
-		Unmatched   int
-		Excluded    int
-		Skipped     int
-		ElapsedTime time.Duration
-		Source      string
-		ZipEntries  []string
-		Errors      []Errors
-		inputType   inputType
-	}
-	type args struct {
-		n int
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := &Result{
-				Total:       tt.fields.Total,
-				Matched:     tt.fields.Matched,
-				Unmatched:   tt.fields.Unmatched,
-				Excluded:    tt.fields.Excluded,
-				Skipped:     tt.fields.Skipped,
-				ElapsedTime: tt.fields.ElapsedTime,
-				Source:      tt.fields.Source,
-				ZipEntries:  tt.fields.ZipEntries,
-				Errors:      tt.fields.Errors,
-				inputType:   tt.fields.inputType,
-			}
-			if got := r.beforeErrorsTable(tt.args.n); got != tt.want {
-				t.Errorf("Result.beforeErrorsTable() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestResult_copy(t *testing.T) {
-	type fields struct {
-		Total       int
-		Matched     int
-		Unmatched   int
-		Excluded    int
-		Skipped     int
-		ElapsedTime time.Duration
-		Source      string
-		ZipEntries  []string
-		Errors      []Errors
-		inputType   inputType
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   Result
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := &Result{
-				Total:       tt.fields.Total,
-				Matched:     tt.fields.Matched,
-				Unmatched:   tt.fields.Unmatched,
-				Excluded:    tt.fields.Excluded,
-				Skipped:     tt.fields.Skipped,
-				ElapsedTime: tt.fields.ElapsedTime,
-				Source:      tt.fields.Source,
-				ZipEntries:  tt.fields.ZipEntries,
-				Errors:      tt.fields.Errors,
-				inputType:   tt.fields.inputType,
-			}
-			if got := r.copy(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Result.copy() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_fold(t *testing.T) {
-	type args struct {
-		s string
-		w int
-	}
-	tests := []struct {
-		name string
-		args args
-		want string
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := fold(tt.args.s, tt.args.w); got != tt.want {
-				t.Errorf("fold() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -128,7 +128,8 @@ func (r *Result) beforeErrorsTable(n int) bool {
 		r.Errors = r.Errors[:n]
 	}
 	for i, er := range r.Errors {
-		er.Line = strings.ReplaceAll(fold(er.Line, 100), "\t", "\\t")
+		er.Entry = fold(er.Entry, 18)
+		er.Line = strings.ReplaceAll(fold(er.Line, 94), "\t", "\\t")
 		r.Errors[i] = er
 	}
 	return omit
