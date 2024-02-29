@@ -14,6 +14,9 @@ func main() {
 	var r *parser.Result
 	var err error
 
+	p = parser.NewS3RegexParser(os.Stdout)
+	p.SetLineHandler(parser.JSONLineHandler)
+
 	/*
 		Example for realtime streaming processing
 
@@ -30,8 +33,9 @@ func main() {
 		Exit with CTRL+C
 	*/
 	if len(os.Args) > 1 && os.Args[1] == "stream" {
-		p = parser.NewS3RegexParser(os.Stdout)
-		p.SetLineHandler(parser.JSONLineHandler)
+		fmt.Println("\033[1;32mParse\033[0m")
+		fmt.Println("\033[1;32m-----\033[0m")
+		fmt.Println()
 		r, err = p.Parse(context.Background(), os.Stdin, nil, nil, true, false)
 		if err != nil {
 			log.Fatal(err)
@@ -39,9 +43,6 @@ func main() {
 		fmt.Println(r)
 		return
 	}
-
-	p = parser.NewS3RegexParser(os.Stdout)
-	p.SetLineHandler(parser.JSONLineHandler)
 
 	/*
 		Example of parsing from a file path (Same signature for `ParseString` and `ParseGzip`)
@@ -53,6 +54,9 @@ func main() {
 		skipLines     : skip lines by line number (not index)
 		hasLineNumber : enable line number display
 	*/
+	fmt.Println("\033[1;32mParseFile\033[0m")
+	fmt.Println("\033[1;32m---------\033[0m")
+	fmt.Println()
 	r, err = p.ParseFile(
 		"testdata/sample_s3_contains_unmatch.log",
 		[]string{"REST.GET.VERSIONING"},
@@ -76,18 +80,24 @@ func main() {
 		skipLines     : skip lines by line number (not index)
 		hasLineNumber : enable line number display
 	*/
+	fmt.Println("\033[1;32mParseZipEntries\033[0m")
+	fmt.Println("\033[1;32m---------------\033[0m")
+	fmt.Println()
+	p.SetLineHandler(parser.TSVLineHandler)
 	r, err = p.ParseZipEntries("testdata/sample_s3.zip", "*.log", nil, nil, nil, false)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println(r)
 
-	p = parser.NewLTSVParser(os.Stdout)
-	p.SetLineHandler(parser.PrettyJSONLineHandler)
-
 	/*
 		Example of parsing from a string
 	*/
+	fmt.Println("\033[1;32mParseString\033[0m")
+	fmt.Println("\033[1;32m-----------\033[0m")
+	fmt.Println()
+	p = parser.NewLTSVParser(os.Stdout)
+	p.SetLineHandler(parser.PrettyJSONLineHandler)
 	r, err = p.ParseString(
 		`remote_host:192.168.1.1	remote_logname:-	remote_user:john	datetime:[12/Mar/2023:10:55:36 +0000]	request:GET /index.html HTTP/1.1	status:200	size:1024	referer:http://www.example.com/	user_agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64)`,
 		nil, nil, nil, true,
