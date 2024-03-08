@@ -3,9 +3,11 @@ package parser
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
+	"github.com/mattn/go-isatty"
 	"github.com/nekrassov01/mintab"
 )
 
@@ -55,27 +57,45 @@ func (r *Result) String() string {
 	if r.inputType == inputTypeStream {
 		b.WriteString("\n")
 	}
-	b.WriteString("\n" + "\033[1;36m" + "/* SUMMARY */" + "\033[0m" + "\n\n")
+	sumLabel := `
+/* SUMMARY */
+
+`
+	sumNotes := `
+Total     : Total number of log line processed
+Matched   : Number of log line that successfully matched pattern
+Unmatched : Number of log line that did not match any pattern
+Excluded  : Number of log line that did not extract by filter expressions
+Skipped   : Number of log line that skipped by line number
+`
+	errLabel := `
+/* UNMATCH LINES */
+
+`
+	errNotes := `
+LineNumber : Line number of the log that did not match any pattern
+Line       : Raw log line that did not match any pattern
+`
+	omitInfo := fmt.Sprintf("// Show only the first %d of %d errors\n", top, len(r.Errors))
+	if isatty.IsTerminal(os.Stdout.Fd()) {
+		sumLabel = "\033[1;36m" + sumLabel + "\033[0m"
+		sumNotes = "\033[2;37m" + sumNotes + "\033[0m"
+		errLabel = "\033[1;36m" + errLabel + "\033[0m"
+		errNotes = "\033[2;37m" + errNotes + "\033[0m"
+		omitInfo = "\033[0;33m" + omitInfo + "\033[0m"
+	}
+	b.WriteString(sumLabel)
 	sumTable.Out()
-	b.WriteString("\n" + "\033[2;37m")
-	b.WriteString("Total     : Total number of log line processed\n")
-	b.WriteString("Matched   : Number of log line that successfully matched pattern\n")
-	b.WriteString("Unmatched : Number of log line that did not match any pattern\n")
-	b.WriteString("Excluded  : Number of log line that did not hit by keyword search\n")
-	b.WriteString("Skipped   : Number of log line that skipped by line number (disabled in stream mode)\n")
-	b.WriteString("\033[0m")
+	b.WriteString(sumNotes)
 	if errTable == nil {
 		return b.String()
 	}
-	b.WriteString("\n" + "\033[1;36m" + "/* UNMATCH LINES */" + "\033[0m" + "\n\n")
+	b.WriteString(errLabel)
 	errTable.Out()
 	if omit {
-		b.WriteString("\033[33m" + fmt.Sprintf("// Show only the first %d of %d errors\n", top, len(r.Errors)) + "\033[0m")
+		b.WriteString(omitInfo)
 	}
-	b.WriteString("\n" + "\033[2;37m")
-	b.WriteString("LineNumber : Line number of the log that did not match any pattern\n")
-	b.WriteString("Line       : Raw log line that did not match any pattern\n")
-	b.WriteString("\033[0m")
+	b.WriteString(errNotes)
 	return b.String()
 }
 
@@ -97,7 +117,7 @@ func (r *Result) newSummaryTable(w io.Writer) (*mintab.Table, error) {
 	table := mintab.New(w, mintab.WithFormat(mintab.FormatText), mintab.WithIgnoreFields(i))
 	r.Errors = []Errors{}
 	if err := table.Load(r); err != nil {
-		return nil, fmt.Errorf("cannot build result")
+		return nil, fmt.Errorf("invalid parsing results: %w", err)
 	}
 	return table, nil
 }
@@ -114,7 +134,7 @@ func (r *Result) newErrorsTable(w io.Writer) (*mintab.Table, error) {
 	}
 	table := mintab.New(w, mintab.WithFormat(mintab.FormatText), mintab.WithIgnoreFields(i))
 	if err := table.Load(r.Errors); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("invalid parsing results: %w", err)
 	}
 	return table, nil
 }

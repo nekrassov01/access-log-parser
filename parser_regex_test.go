@@ -34,7 +34,7 @@ func TestNewRegexParser(t *testing.T) {
 				hasLineNumber: true,
 			}, want: &RegexParser{
 				writer:      &bytes.Buffer{},
-				lineDecoder: ltsvLineDecoder,
+				lineDecoder: regexLineDecoder,
 				lineHandler: JSONLineHandler,
 			},
 			wantWriter: `{"no":"1","label1":"value1","label2":"value2","label3":"value3"}`,
@@ -48,7 +48,7 @@ func TestNewRegexParser(t *testing.T) {
 				hasLineNumber: false,
 			}, want: &RegexParser{
 				writer:      &bytes.Buffer{},
-				lineDecoder: ltsvLineDecoder,
+				lineDecoder: regexLineDecoder,
 				lineHandler: JSONLineHandler,
 			},
 			wantWriter: `{"label1":"value1","label2":"value2","label3":"value3"}`,
@@ -56,7 +56,7 @@ func TestNewRegexParser(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewRegexParser(&bytes.Buffer{})
+			p := NewRegexParser(context.Background(), &bytes.Buffer{})
 			got, err := p.lineHandler(tt.handlerArgs.labels, tt.handlerArgs.values, tt.handlerArgs.lineNumber, tt.handlerArgs.hasLineNumber, tt.handlerArgs.isFirst)
 			if err != nil {
 				t.Fatal(err)
@@ -88,7 +88,7 @@ func TestRegexParser_SetLineHandler(t *testing.T) {
 			name: "basic",
 			fields: fields{
 				writer:      &bytes.Buffer{},
-				lineDecoder: ltsvLineDecoder,
+				lineDecoder: regexLineDecoder,
 				lineHandler: JSONLineHandler,
 			},
 			args: args{
@@ -105,7 +105,7 @@ func TestRegexParser_SetLineHandler(t *testing.T) {
 			name: "with no handler",
 			fields: fields{
 				writer:      &bytes.Buffer{},
-				lineDecoder: ltsvLineDecoder,
+				lineDecoder: regexLineDecoder,
 				lineHandler: JSONLineHandler,
 			},
 			args: args{
@@ -136,18 +136,18 @@ func TestRegexParser_SetLineHandler(t *testing.T) {
 
 func TestRegexParser_Parse(t *testing.T) {
 	type fields struct {
-		writer      io.Writer
-		lineDecoder lineDecoder
-		lineHandler LineHandler
-		patterns    []*regexp.Regexp
+		ctx             context.Context
+		labels          []string
+		skipLines       []int
+		hasPrefix       bool
+		hasUnmatchLines bool
+		hasLineNumber   bool
+		lineDecoder     lineDecoder
+		lineHandler     LineHandler
+		patterns        []*regexp.Regexp
 	}
 	type args struct {
-		ctx            context.Context
-		reader         io.Reader
-		keywords       []string
-		labels         []string
-		hasPrefix      bool
-		disableUnmatch bool
+		reader io.Reader
 	}
 	tests := []struct {
 		name       string
@@ -160,18 +160,18 @@ func TestRegexParser_Parse(t *testing.T) {
 		{
 			name: "regex: all match",
 			fields: fields{
-				writer:      &bytes.Buffer{},
-				lineDecoder: regexLineDecoder,
-				lineHandler: JSONLineHandler,
-				patterns:    regexPatterns,
+				ctx:             context.Background(),
+				labels:          nil,
+				skipLines:       nil,
+				hasPrefix:       false,
+				hasUnmatchLines: false,
+				hasLineNumber:   false,
+				lineDecoder:     regexLineDecoder,
+				lineHandler:     JSONLineHandler,
+				patterns:        regexPatterns,
 			},
 			args: args{
-				ctx:            context.Background(),
-				reader:         strings.NewReader(regexAllMatchInput),
-				keywords:       nil,
-				labels:         nil,
-				hasPrefix:      false,
-				disableUnmatch: false,
+				reader: strings.NewReader(regexAllMatchInput),
 			},
 			wantOutput: strings.Join(regexAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -186,12 +186,100 @@ func TestRegexParser_Parse(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
 			p := &RegexParser{
-				writer:      output,
-				lineDecoder: tt.fields.lineDecoder,
-				lineHandler: tt.fields.lineHandler,
-				patterns:    tt.fields.patterns,
+				ctx:             tt.fields.ctx,
+				writer:          output,
+				labels:          tt.fields.labels,
+				skipLines:       tt.fields.skipLines,
+				hasPrefix:       tt.fields.hasPrefix,
+				hasUnmatchLines: tt.fields.hasUnmatchLines,
+				hasLineNumber:   tt.fields.hasLineNumber,
+				lineDecoder:     tt.fields.lineDecoder,
+				lineHandler:     tt.fields.lineHandler,
+				patterns:        tt.fields.patterns,
 			}
-			got, err := p.Parse(tt.args.ctx, tt.args.reader, tt.args.keywords, tt.args.labels, tt.args.hasPrefix, tt.args.disableUnmatch)
+			got, err := p.Parse(tt.args.reader)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
+				return
+			}
+			if out := output.String(); !reflect.DeepEqual(out, tt.wantOutput) {
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", out, tt.wantOutput)
+			}
+			assertResult(t, tt.wantResult, got)
+		})
+	}
+}
+
+func TestRegexParser_Parse_2(t *testing.T) {
+	type fields struct {
+		ctx             context.Context
+		labels          []string
+		skipLines       []int
+		hasPrefix       bool
+		hasUnmatchLines bool
+		hasLineNumber   bool
+		lineDecoder     lineDecoder
+		lineHandler     LineHandler
+		patterns        []*regexp.Regexp
+	}
+	type args struct {
+		reader io.Reader
+	}
+	tests := []struct {
+		name       string
+		fields     fields
+		args       args
+		wantOutput string
+		wantResult wantResult
+		wantErr    bool
+	}{
+		{
+			name: "ltsv: setter methods",
+			fields: fields{
+				ctx:             context.Background(),
+				labels:          nil,
+				skipLines:       nil,
+				hasPrefix:       false,
+				hasUnmatchLines: false,
+				hasLineNumber:   false,
+				lineDecoder:     regexLineDecoder,
+				lineHandler:     JSONLineHandler,
+				patterns:        regexPatterns,
+			},
+			args: args{
+				reader: strings.NewReader(regexContainsUnmatchInput),
+			},
+			wantOutput: strings.Join(regexContainsUnmatchDataWithPrefix, "\n") + "\n",
+			wantResult: wantResult{
+				result:    regexContainsUnmatchResult,
+				source:    "",
+				inputType: inputTypeStream,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := &bytes.Buffer{}
+			p := &RegexParser{
+				ctx:             tt.fields.ctx,
+				writer:          output,
+				labels:          tt.fields.labels,
+				skipLines:       tt.fields.skipLines,
+				hasPrefix:       tt.fields.hasPrefix,
+				hasUnmatchLines: tt.fields.hasUnmatchLines,
+				hasLineNumber:   tt.fields.hasLineNumber,
+				lineDecoder:     tt.fields.lineDecoder,
+				lineHandler:     tt.fields.lineHandler,
+				patterns:        tt.fields.patterns,
+			}
+			p.SelectLabels([]string{}).
+				SetSkipLines([]int{}).
+				EnablePrefix(true).
+				EnableUnmatchLines(true).
+				EnableLineNumber(true).
+				SetFilters([]string{})
+			got, err := p.Parse(tt.args.reader)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
@@ -206,17 +294,18 @@ func TestRegexParser_Parse(t *testing.T) {
 
 func TestRegexParser_ParseString(t *testing.T) {
 	type fields struct {
-		writer      io.Writer
-		lineDecoder lineDecoder
-		lineHandler LineHandler
-		patterns    []*regexp.Regexp
+		ctx             context.Context
+		labels          []string
+		skipLines       []int
+		hasPrefix       bool
+		hasUnmatchLines bool
+		hasLineNumber   bool
+		lineDecoder     lineDecoder
+		lineHandler     LineHandler
+		patterns        []*regexp.Regexp
 	}
 	type args struct {
-		s             string
-		keywords      []string
-		labels        []string
-		skipLines     []int
-		hasLineNumber bool
+		s string
 	}
 	tests := []struct {
 		name       string
@@ -229,17 +318,18 @@ func TestRegexParser_ParseString(t *testing.T) {
 		{
 			name: "regex: all match",
 			fields: fields{
-				writer:      &bytes.Buffer{},
-				lineDecoder: regexLineDecoder,
-				lineHandler: JSONLineHandler,
-				patterns:    regexPatterns,
+				ctx:             context.Background(),
+				labels:          nil,
+				skipLines:       nil,
+				hasPrefix:       false,
+				hasUnmatchLines: false,
+				hasLineNumber:   false,
+				lineDecoder:     regexLineDecoder,
+				lineHandler:     JSONLineHandler,
+				patterns:        regexPatterns,
 			},
 			args: args{
-				s:             regexAllMatchInput,
-				keywords:      nil,
-				labels:        nil,
-				skipLines:     nil,
-				hasLineNumber: false,
+				s: regexAllMatchInput,
 			},
 			wantOutput: strings.Join(regexAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -254,12 +344,18 @@ func TestRegexParser_ParseString(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
 			p := &RegexParser{
-				writer:      output,
-				lineDecoder: tt.fields.lineDecoder,
-				lineHandler: tt.fields.lineHandler,
-				patterns:    tt.fields.patterns,
+				ctx:             tt.fields.ctx,
+				writer:          output,
+				labels:          tt.fields.labels,
+				skipLines:       tt.fields.skipLines,
+				hasPrefix:       tt.fields.hasPrefix,
+				hasUnmatchLines: tt.fields.hasUnmatchLines,
+				hasLineNumber:   tt.fields.hasLineNumber,
+				lineDecoder:     tt.fields.lineDecoder,
+				lineHandler:     tt.fields.lineHandler,
+				patterns:        tt.fields.patterns,
 			}
-			got, err := p.ParseString(tt.args.s, tt.args.keywords, tt.args.labels, tt.args.skipLines, tt.args.hasLineNumber)
+			got, err := p.ParseString(tt.args.s)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
@@ -274,17 +370,18 @@ func TestRegexParser_ParseString(t *testing.T) {
 
 func TestRegexParser_ParseFile(t *testing.T) {
 	type fields struct {
-		writer      io.Writer
-		lineDecoder lineDecoder
-		lineHandler LineHandler
-		patterns    []*regexp.Regexp
+		ctx             context.Context
+		labels          []string
+		skipLines       []int
+		hasPrefix       bool
+		hasUnmatchLines bool
+		hasLineNumber   bool
+		lineDecoder     lineDecoder
+		lineHandler     LineHandler
+		patterns        []*regexp.Regexp
 	}
 	type args struct {
-		filePath      string
-		keywords      []string
-		labels        []string
-		skipLines     []int
-		hasLineNumber bool
+		filePath string
 	}
 	tests := []struct {
 		name       string
@@ -297,17 +394,18 @@ func TestRegexParser_ParseFile(t *testing.T) {
 		{
 			name: "regex: all match",
 			fields: fields{
-				writer:      &bytes.Buffer{},
-				lineDecoder: regexLineDecoder,
-				lineHandler: JSONLineHandler,
-				patterns:    regexPatterns,
+				ctx:             context.Background(),
+				labels:          nil,
+				skipLines:       nil,
+				hasPrefix:       false,
+				hasUnmatchLines: false,
+				hasLineNumber:   false,
+				lineDecoder:     regexLineDecoder,
+				lineHandler:     JSONLineHandler,
+				patterns:        regexPatterns,
 			},
 			args: args{
-				filePath:      filepath.Join("testdata", "sample_s3_all_match.log"),
-				keywords:      nil,
-				labels:        nil,
-				skipLines:     nil,
-				hasLineNumber: false,
+				filePath: filepath.Join("testdata", "sample_s3_all_match.log"),
 			},
 			wantOutput: strings.Join(regexAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -322,12 +420,18 @@ func TestRegexParser_ParseFile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
 			p := &RegexParser{
-				writer:      output,
-				lineDecoder: tt.fields.lineDecoder,
-				lineHandler: tt.fields.lineHandler,
-				patterns:    tt.fields.patterns,
+				ctx:             tt.fields.ctx,
+				writer:          output,
+				labels:          tt.fields.labels,
+				skipLines:       tt.fields.skipLines,
+				hasPrefix:       tt.fields.hasPrefix,
+				hasUnmatchLines: tt.fields.hasUnmatchLines,
+				hasLineNumber:   tt.fields.hasLineNumber,
+				lineDecoder:     tt.fields.lineDecoder,
+				lineHandler:     tt.fields.lineHandler,
+				patterns:        tt.fields.patterns,
 			}
-			got, err := p.ParseFile(tt.args.filePath, tt.args.keywords, tt.args.labels, tt.args.skipLines, tt.args.hasLineNumber)
+			got, err := p.ParseFile(tt.args.filePath)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
@@ -342,17 +446,18 @@ func TestRegexParser_ParseFile(t *testing.T) {
 
 func TestRegexParser_ParseGzip(t *testing.T) {
 	type fields struct {
-		writer      io.Writer
-		lineDecoder lineDecoder
-		lineHandler LineHandler
-		patterns    []*regexp.Regexp
+		ctx             context.Context
+		labels          []string
+		skipLines       []int
+		hasPrefix       bool
+		hasUnmatchLines bool
+		hasLineNumber   bool
+		lineDecoder     lineDecoder
+		lineHandler     LineHandler
+		patterns        []*regexp.Regexp
 	}
 	type args struct {
-		gzipPath      string
-		keywords      []string
-		labels        []string
-		skipLines     []int
-		hasLineNumber bool
+		gzipPath string
 	}
 	tests := []struct {
 		name       string
@@ -365,17 +470,18 @@ func TestRegexParser_ParseGzip(t *testing.T) {
 		{
 			name: "regex: all match",
 			fields: fields{
-				writer:      &bytes.Buffer{},
-				lineDecoder: regexLineDecoder,
-				lineHandler: JSONLineHandler,
-				patterns:    regexPatterns,
+				ctx:             context.Background(),
+				labels:          nil,
+				skipLines:       nil,
+				hasPrefix:       false,
+				hasUnmatchLines: false,
+				hasLineNumber:   false,
+				lineDecoder:     regexLineDecoder,
+				lineHandler:     JSONLineHandler,
+				patterns:        regexPatterns,
 			},
 			args: args{
-				gzipPath:      filepath.Join("testdata", "sample_s3_all_match.log.gz"),
-				keywords:      nil,
-				labels:        nil,
-				skipLines:     nil,
-				hasLineNumber: false,
+				gzipPath: filepath.Join("testdata", "sample_s3_all_match.log.gz"),
 			},
 			wantOutput: strings.Join(regexAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -390,12 +496,18 @@ func TestRegexParser_ParseGzip(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
 			p := &RegexParser{
-				writer:      output,
-				lineDecoder: tt.fields.lineDecoder,
-				lineHandler: tt.fields.lineHandler,
-				patterns:    tt.fields.patterns,
+				ctx:             tt.fields.ctx,
+				writer:          output,
+				labels:          tt.fields.labels,
+				skipLines:       tt.fields.skipLines,
+				hasPrefix:       tt.fields.hasPrefix,
+				hasUnmatchLines: tt.fields.hasUnmatchLines,
+				hasLineNumber:   tt.fields.hasLineNumber,
+				lineDecoder:     tt.fields.lineDecoder,
+				lineHandler:     tt.fields.lineHandler,
+				patterns:        tt.fields.patterns,
 			}
-			got, err := p.ParseGzip(tt.args.gzipPath, tt.args.keywords, tt.args.labels, tt.args.skipLines, tt.args.hasLineNumber)
+			got, err := p.ParseGzip(tt.args.gzipPath)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
@@ -410,18 +522,19 @@ func TestRegexParser_ParseGzip(t *testing.T) {
 
 func TestRegexParser_ParseZipEntries(t *testing.T) {
 	type fields struct {
-		writer      io.Writer
-		lineDecoder lineDecoder
-		lineHandler LineHandler
-		patterns    []*regexp.Regexp
+		ctx             context.Context
+		labels          []string
+		skipLines       []int
+		hasPrefix       bool
+		hasUnmatchLines bool
+		hasLineNumber   bool
+		lineDecoder     lineDecoder
+		lineHandler     LineHandler
+		patterns        []*regexp.Regexp
 	}
 	type args struct {
-		zipPath       string
-		globPattern   string
-		keywords      []string
-		labels        []string
-		skipLines     []int
-		hasLineNumber bool
+		zipPath     string
+		globPattern string
 	}
 	tests := []struct {
 		name       string
@@ -434,18 +547,19 @@ func TestRegexParser_ParseZipEntries(t *testing.T) {
 		{
 			name: "regex: all match",
 			fields: fields{
-				writer:      &bytes.Buffer{},
-				lineDecoder: regexLineDecoder,
-				lineHandler: JSONLineHandler,
-				patterns:    regexPatterns,
+				ctx:             context.Background(),
+				labels:          nil,
+				skipLines:       nil,
+				hasPrefix:       false,
+				hasUnmatchLines: false,
+				hasLineNumber:   false,
+				lineDecoder:     regexLineDecoder,
+				lineHandler:     JSONLineHandler,
+				patterns:        regexPatterns,
 			},
 			args: args{
-				zipPath:       filepath.Join("testdata", "sample_s3_all_match.log.zip"),
-				globPattern:   "*",
-				keywords:      nil,
-				labels:        nil,
-				skipLines:     nil,
-				hasLineNumber: false,
+				zipPath:     filepath.Join("testdata", "sample_s3_all_match.log.zip"),
+				globPattern: "*",
 			},
 			wantOutput: strings.Join(regexAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -460,12 +574,18 @@ func TestRegexParser_ParseZipEntries(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
 			p := &RegexParser{
-				writer:      output,
-				lineDecoder: tt.fields.lineDecoder,
-				lineHandler: tt.fields.lineHandler,
-				patterns:    tt.fields.patterns,
+				ctx:             tt.fields.ctx,
+				writer:          output,
+				labels:          tt.fields.labels,
+				skipLines:       tt.fields.skipLines,
+				hasPrefix:       tt.fields.hasPrefix,
+				hasUnmatchLines: tt.fields.hasUnmatchLines,
+				hasLineNumber:   tt.fields.hasLineNumber,
+				lineDecoder:     tt.fields.lineDecoder,
+				lineHandler:     tt.fields.lineHandler,
+				patterns:        tt.fields.patterns,
 			}
-			got, err := p.ParseZipEntries(tt.args.zipPath, tt.args.globPattern, tt.args.keywords, tt.args.labels, tt.args.skipLines, tt.args.hasLineNumber)
+			got, err := p.ParseZipEntries(tt.args.zipPath, tt.args.globPattern)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
@@ -512,7 +632,7 @@ func TestRegexParser_AddPattern(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "non-named caputure group detected",
+			name: "non-named caputure group",
 			args: args{
 				pattern: regexNonNamedCapturedGroupContainsPattern,
 			},
@@ -571,7 +691,7 @@ func TestRegexParser_AddPatterns(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "non-named caputure group detected",
+			name: "non-named caputure group",
 			args: args{
 				patterns: regexNonNamedCapturedGroupContainsPatterns,
 			},
@@ -594,7 +714,7 @@ func TestRegexParser_AddPatterns(t *testing.T) {
 	}
 }
 
-func TestRegexParser_GetPatterns(t *testing.T) {
+func TestRegexParser_Patterns(t *testing.T) {
 	type fields struct {
 		lineDecoder lineDecoder
 		lineHandler LineHandler
@@ -622,7 +742,7 @@ func TestRegexParser_GetPatterns(t *testing.T) {
 				lineHandler: tt.fields.lineHandler,
 				patterns:    tt.fields.patterns,
 			}
-			if got := p.GetPatterns(); !reflect.DeepEqual(got, tt.want) {
+			if got := p.Patterns(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", got, tt.want)
 			}
 		})
@@ -689,8 +809,8 @@ func TestNewApacheCLFRegexParser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			writer := &bytes.Buffer{}
-			p := NewApacheCLFRegexParser(writer)
-			_, err := p.ParseString(tt.parserArgs.input, nil, nil, nil, false)
+			p := NewApacheCLFRegexParser(context.Background(), writer)
+			_, err := p.ParseString(tt.parserArgs.input)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -761,8 +881,8 @@ func TestNewApacheCLFWithVHostRegexParser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			writer := &bytes.Buffer{}
-			p := NewApacheCLFWithVHostRegexParser(writer)
-			_, err := p.ParseString(tt.parserArgs.input, nil, nil, nil, false)
+			p := NewApacheCLFWithVHostRegexParser(context.Background(), writer)
+			_, err := p.ParseString(tt.parserArgs.input)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -833,8 +953,8 @@ func TestNewS3RegexParser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			writer := &bytes.Buffer{}
-			p := NewS3RegexParser(writer)
-			_, err := p.ParseString(tt.parserArgs.input, nil, nil, nil, false)
+			p := NewS3RegexParser(context.Background(), writer)
+			_, err := p.ParseString(tt.parserArgs.input)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -873,8 +993,8 @@ func TestNewCFRegexParser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			writer := &bytes.Buffer{}
-			p := NewCFRegexParser(writer)
-			_, err := p.ParseString(tt.parserArgs.input, nil, nil, nil, false)
+			p := NewCFRegexParser(context.Background(), writer)
+			_, err := p.ParseString(tt.parserArgs.input)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -913,8 +1033,8 @@ func TestNewALBRegexParser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			writer := &bytes.Buffer{}
-			p := NewALBRegexParser(writer)
-			_, err := p.ParseString(tt.parserArgs.input, nil, nil, nil, false)
+			p := NewALBRegexParser(context.Background(), writer)
+			_, err := p.ParseString(tt.parserArgs.input)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -953,8 +1073,8 @@ func TestNewNLBRegexParser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			writer := &bytes.Buffer{}
-			p := NewNLBRegexParser(writer)
-			_, err := p.ParseString(tt.parserArgs.input, nil, nil, nil, false)
+			p := NewNLBRegexParser(context.Background(), writer)
+			_, err := p.ParseString(tt.parserArgs.input)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -1001,8 +1121,8 @@ func TestNewCLBRegexParser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			writer := &bytes.Buffer{}
-			p := NewCLBRegexParser(writer)
-			_, err := p.ParseString(tt.parserArgs.input, nil, nil, nil, false)
+			p := NewCLBRegexParser(context.Background(), writer)
+			_, err := p.ParseString(tt.parserArgs.input)
 			if err != nil {
 				t.Fatal(err)
 			}

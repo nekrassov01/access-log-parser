@@ -1,8 +1,11 @@
 package parser
 
 import (
+	"os"
 	"strconv"
 	"strings"
+
+	"github.com/mattn/go-isatty"
 )
 
 const lineNumberLabel = "no"
@@ -101,7 +104,12 @@ func TSVLineHandler(labels []string, values []string, lineNumber int, hasLineNum
 	}
 	b := &strings.Builder{}
 	if isFirst {
-		b.WriteString("\033[1;37m" + strings.Join(labels, "\t") + "\033[0m\n")
+		header := strings.Join(labels, "\t")
+		if isatty.IsTerminal(os.Stdout.Fd()) {
+			header = "\033[1;37m" + header + "\033[0m"
+		}
+		b.WriteString(header)
+		b.WriteString("\n")
 	}
 	for i, value := range values {
 		if i < len(labels) {

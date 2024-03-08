@@ -13,7 +13,7 @@ Features
 
 - Flexible serialization of log lines
 - Streaming processing support
-- Line filtering by keywords
+- Line filtering by filter expressions like `size < 100` `method == GET` `remote_host =~ ^192.168.`
 - Display column selection by field name
 - Line skipping by line number
 - Customization by handler functions
@@ -23,12 +23,12 @@ Features
 Usage
 -----
 
-[Example](https://github.com/nekrassov01/access-log-parser/blob/main/_examples/main.go)
+[Example](https://github.com/nekrassov01/access-log-parser/blob/main/examples_test_.go)
 
 Output format
 -------------
 
-Parsed log lines are sequentially output to Writer. After the analysis is finished, the total result is output.
+Parsed log lines are sequentially output to Writer. After the parsing is finished, the total result is output.
 
 ```go
 // Result encapsulates the outcomes of parsing operations, detailing matched, unmatched, excluded,
@@ -70,7 +70,7 @@ The struct `Result` implements `fmt.Stringer` as follows:
 Total     : Total number of log line processed
 Matched   : Number of log line that successfully matched pattern
 Unmatched : Number of log line that did not match any pattern
-Excluded  : Number of log line that did not hit by keyword search
+Excluded  : Number of log line that did not extract by filter expressions
 Skipped   : Number of log line that skipped by line number (disabled in stream mode)
 
 /* UNMATCH LINES */
@@ -103,7 +103,7 @@ Set your function with the following signature:
 ```go
 // LineHandler is a function type that processes each matched line.
 // It takes the matches, their corresponding fields, and the line index, and returns processed string data.
-type LineHandler func(labels []string, values []string, lineNumber int, hasLineNumber, isFirst bool) (string, error)
+type LineHandler func(labels, values []string, lineNumber int, hasLineNumber, isFirst bool) (string, error)
 ```
 
 > [!NOTE]
@@ -129,11 +129,6 @@ Functions are provided by default to instantiate the following parsers:
 - AWS Application Load Balancer access log format: `NewALBRegexParser()`
 - AWS Network Load Balancer access log format: `NewNLBRegexParser()`
 - AWS Classic Load Balancer access log format: `NewCLBRegexParser()`
-
-Todo
-----
-
-- Add filter-expression support: `method == GET` `time < 1709102105`
 
 Sample
 ------

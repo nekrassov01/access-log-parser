@@ -14,8 +14,12 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/mattn/go-isatty"
 )
 
 type inputType int
@@ -29,31 +33,34 @@ const (
 	inputTypeZip                     // Indicates parsing from a file within a zip archive.
 )
 
+// common error messages
+const (
+	parseError        = "cannot parse input"
+	resultError       = "invalid parsing result detected"
+	globPatternError  = "invalid glob pattern detected"
+	regexPatternError = "invalid regex pattern detected"
+	emptyPathError    = "empty path detected"
+	openFileError     = "cannot open file"
+	filterError       = "cannot evaluate filter expressions"
+	operatorError     = "unknown operator detected"
+)
+
 // Parser interface defines methods for parsing log data from various sources.
-// Implementations must handle keyword filtering, label extraction, and processing of lines based
-// on provided patterns.
-//   - SetLineHandler sets the function to handle each parsed line.
-//   - Parse processes log data from io.Reader and applies keyword filtering and pattern matching.
-//     Use this method if you want to process real-time streaming from stdin or other sources;
-//     upon interruption by an Interruput signal, it exits gracefully, retaining aggregate results.
-//   - ParseString processes log data from a string.
-//   - ParseFile processes log data from a file on disk.
-//   - ParseGzip processes log data from a gzip-compressed file.
-//   - ParseZipEntries processes log data matching the glob pattern from files in a zip archive.
-//     Aggregate results are merged, and options such as keyword filtering and exclusion
-//     by line number are applied in the same way to the target files.
+// Basically used internally to implement RegexParser and LTSVParser.
 type Parser interface {
-	SetLineHandler(LineHandler)
-	Parse(ctx context.Context, reader io.Reader, keywords, labels []string, hasPrefix, disableUnmatch bool) (*Result, error)
-	ParseString(s string, keywords, labels []string, skipLines []int, hasLineNumber bool) (*Result, error)
-	ParseFile(filePath string, keywords, labels []string, skipLines []int, hasLineNumber bool) (*Result, error)
-	ParseGzip(gzipPath string, keywords, labels []string, skipLines []int, hasLineNumber bool) (*Result, error)
-	ParseZipEntries(zipPath, globPattern string, keywords, labels []string, skipLines []int, hasLineNumber bool) (*Result, error)
+	Parse(reader io.Reader) (*Result, error)
+	ParseString(s string) (*Result, error)
+	ParseFile(filePath string) (*Result, error)
+	ParseGzip(gzipPath string) (*Result, error)
+	ParseZipEntries(zipPath, globPattern string) (*Result, error)
 }
 
 // LineHandler is a function type that processes each matched line.
 // It takes the matches, their corresponding fields, and the line index, and returns processed string data.
 type lineDecoder func(line string, patterns []*regexp.Regexp) ([]string, []string, error)
+
+// lineFilter is a function type that provides a filter function applied to log lines.
+type lineFilter func(v string) (bool, error)
 
 // LineHandler is a function type that processes each matched line.
 // It takes the matches, their corresponding fields, and the line index, and returns processed string data.
@@ -62,8 +69,8 @@ type LineHandler func(labels []string, values []string, lineNumber int, hasLineN
 // parse orchestrates the parsing process, applying keyword filters and regular expression patterns to log data from an io.Reader.
 // It supports dynamic handling of line processing, error collection, and pattern matching for efficient log analysis.
 // This function is used as an internal process of the Parse method.
-func parse(ctx context.Context, input io.Reader, output io.Writer, patterns []*regexp.Regexp, keywords, labels []string, hasPrefix, disableUnmatch bool, decoder lineDecoder, handler LineHandler) (*Result, error) {
-	r, err := streamer(ctx, input, output, patterns, keywords, labels, hasPrefix, disableUnmatch, decoder, handler)
+func parse(ctx context.Context, input io.Reader, output io.Writer, patterns []*regexp.Regexp, labels, filters []string, skipLines []int, hasPrefix, hasUnmatchLines, hasLineNumber bool, decoder lineDecoder, handler LineHandler) (*Result, error) {
+	r, err := parser(ctx, input, output, patterns, labels, filters, skipLines, hasPrefix, hasUnmatchLines, hasLineNumber, decoder, handler)
 	if err != nil {
 		return nil, err
 	}
@@ -74,8 +81,8 @@ func parse(ctx context.Context, input io.Reader, output io.Writer, patterns []*r
 // parseString is a convenience method for parsing log data directly from a string.
 // It applies the same processing as parse, tailored for situations where log data is available as a string.
 // This function is used as an internal process of the ParseString method.
-func parseString(s string, output io.Writer, patterns []*regexp.Regexp, keywords, labels []string, skipLines []int, hasLineNumber bool, decoder lineDecoder, handler LineHandler) (*Result, error) {
-	r, err := parser(strings.NewReader(s), output, patterns, keywords, labels, skipLines, hasLineNumber, decoder, handler)
+func parseString(ctx context.Context, s string, output io.Writer, patterns []*regexp.Regexp, labels, filters []string, skipLines []int, hasPrefix, hasUnmatchLines, hasLineNumber bool, decoder lineDecoder, handler LineHandler) (*Result, error) {
+	r, err := parser(ctx, strings.NewReader(s), output, patterns, labels, filters, skipLines, hasPrefix, hasUnmatchLines, hasLineNumber, decoder, handler)
 	if err != nil {
 		return nil, err
 	}
@@ -86,13 +93,13 @@ func parseString(s string, output io.Writer, patterns []*regexp.Regexp, keywords
 // parseFile opens and processes log data from a file, applying the specified patterns and handlers.
 // It handles file opening/closing and applies the same log processing logic as parse.
 // This function is used as an internal process of the ParseFile method.
-func parseFile(filePath string, output io.Writer, patterns []*regexp.Regexp, keywords, labels []string, skipLines []int, hasLineNumber bool, decoder lineDecoder, handler LineHandler) (*Result, error) {
+func parseFile(ctx context.Context, filePath string, output io.Writer, patterns []*regexp.Regexp, labels, filters []string, skipLines []int, hasPrefix, hasUnmatchLines, hasLineNumber bool, decoder lineDecoder, handler LineHandler) (*Result, error) {
 	f, cleanup, err := handleFile(filePath)
 	if err != nil {
 		return nil, err
 	}
 	defer cleanup()
-	r, err := parser(f, output, patterns, keywords, labels, skipLines, hasLineNumber, decoder, handler)
+	r, err := parser(ctx, f, output, patterns, labels, filters, skipLines, hasPrefix, hasUnmatchLines, hasLineNumber, decoder, handler)
 	if err != nil {
 		return nil, err
 	}
@@ -104,13 +111,13 @@ func parseFile(filePath string, output io.Writer, patterns []*regexp.Regexp, key
 // parseGzip opens a gzip-compressed log file and processes its contents.
 // It allows for the direct parsing of compressed logs, applying the specified patterns and handlers.
 // This function is used as an internal process of the ParseGzip method.
-func parseGzip(gzipPath string, output io.Writer, patterns []*regexp.Regexp, keywords, labels []string, skipLines []int, hasLineNumber bool, decoder lineDecoder, handler LineHandler) (*Result, error) {
+func parseGzip(ctx context.Context, gzipPath string, output io.Writer, patterns []*regexp.Regexp, labels, filters []string, skipLines []int, hasPrefix, hasUnmatchLines, hasLineNumber bool, decoder lineDecoder, handler LineHandler) (*Result, error) {
 	g, cleanup, err := handleGzip(gzipPath)
 	if err != nil {
 		return nil, err
 	}
 	defer cleanup()
-	r, err := parser(g, output, patterns, keywords, labels, skipLines, hasLineNumber, decoder, handler)
+	r, err := parser(ctx, g, output, patterns, labels, filters, skipLines, hasPrefix, hasUnmatchLines, hasLineNumber, decoder, handler)
 	if err != nil {
 		return nil, err
 	}
@@ -122,15 +129,15 @@ func parseGzip(gzipPath string, output io.Writer, patterns []*regexp.Regexp, key
 // parseZipEntries processes log entries within a zip archive, filtering files based on a glob pattern.
 // It enables the parsing of multiple log files contained within a single archive.
 // This function is used as an internal process of the ParseZipEntries method.
-func parseZipEntries(zipPath, globPattern string, output io.Writer, patterns []*regexp.Regexp, keywords, labels []string, skipLines []int, hasLineNumber bool, decoder lineDecoder, handler LineHandler) (*Result, error) {
+func parseZipEntries(ctx context.Context, zipPath, globPattern string, output io.Writer, patterns []*regexp.Regexp, labels, filters []string, skipLines []int, hasPrefix, hasUnmatchLines, hasLineNumber bool, decoder lineDecoder, handler LineHandler) (*Result, error) {
 	result := Result{Errors: make([]Errors, 0)}
 	err := handleZipEntries(zipPath, globPattern, func(f *zip.File) error {
 		e, err := f.Open()
 		if err != nil {
-			return fmt.Errorf("cannot open zip file entry: %w", err)
+			return fmt.Errorf("%s: %w", openFileError, err)
 		}
 		defer e.Close()
-		r, err := parser(e, output, patterns, keywords, labels, skipLines, hasLineNumber, decoder, handler)
+		r, err := parser(ctx, e, output, patterns, labels, filters, skipLines, hasPrefix, hasUnmatchLines, hasLineNumber, decoder, handler)
 		if err != nil {
 			return err
 		}
@@ -155,66 +162,23 @@ func parseZipEntries(zipPath, globPattern string, output io.Writer, patterns []*
 	return &result, nil
 }
 
-// The parser processes log data from io.Reader and provides the core logic for parsing log lines by the decoder
-// and applying transformations by the handler. The processed log lines are sequentially output to io.Writer,
-// which returns an aggregate result after all lines have been processed.
-func parser(input io.Reader, output io.Writer, patterns []*regexp.Regexp, keywords, labels []string, skipLines []int, hasLineNumber bool, decoder lineDecoder, handler LineHandler) (*Result, error) {
-	start := time.Now()
-	r := &Result{Errors: make([]Errors, 0)}
-	i := 0
-	m := skipLineMap(skipLines)
-	isFirst := true
-	scanner := bufio.NewScanner(input)
-	for scanner.Scan() {
-		i++
-		if _, ok := m[i]; ok {
-			r.Skipped++
-			continue
-		}
-		raw := scanner.Text()
-		if !hasKeyword(raw, keywords) {
-			r.Excluded++
-			continue
-		}
-		ls, vs, err := decoder(raw, patterns)
-		if err != nil {
-			if strings.Contains(err.Error(), "no pattern provided") {
-				return nil, err
-			}
-			r.Errors = append(r.Errors, Errors{LineNumber: i, Line: raw})
-			r.Unmatched++
-			continue
-		}
-		ls, vs = selectColumns(labels, ls, vs)
-		line, err := handler(ls, vs, i, hasLineNumber, isFirst)
-		if err != nil {
-			return nil, err
-		}
-		if _, err := fmt.Fprintln(output, line); err != nil {
-			return nil, err
-		}
-		r.Matched++
-		isFirst = false
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-	r.Total = i
-	r.ElapsedTime = time.Since(start)
-	return r, nil
-}
-
-// streamer is a streaming-specific function of parser. It reads log data in a streaming fashion
-// and applies pattern matching and row processing in real time.
-// Supports context-based cancellation to allow graceful termination of log processing.
-func streamer(ctx context.Context, input io.Reader, output io.Writer, patterns []*regexp.Regexp, keywords, labels []string, hasPrefix, disableUnmatch bool, decoder lineDecoder, handler LineHandler) (*Result, error) {
+// parser is the core logic of this module. It processes an input stream line by line against a set of regular expression patterns,
+// filters, and additional processing options. It applies specified filters, handles matched lines using a custom line handler, and
+// writes results to an output stream.
+func parser(ctx context.Context, input io.Reader, output io.Writer, patterns []*regexp.Regexp, labels, filters []string, skipLines []int, hasPrefix, hasUnmatchLines, hasLineNumber bool, decoder lineDecoder, handler LineHandler) (*Result, error) {
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt)
 	defer stop()
 	start := time.Now()
 	r := &Result{Errors: make([]Errors, 0)}
 	i := 0
-	mpref := "\033[1;32m[ PROCESSED ] \033[0m"
-	upref := "\033[1;31m[ UNMATCHED ] \033[0m"
+	m := applySkipLines(skipLines)
+	isFirst := true
+	mpref := "[ PROCESSED ] "
+	upref := "[ UNMATCHED ] "
+	if isatty.IsTerminal(os.Stdout.Fd()) {
+		mpref = "\033[1;32m" + mpref + "\033[0m"
+		upref = "\033[1;31m" + upref + "\033[0m"
+	}
 	scanner := bufio.NewScanner(input)
 	for scanner.Scan() {
 		select {
@@ -222,11 +186,11 @@ func streamer(ctx context.Context, input io.Reader, output io.Writer, patterns [
 			return r, ctx.Err()
 		default:
 			i++
-			raw := scanner.Text()
-			if !hasKeyword(raw, keywords) {
-				r.Excluded++
+			if _, ok := m[i]; ok {
+				r.Skipped++
 				continue
 			}
+			raw := scanner.Text()
 			praw := raw
 			if hasPrefix {
 				praw = upref + raw
@@ -236,7 +200,7 @@ func streamer(ctx context.Context, input io.Reader, output io.Writer, patterns [
 				if strings.Contains(err.Error(), "no pattern provided") {
 					return nil, err
 				}
-				if !disableUnmatch {
+				if hasUnmatchLines {
 					if _, err := fmt.Fprintln(output, praw); err != nil {
 						return nil, err
 					}
@@ -245,18 +209,27 @@ func streamer(ctx context.Context, input io.Reader, output io.Writer, patterns [
 				r.Unmatched++
 				continue
 			}
-			ls, vs = selectColumns(labels, ls, vs)
-			line, err := handler(ls, vs, i, false, false)
+			f, err := applyFilter(ls, vs, filters)
+			if err != nil {
+				return nil, err
+			}
+			if !f {
+				r.Excluded++
+				continue
+			}
+			ls, vs = applyLabels(labels, ls, vs)
+			line, err := handler(ls, vs, i, hasLineNumber, isFirst)
 			if err != nil {
 				return nil, err
 			}
 			if hasPrefix {
-				line = mpref + line
+				line = applyPrefix(line, mpref)
 			}
 			if _, err := fmt.Fprintln(output, line); err != nil {
 				return nil, err
 			}
 			r.Matched++
+			isFirst = false
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -272,7 +245,7 @@ func streamer(ctx context.Context, input io.Reader, output io.Writer, patterns [
 // from the string. If no pattern matches, it returns an error.
 func regexLineDecoder(line string, patterns []*regexp.Regexp) ([]string, []string, error) {
 	if len(patterns) == 0 {
-		return nil, nil, fmt.Errorf("cannot parse input: no pattern provided")
+		return nil, nil, fmt.Errorf("%s: no pattern provided", parseError)
 	}
 	for _, pattern := range patterns {
 		matches := pattern.FindStringSubmatch(line)
@@ -280,7 +253,7 @@ func regexLineDecoder(line string, patterns []*regexp.Regexp) ([]string, []strin
 			return pattern.SubexpNames()[1:], matches[1:], nil
 		}
 	}
-	return nil, nil, fmt.Errorf("cannot parse line: no matching pattern for line: %s", line)
+	return nil, nil, fmt.Errorf("%s: no matching pattern for line: \"%s\"", parseError, line)
 }
 
 // ltsvDecoder parses a string formatted in Labeled Tab-separated Values (LTSV)
@@ -291,12 +264,12 @@ func ltsvLineDecoder(line string, _ []*regexp.Regexp) ([]string, []string, error
 	ls := make([]string, 0, len(fields))
 	vs := make([]string, 0, len(fields))
 	for _, field := range fields {
-		parts := strings.SplitN(field, ":", 2)
-		if len(parts) != 2 {
-			return nil, nil, fmt.Errorf("cannot parse input: invalid field detected: %s", field)
+		token := strings.SplitN(field, ":", 2)
+		if len(token) != 2 {
+			return nil, nil, fmt.Errorf("%s: invalid field: \"%s\"", parseError, field)
 		}
-		ls = append(ls, parts[0])
-		vs = append(vs, parts[1])
+		ls = append(ls, token[0])
+		vs = append(vs, token[1])
 	}
 	return ls, vs, nil
 }
@@ -305,11 +278,11 @@ func ltsvLineDecoder(line string, _ []*regexp.Regexp) ([]string, []string, error
 // It abstracts file handling, providing a clean and reusable way to work with file resources.
 func handleFile(filePath string) (*os.File, func(), error) {
 	if filePath == "" {
-		return nil, nil, fmt.Errorf("empty path detected")
+		return nil, nil, fmt.Errorf(emptyPathError)
 	}
 	f, err := os.Open(filepath.Clean(filePath))
 	if err != nil {
-		return nil, nil, fmt.Errorf("cannot open file: %w", err)
+		return nil, nil, fmt.Errorf("%s: %w", openFileError, err)
 	}
 	cleanup := func() {
 		f.Close()
@@ -321,16 +294,16 @@ func handleFile(filePath string) (*os.File, func(), error) {
 // It simplifies working with gzip files, abstracting away the details of decompression.
 func handleGzip(gzipPath string) (*gzip.Reader, func(), error) {
 	if gzipPath == "" {
-		return nil, nil, fmt.Errorf("empty path detected")
+		return nil, nil, fmt.Errorf(emptyPathError)
 	}
 	f, err := os.Open(filepath.Clean(gzipPath))
 	if err != nil {
-		return nil, nil, fmt.Errorf("cannot open file: %w", err)
+		return nil, nil, fmt.Errorf("%s: %w", openFileError, err)
 	}
 	g, err := gzip.NewReader(f)
 	if err != nil {
 		f.Close()
-		return nil, nil, fmt.Errorf("cannot create gzip reader for %s: %w", gzipPath, err)
+		return nil, nil, err
 	}
 	cleanup := func() {
 		g.Close()
@@ -343,17 +316,17 @@ func handleGzip(gzipPath string) (*gzip.Reader, func(), error) {
 // It supports glob pattern matching for entry names, enabling selective processing of zip contents.
 func handleZipEntries(zipPath string, globPattern string, fn func(f *zip.File) error) error {
 	if zipPath == "" {
-		return fmt.Errorf("empty path detected")
+		return fmt.Errorf(emptyPathError)
 	}
 	z, err := zip.OpenReader(zipPath)
 	if err != nil {
-		return fmt.Errorf("cannot open zip file: %w", err)
+		return fmt.Errorf("%s: %w", openFileError, err)
 	}
 	defer z.Close()
 	for _, f := range z.File {
 		matched, err := filepath.Match(globPattern, f.Name)
 		if err != nil {
-			return fmt.Errorf("invalid glob pattern: %w", err)
+			return fmt.Errorf("%s: %w", globPatternError, err)
 		}
 		if !matched {
 			continue
@@ -365,9 +338,9 @@ func handleZipEntries(zipPath string, globPattern string, fn func(f *zip.File) e
 	return nil
 }
 
-// skipLineMap generates a map indicating which line numbers should be skipped during parsing.
+// applySkipLines generates a map indicating which line numbers should be skipped during parsing.
 // It takes a slice of line numbers to skip and returns a map with these line numbers as keys.
-func skipLineMap(skipLines []int) map[int]struct{} {
+func applySkipLines(skipLines []int) map[int]struct{} {
 	m := make(map[int]struct{}, len(skipLines))
 	for _, skipLine := range skipLines {
 		m[skipLine] = struct{}{}
@@ -375,21 +348,8 @@ func skipLineMap(skipLines []int) map[int]struct{} {
 	return m
 }
 
-// hasKeyword checks if the given s contains any of the specified keywords.
-func hasKeyword(s string, keywords []string) bool {
-	if len(keywords) == 0 {
-		return true
-	}
-	for _, keyword := range keywords {
-		if strings.Contains(s, keyword) {
-			return true
-		}
-	}
-	return false
-}
-
-// selectColumns filters the given labels and values based on a list of target labels.
-func selectColumns(targets, labels, values []string) ([]string, []string) {
+// applyLabels filters the given labels and values based on a list of target labels.
+func applyLabels(targets, labels, values []string) ([]string, []string) {
 	if len(targets) == 0 {
 		return labels, values
 	}
@@ -406,4 +366,164 @@ func selectColumns(targets, labels, values []string) ([]string, []string) {
 		}
 	}
 	return ls, vs
+}
+
+// applyPrefix sets the play fix for log lines.
+func applyPrefix(line, prefix string) string {
+	b := &strings.Builder{}
+	lines := strings.Split(line, "\n")
+	for i, l := range lines {
+		if i > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString(prefix)
+		b.WriteString(l)
+	}
+	return b.String()
+}
+
+// applyFilter evaluates a filter expression passed as a string and controls
+// whether or not log lines are output according to the result.
+func applyFilter(labels, values, filters []string) (bool, error) {
+	m, err := getFilter(labels, filters)
+	if err != nil {
+		return false, err
+	}
+	for i, label := range labels {
+		if filter, ok := m[label]; ok {
+			f, err := filter(values[i])
+			if err != nil || !f {
+				return false, err
+			}
+		}
+	}
+	return true, nil
+}
+
+// getFilter creates a map of lineFilter functions based on the provided filters and labels.
+// Each filter is parsed into a label, operator, and value, and an appropriate lineFilter
+// function is created to match lines accordingly. This function validates the syntax of
+// filter expressions and ensures that each label used in the filters is included in the
+// provided labels list.
+func getFilter(labels, filters []string) (map[string]lineFilter, error) {
+	m := map[string]lineFilter{}
+	for _, filter := range filters {
+		token := strings.SplitN(filter, " ", 3)
+		if len(token) < 3 {
+			return nil, fmt.Errorf("%s: \"%s\": invalid syntax", filterError, filter)
+		}
+		label, operator, value := token[0], token[1], token[2]
+		if !slices.Contains(labels, label) {
+			return nil, fmt.Errorf("%s: \"%s\": invalid field name", filterError, label)
+		}
+		switch operator {
+		case "==", "!=", "==*", "!=*":
+			f, err := getStringFilter(operator, value)
+			if err != nil {
+				return nil, fmt.Errorf("%s: %w", filterError, err)
+			}
+			m[label] = f
+		case "=~", "!~", "=~*", "!~*":
+			f, err := getRegexFilter(operator, value)
+			if err != nil {
+				return nil, fmt.Errorf("%s: %w", filterError, err)
+			}
+			m[label] = f
+		case ">", ">=", "<", "<=":
+			f, err := getNumericFilter(operator, value)
+			if err != nil {
+				return nil, fmt.Errorf("%s: %w", filterError, err)
+			}
+			m[label] = f
+		default:
+			return nil, fmt.Errorf("%s: \"%s\"", operatorError, operator)
+		}
+	}
+	return m, nil
+}
+
+// getStringFilter returns a lineFilter function for string comparison based on the specified
+// operator and value. Supported operators are "==", "!=", "==*" (case-insensitive equal), and
+// "!=*" (case-insensitive not equal).
+func getStringFilter(operator, value string) (lineFilter, error) {
+	switch operator {
+	case "==":
+		return func(v string) (bool, error) { return v == value, nil }, nil
+	case "!=":
+		return func(v string) (bool, error) { return v != value, nil }, nil
+	case "==*":
+		return func(v string) (bool, error) { return strings.EqualFold(v, value), nil }, nil
+	case "!=*":
+		return func(v string) (bool, error) { return !strings.EqualFold(v, value), nil }, nil
+	default:
+		return nil, fmt.Errorf("%s: \"%s\"", operatorError, operator)
+	}
+}
+
+// getNumericFilter returns a lineFilter function for numeric comparison based on the specified
+// operator and value. The function compares the numeric value of a string against the provided
+// value using the specified operator. Supported operators are ">", ">=", "<", and "<=".
+func getNumericFilter(operator, value string) (lineFilter, error) {
+	f, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return nil, err
+	}
+	switch operator {
+	case ">":
+		return func(v string) (bool, error) {
+			val, err := strconv.ParseFloat(v, 64)
+			if err != nil {
+				return false, err
+			}
+			return val > f, nil
+		}, nil
+	case ">=":
+		return func(v string) (bool, error) {
+			val, err := strconv.ParseFloat(v, 64)
+			if err != nil {
+				return false, err
+			}
+			return val >= f, nil
+		}, nil
+	case "<":
+		return func(v string) (bool, error) {
+			val, err := strconv.ParseFloat(v, 64)
+			if err != nil {
+				return false, err
+			}
+			return val < f, nil
+		}, nil
+	case "<=":
+		return func(v string) (bool, error) {
+			val, err := strconv.ParseFloat(v, 64)
+			if err != nil {
+				return false, err
+			}
+			return val <= f, nil
+		}, nil
+	default:
+		return nil, fmt.Errorf("%s: \"%s\"", operatorError, operator)
+	}
+}
+
+// getRegexFilter returns a lineFilter function that matches a string against a regular expression
+// pattern. The function supports both standard and case-insensitive matches, specified by the
+// "=~" and "=~*" (or "!~" and "!~*" for negation) operators, respectively.
+func getRegexFilter(operator, value string) (lineFilter, error) {
+	switch operator {
+	case "=~*", "!~*":
+		value = "(?i)" + value
+	}
+	re, err := regexp.Compile(value)
+	if err != nil {
+		return nil, err
+	}
+	switch operator {
+	case "=~", "=~*":
+		return func(v string) (bool, error) { return re.MatchString(v), nil }, nil
+	case "!~", "!~*":
+		return func(v string) (bool, error) { return !re.MatchString(v), nil }, nil
+	default:
+		return nil, fmt.Errorf("%s: \"%s\"", operatorError, operator)
+	}
 }

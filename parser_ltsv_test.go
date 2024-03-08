@@ -55,7 +55,7 @@ func TestNewLTSVParser(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewLTSVParser(&bytes.Buffer{})
+			p := NewLTSVParser(context.Background(), &bytes.Buffer{})
 			got, err := p.lineHandler(tt.handlerArgs.labels, tt.handlerArgs.values, tt.handlerArgs.lineNumber, tt.handlerArgs.hasLineNumber, tt.handlerArgs.isFirst)
 			if err != nil {
 				t.Fatal(err)
@@ -133,17 +133,17 @@ func TestLTSVParser_SetLineHandler(t *testing.T) {
 
 func TestLTSVParser_Parse(t *testing.T) {
 	type fields struct {
-		writer      io.Writer
-		lineDecoder lineDecoder
-		lineHandler LineHandler
+		ctx             context.Context
+		labels          []string
+		skipLines       []int
+		hasPrefix       bool
+		hasUnmatchLines bool
+		hasLineNumber   bool
+		lineDecoder     lineDecoder
+		lineHandler     LineHandler
 	}
 	type args struct {
-		ctx            context.Context
-		reader         io.Reader
-		keywords       []string
-		labels         []string
-		hasPrefix      bool
-		disableUnmatch bool
+		reader io.Reader
 	}
 	tests := []struct {
 		name       string
@@ -156,17 +156,17 @@ func TestLTSVParser_Parse(t *testing.T) {
 		{
 			name: "ltsv: all match",
 			fields: fields{
-				writer:      &bytes.Buffer{},
-				lineDecoder: ltsvLineDecoder,
-				lineHandler: JSONLineHandler,
+				ctx:             context.Background(),
+				labels:          nil,
+				skipLines:       nil,
+				hasPrefix:       false,
+				hasUnmatchLines: false,
+				hasLineNumber:   false,
+				lineDecoder:     ltsvLineDecoder,
+				lineHandler:     JSONLineHandler,
 			},
 			args: args{
-				ctx:            context.Background(),
-				reader:         strings.NewReader(ltsvAllMatchInput),
-				keywords:       nil,
-				labels:         nil,
-				hasPrefix:      false,
-				disableUnmatch: false,
+				reader: strings.NewReader(ltsvAllMatchInput),
 			},
 			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -181,11 +181,96 @@ func TestLTSVParser_Parse(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
 			p := &LTSVParser{
-				writer:      output,
-				lineDecoder: tt.fields.lineDecoder,
-				lineHandler: tt.fields.lineHandler,
+				ctx:             tt.fields.ctx,
+				writer:          output,
+				labels:          tt.fields.labels,
+				skipLines:       tt.fields.skipLines,
+				hasPrefix:       tt.fields.hasPrefix,
+				hasUnmatchLines: tt.fields.hasUnmatchLines,
+				hasLineNumber:   tt.fields.hasLineNumber,
+				lineDecoder:     tt.fields.lineDecoder,
+				lineHandler:     tt.fields.lineHandler,
 			}
-			got, err := p.Parse(tt.args.ctx, tt.args.reader, tt.args.keywords, tt.args.labels, tt.args.hasPrefix, tt.args.disableUnmatch)
+			got, err := p.Parse(tt.args.reader)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
+				return
+			}
+			if out := output.String(); !reflect.DeepEqual(out, tt.wantOutput) {
+				t.Errorf("\ngot:\n%v\nwant:\n%v\n", out, tt.wantOutput)
+			}
+			assertResult(t, tt.wantResult, got)
+		})
+	}
+}
+
+func TestLTSVParser_Parse_2(t *testing.T) {
+	type fields struct {
+		ctx             context.Context
+		labels          []string
+		skipLines       []int
+		hasPrefix       bool
+		hasUnmatchLines bool
+		hasLineNumber   bool
+		lineDecoder     lineDecoder
+		lineHandler     LineHandler
+	}
+	type args struct {
+		reader io.Reader
+	}
+	tests := []struct {
+		name       string
+		fields     fields
+		args       args
+		wantOutput string
+		wantResult wantResult
+		wantErr    bool
+	}{
+		{
+			name: "ltsv: setter methods",
+			fields: fields{
+				ctx:             context.Background(),
+				labels:          nil,
+				skipLines:       nil,
+				hasPrefix:       false,
+				hasUnmatchLines: false,
+				hasLineNumber:   false,
+				lineDecoder:     ltsvLineDecoder,
+				lineHandler:     JSONLineHandler,
+			},
+			args: args{
+				reader: strings.NewReader(ltsvContainsUnmatchInput),
+			},
+			wantOutput: strings.Join(ltsvContainsUnmatchDataWithPrefix, "\n") + "\n",
+			wantResult: wantResult{
+				result:    ltsvContainsUnmatchResult,
+				source:    "",
+				inputType: inputTypeStream,
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := &bytes.Buffer{}
+			p := &LTSVParser{
+				ctx:             tt.fields.ctx,
+				writer:          output,
+				labels:          tt.fields.labels,
+				skipLines:       tt.fields.skipLines,
+				hasPrefix:       tt.fields.hasPrefix,
+				hasUnmatchLines: tt.fields.hasUnmatchLines,
+				hasLineNumber:   tt.fields.hasLineNumber,
+				lineDecoder:     tt.fields.lineDecoder,
+				lineHandler:     tt.fields.lineHandler,
+			}
+			p.SelectLabels([]string{}).
+				SetSkipLines([]int{}).
+				EnablePrefix(true).
+				EnableUnmatchLines(true).
+				EnableLineNumber(true).
+				SetFilters([]string{})
+			got, err := p.Parse(tt.args.reader)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
@@ -200,15 +285,17 @@ func TestLTSVParser_Parse(t *testing.T) {
 
 func TestLTSVParser_ParseString(t *testing.T) {
 	type fields struct {
-		lineDecoder lineDecoder
-		lineHandler LineHandler
+		ctx             context.Context
+		labels          []string
+		skipLines       []int
+		hasPrefix       bool
+		hasUnmatchLines bool
+		hasLineNumber   bool
+		lineDecoder     lineDecoder
+		lineHandler     LineHandler
 	}
 	type args struct {
-		s             string
-		keywords      []string
-		labels        []string
-		skipLines     []int
-		hasLineNumber bool
+		s string
 	}
 	tests := []struct {
 		name       string
@@ -221,15 +308,17 @@ func TestLTSVParser_ParseString(t *testing.T) {
 		{
 			name: "ltsv: all match",
 			fields: fields{
-				lineDecoder: ltsvLineDecoder,
-				lineHandler: JSONLineHandler,
+				ctx:             context.Background(),
+				labels:          nil,
+				skipLines:       nil,
+				hasPrefix:       false,
+				hasUnmatchLines: false,
+				hasLineNumber:   false,
+				lineDecoder:     ltsvLineDecoder,
+				lineHandler:     JSONLineHandler,
 			},
 			args: args{
-				s:             ltsvAllMatchInput,
-				keywords:      nil,
-				labels:        nil,
-				skipLines:     nil,
-				hasLineNumber: false,
+				s: ltsvAllMatchInput,
 			},
 			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -244,11 +333,17 @@ func TestLTSVParser_ParseString(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
 			p := &LTSVParser{
-				writer:      output,
-				lineDecoder: tt.fields.lineDecoder,
-				lineHandler: tt.fields.lineHandler,
+				ctx:             tt.fields.ctx,
+				writer:          output,
+				labels:          tt.fields.labels,
+				skipLines:       tt.fields.skipLines,
+				hasPrefix:       tt.fields.hasPrefix,
+				hasUnmatchLines: tt.fields.hasUnmatchLines,
+				hasLineNumber:   tt.fields.hasLineNumber,
+				lineDecoder:     tt.fields.lineDecoder,
+				lineHandler:     tt.fields.lineHandler,
 			}
-			got, err := p.ParseString(tt.args.s, tt.args.keywords, tt.args.labels, tt.args.skipLines, tt.args.hasLineNumber)
+			got, err := p.ParseString(tt.args.s)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
@@ -263,16 +358,17 @@ func TestLTSVParser_ParseString(t *testing.T) {
 
 func TestLTSVParser_ParseFile(t *testing.T) {
 	type fields struct {
-		writer      io.Writer
-		lineDecoder lineDecoder
-		lineHandler LineHandler
+		ctx             context.Context
+		labels          []string
+		skipLines       []int
+		hasPrefix       bool
+		hasUnmatchLines bool
+		hasLineNumber   bool
+		lineDecoder     lineDecoder
+		lineHandler     LineHandler
 	}
 	type args struct {
-		filePath      string
-		keywords      []string
-		labels        []string
-		skipLines     []int
-		hasLineNumber bool
+		filePath string
 	}
 	tests := []struct {
 		name       string
@@ -285,16 +381,17 @@ func TestLTSVParser_ParseFile(t *testing.T) {
 		{
 			name: "ltsv: all match",
 			fields: fields{
-				writer:      &bytes.Buffer{},
-				lineDecoder: ltsvLineDecoder,
-				lineHandler: JSONLineHandler,
+				ctx:             context.Background(),
+				labels:          nil,
+				skipLines:       nil,
+				hasPrefix:       false,
+				hasUnmatchLines: false,
+				hasLineNumber:   false,
+				lineDecoder:     ltsvLineDecoder,
+				lineHandler:     JSONLineHandler,
 			},
 			args: args{
-				filePath:      filepath.Join("testdata", "sample_ltsv_all_match.log"),
-				keywords:      nil,
-				labels:        nil,
-				skipLines:     nil,
-				hasLineNumber: false,
+				filePath: filepath.Join("testdata", "sample_ltsv_all_match.log"),
 			},
 			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -309,11 +406,17 @@ func TestLTSVParser_ParseFile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
 			p := &LTSVParser{
-				writer:      output,
-				lineDecoder: tt.fields.lineDecoder,
-				lineHandler: tt.fields.lineHandler,
+				ctx:             tt.fields.ctx,
+				writer:          output,
+				labels:          tt.fields.labels,
+				skipLines:       tt.fields.skipLines,
+				hasPrefix:       tt.fields.hasPrefix,
+				hasUnmatchLines: tt.fields.hasUnmatchLines,
+				hasLineNumber:   tt.fields.hasLineNumber,
+				lineDecoder:     tt.fields.lineDecoder,
+				lineHandler:     tt.fields.lineHandler,
 			}
-			got, err := p.ParseFile(tt.args.filePath, tt.args.keywords, tt.args.labels, tt.args.skipLines, tt.args.hasLineNumber)
+			got, err := p.ParseFile(tt.args.filePath)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
@@ -328,16 +431,17 @@ func TestLTSVParser_ParseFile(t *testing.T) {
 
 func TestLTSVParser_ParseGzip(t *testing.T) {
 	type fields struct {
-		writer      io.Writer
-		lineDecoder lineDecoder
-		lineHandler LineHandler
+		ctx             context.Context
+		labels          []string
+		skipLines       []int
+		hasPrefix       bool
+		hasUnmatchLines bool
+		hasLineNumber   bool
+		lineDecoder     lineDecoder
+		lineHandler     LineHandler
 	}
 	type args struct {
-		gzipPath      string
-		keywords      []string
-		labels        []string
-		skipLines     []int
-		hasLineNumber bool
+		gzipPath string
 	}
 	tests := []struct {
 		name       string
@@ -350,16 +454,17 @@ func TestLTSVParser_ParseGzip(t *testing.T) {
 		{
 			name: "ltsv: all match",
 			fields: fields{
-				writer:      &bytes.Buffer{},
-				lineDecoder: ltsvLineDecoder,
-				lineHandler: JSONLineHandler,
+				ctx:             context.Background(),
+				labels:          nil,
+				skipLines:       nil,
+				hasPrefix:       false,
+				hasUnmatchLines: false,
+				hasLineNumber:   false,
+				lineDecoder:     ltsvLineDecoder,
+				lineHandler:     JSONLineHandler,
 			},
 			args: args{
-				gzipPath:      filepath.Join("testdata", "sample_ltsv_all_match.log.gz"),
-				keywords:      nil,
-				labels:        nil,
-				skipLines:     nil,
-				hasLineNumber: false,
+				gzipPath: filepath.Join("testdata", "sample_ltsv_all_match.log.gz"),
 			},
 			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -374,11 +479,17 @@ func TestLTSVParser_ParseGzip(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
 			p := &LTSVParser{
-				writer:      output,
-				lineDecoder: tt.fields.lineDecoder,
-				lineHandler: tt.fields.lineHandler,
+				ctx:             tt.fields.ctx,
+				writer:          output,
+				labels:          tt.fields.labels,
+				skipLines:       tt.fields.skipLines,
+				hasPrefix:       tt.fields.hasPrefix,
+				hasUnmatchLines: tt.fields.hasUnmatchLines,
+				hasLineNumber:   tt.fields.hasLineNumber,
+				lineDecoder:     tt.fields.lineDecoder,
+				lineHandler:     tt.fields.lineHandler,
 			}
-			got, err := p.ParseGzip(tt.args.gzipPath, tt.args.keywords, tt.args.labels, tt.args.skipLines, tt.args.hasLineNumber)
+			got, err := p.ParseGzip(tt.args.gzipPath)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
@@ -393,17 +504,18 @@ func TestLTSVParser_ParseGzip(t *testing.T) {
 
 func TestLTSVParser_ParseZipEntries(t *testing.T) {
 	type fields struct {
-		writer      io.Writer
-		lineDecoder lineDecoder
-		lineHandler LineHandler
+		ctx             context.Context
+		labels          []string
+		skipLines       []int
+		hasPrefix       bool
+		hasUnmatchLines bool
+		hasLineNumber   bool
+		lineDecoder     lineDecoder
+		lineHandler     LineHandler
 	}
 	type args struct {
-		zipPath       string
-		globPattern   string
-		keywords      []string
-		labels        []string
-		skipLines     []int
-		hasLineNumber bool
+		zipPath     string
+		globPattern string
 	}
 	tests := []struct {
 		name       string
@@ -416,17 +528,18 @@ func TestLTSVParser_ParseZipEntries(t *testing.T) {
 		{
 			name: "ltsv: all match",
 			fields: fields{
-				writer:      &bytes.Buffer{},
-				lineDecoder: ltsvLineDecoder,
-				lineHandler: JSONLineHandler,
+				ctx:             context.Background(),
+				labels:          nil,
+				skipLines:       nil,
+				hasPrefix:       false,
+				hasUnmatchLines: false,
+				hasLineNumber:   false,
+				lineDecoder:     ltsvLineDecoder,
+				lineHandler:     JSONLineHandler,
 			},
 			args: args{
-				zipPath:       filepath.Join("testdata", "sample_ltsv_all_match.log.zip"),
-				globPattern:   "*",
-				keywords:      nil,
-				labels:        nil,
-				skipLines:     nil,
-				hasLineNumber: false,
+				zipPath:     filepath.Join("testdata", "sample_ltsv_all_match.log.zip"),
+				globPattern: "*",
 			},
 			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -441,11 +554,17 @@ func TestLTSVParser_ParseZipEntries(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
 			p := &LTSVParser{
-				writer:      output,
-				lineDecoder: tt.fields.lineDecoder,
-				lineHandler: tt.fields.lineHandler,
+				ctx:             tt.fields.ctx,
+				writer:          output,
+				labels:          tt.fields.labels,
+				skipLines:       tt.fields.skipLines,
+				hasPrefix:       tt.fields.hasPrefix,
+				hasUnmatchLines: tt.fields.hasUnmatchLines,
+				hasLineNumber:   tt.fields.hasLineNumber,
+				lineDecoder:     tt.fields.lineDecoder,
+				lineHandler:     tt.fields.lineHandler,
 			}
-			got, err := p.ParseZipEntries(tt.args.zipPath, tt.args.globPattern, tt.args.keywords, tt.args.labels, tt.args.skipLines, tt.args.hasLineNumber)
+			got, err := p.ParseZipEntries(tt.args.zipPath, tt.args.globPattern)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return

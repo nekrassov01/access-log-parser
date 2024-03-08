@@ -42,9 +42,7 @@ func TestResult_String(t *testing.T) {
 				inputType:   inputTypeString,
 			},
 			want: "\n" +
-				"\033[1;36m" +
 				"/* SUMMARY */" +
-				"\033[0m" +
 				"\n\n" +
 				"+-------+---------+-----------+----------+---------+-------------+\n" +
 				"| Total | Matched | Unmatched | Excluded | Skipped | ElapsedTime |\n" +
@@ -52,13 +50,11 @@ func TestResult_String(t *testing.T) {
 				"|     1 |       1 |         0 |        0 |       0 | 1h0m0s      |\n" +
 				"+-------+---------+-----------+----------+---------+-------------+\n" +
 				"\n" +
-				"\033[2;37m" +
 				"Total     : Total number of log line processed\n" +
 				"Matched   : Number of log line that successfully matched pattern\n" +
 				"Unmatched : Number of log line that did not match any pattern\n" +
-				"Excluded  : Number of log line that did not hit by keyword search\n" +
-				"Skipped   : Number of log line that skipped by line number (disabled in stream mode)\n" +
-				"\033[0m",
+				"Excluded  : Number of log line that did not extract by filter expressions\n" +
+				"Skipped   : Number of log line that skipped by line number\n",
 		},
 		{
 			name: "file",
@@ -75,9 +71,7 @@ func TestResult_String(t *testing.T) {
 				inputType:   inputTypeFile,
 			},
 			want: "\n" +
-				"\033[1;36m" +
 				"/* SUMMARY */" +
-				"\033[0m" +
 				"\n\n" +
 				"+-------+---------+-----------+----------+---------+-------------+----------+\n" +
 				"| Total | Matched | Unmatched | Excluded | Skipped | ElapsedTime | Source   |\n" +
@@ -85,13 +79,11 @@ func TestResult_String(t *testing.T) {
 				"|     1 |       1 |         0 |        0 |       0 | 1h0m0s      | test.txt |\n" +
 				"+-------+---------+-----------+----------+---------+-------------+----------+\n" +
 				"\n" +
-				"\033[2;37m" +
 				"Total     : Total number of log line processed\n" +
 				"Matched   : Number of log line that successfully matched pattern\n" +
 				"Unmatched : Number of log line that did not match any pattern\n" +
-				"Excluded  : Number of log line that did not hit by keyword search\n" +
-				"Skipped   : Number of log line that skipped by line number (disabled in stream mode)\n" +
-				"\033[0m",
+				"Excluded  : Number of log line that did not extract by filter expressions\n" +
+				"Skipped   : Number of log line that skipped by line number\n",
 		},
 		{
 			name: "all",
@@ -169,9 +161,7 @@ func TestResult_String(t *testing.T) {
 				inputType: inputTypeZip,
 			},
 			want: "\n" +
-				"\033[1;36m" +
 				"/* SUMMARY */" +
-				"\033[0m" +
 				"\n\n" +
 				"+-------+---------+-----------+----------+---------+-------------+---------+------------+\n" +
 				"| Total | Matched | Unmatched | Excluded | Skipped | ElapsedTime | Source  | ZipEntries |\n" +
@@ -181,17 +171,13 @@ func TestResult_String(t *testing.T) {
 				"|       |         |           |          |         |             |         | 3.log      |\n" +
 				"+-------+---------+-----------+----------+---------+-------------+---------+------------+\n" +
 				"\n" +
-				"\033[2;37m" +
 				"Total     : Total number of log line processed\n" +
 				"Matched   : Number of log line that successfully matched pattern\n" +
 				"Unmatched : Number of log line that did not match any pattern\n" +
-				"Excluded  : Number of log line that did not hit by keyword search\n" +
-				"Skipped   : Number of log line that skipped by line number (disabled in stream mode)\n" +
-				"\033[0m" +
+				"Excluded  : Number of log line that did not extract by filter expressions\n" +
+				"Skipped   : Number of log line that skipped by line number\n" +
 				"\n" +
-				"\033[1;36m" +
 				"/* UNMATCH LINES */" +
-				"\033[0m" +
 				"\n\n" +
 				"+--------------------+------------+------------------------------------------------------------------------------------------------+\n" +
 				"| Entry              | LineNumber | Line                                                                                           |\n" +
@@ -218,14 +204,10 @@ func TestResult_String(t *testing.T) {
 				"+--------------------+------------+------------------------------------------------------------------------------------------------+\n" +
 				"| 3.log              |          5 | bbb                                                                                            |\n" +
 				"+--------------------+------------+------------------------------------------------------------------------------------------------+\n" +
-				"\033[33m" +
 				"// Show only the first 10 of 12 errors\n" +
-				"\033[0m" +
 				"\n" +
-				"\033[2;37m" +
 				"LineNumber : Line number of the log that did not match any pattern\n" +
-				"Line       : Raw log line that did not match any pattern\n" +
-				"\033[0m",
+				"Line       : Raw log line that did not match any pattern\n",
 		},
 		{
 			name: "stream",
@@ -247,9 +229,7 @@ func TestResult_String(t *testing.T) {
 				inputType: inputTypeStream,
 			},
 			want: "\n\n" +
-				"\033[1;36m" +
 				"/* SUMMARY */" +
-				"\033[0m" +
 				"\n\n" +
 				"+-------+---------+-----------+----------+-------------+\n" +
 				"| Total | Matched | Unmatched | Excluded | ElapsedTime |\n" +
@@ -257,17 +237,13 @@ func TestResult_String(t *testing.T) {
 				"|     2 |       1 |         1 |        0 | 1h0m0s      |\n" +
 				"+-------+---------+-----------+----------+-------------+\n" +
 				"\n" +
-				"\033[2;37m" +
 				"Total     : Total number of log line processed\n" +
 				"Matched   : Number of log line that successfully matched pattern\n" +
 				"Unmatched : Number of log line that did not match any pattern\n" +
-				"Excluded  : Number of log line that did not hit by keyword search\n" +
-				"Skipped   : Number of log line that skipped by line number (disabled in stream mode)\n" +
-				"\033[0m" +
+				"Excluded  : Number of log line that did not extract by filter expressions\n" +
+				"Skipped   : Number of log line that skipped by line number\n" +
 				"\n" +
-				"\033[1;36m" +
 				"/* UNMATCH LINES */" +
-				"\033[0m" +
 				"\n\n" +
 				"+------------+------+\n" +
 				"| LineNumber | Line |\n" +
@@ -275,10 +251,8 @@ func TestResult_String(t *testing.T) {
 				"|          2 | aaa  |\n" +
 				"+------------+------+\n" +
 				"\n" +
-				"\033[2;37m" +
 				"LineNumber : Line number of the log that did not match any pattern\n" +
-				"Line       : Raw log line that did not match any pattern\n" +
-				"\033[0m",
+				"Line       : Raw log line that did not match any pattern\n",
 		},
 	}
 	for _, tt := range tests {

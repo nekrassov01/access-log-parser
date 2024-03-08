@@ -586,7 +586,8 @@ func TestTSVLineHandler(t *testing.T) {
 				hasLineNumber: true,
 				isFirst:       true,
 			},
-			want:    "\033[1;37mno	label1	label2\033[0m\n1	value1	123",
+			want: `no	label1	label2
+1	value1	123`,
 			wantErr: false,
 		},
 		{
@@ -598,7 +599,8 @@ func TestTSVLineHandler(t *testing.T) {
 				hasLineNumber: false,
 				isFirst:       true,
 			},
-			want:    "\033[1;37mlabel1	label2\033[0m\nvalue1	123",
+			want: `label1	label2
+value1	123`,
 			wantErr: false,
 		},
 	}

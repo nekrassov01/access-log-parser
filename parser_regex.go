@@ -9,73 +9,145 @@ import (
 
 var _ Parser = (*RegexParser)(nil)
 
-// RegexParser implements the Parser interface using regular expressions to parse log data.
-// It allows customization of line and metadata handling as well as pattern matching.
-type RegexParser struct {
-	writer      io.Writer
-	lineDecoder lineDecoder
-	lineHandler LineHandler
-	patterns    []*regexp.Regexp
+type RegexBuilder struct {
+	parser *RegexParser
 }
 
-// NewRegexParser initializes a new RegexParser with default handlers for line decoding, line handling,
-// and metadata handling. It's ready to use with additional pattern setup.
-func NewRegexParser(writer io.Writer) *RegexParser {
+func NewRegexBuilder(ctx context.Context, writer io.Writer) *RegexBuilder {
+	return &RegexBuilder{
+		parser: &RegexParser{
+			ctx:         ctx,
+			writer:      writer,
+			lineDecoder: regexLineDecoder,
+			lineHandler: JSONLineHandler,
+		},
+	}
+}
+
+// RegexParser implements the Parser interface using regular expressions to parse log data.
+// It allows customization of line handling as well as pattern matching.
+type RegexParser struct {
+	ctx             context.Context
+	writer          io.Writer
+	labels          []string
+	filters         []string
+	skipLines       []int
+	hasPrefix       bool
+	hasUnmatchLines bool
+	hasLineNumber   bool
+	lineDecoder     lineDecoder
+	lineHandler     LineHandler
+	patterns        []*regexp.Regexp
+}
+
+// NewRegexParser initializes a new RegexParser with default handlers for line decoding, line handling.
+// It's ready to use with additional pattern setup.
+func NewRegexParser(ctx context.Context, writer io.Writer) *RegexParser {
 	return &RegexParser{
+		ctx:         ctx,
 		writer:      writer,
 		lineDecoder: regexLineDecoder,
 		lineHandler: JSONLineHandler,
 	}
 }
 
+// SelectLabels sets the label names to be output.
+// Only selected fields can be returned.
+func (p *RegexParser) SelectLabels(labels []string) *RegexParser {
+	p.labels = labels
+	return p
+}
+
+// SetSkipLines specifies the line numbers to skip.
+// This is useful if you want to exclude headers and footers.
+func (p *RegexParser) SetSkipLines(skipLines []int) *RegexParser {
+	p.skipLines = skipLines
+	return p
+}
+
+// EnablePrefix determines whether log lines are prefixed with [ PROCESSED | UNMATCHED ] etc.
+// It is intended to be used with EnableUnmatchLines. Default is false.
+func (p *RegexParser) EnablePrefix(has bool) *RegexParser {
+	p.hasPrefix = has
+	return p
+}
+
+// EnableUnmatchLines determines whether lines that did not match should also be output as raw logs.
+func (p *RegexParser) EnableUnmatchLines(has bool) *RegexParser {
+	p.hasUnmatchLines = has
+	return p
+}
+
+// EnableLineNumber determines whether line numbers are set.
+func (p *RegexParser) EnableLineNumber(has bool) *RegexParser {
+	p.hasLineNumber = has
+	return p
+}
+
+// SetFilters sets the filter expression for log lines as a string.
+// "*" denotes case-insensitive.
+//
+//	> >= == <= < (arithmetic (float64))
+//	== ==* != !=* (string comparison (string))
+//	=~ !~ =~* !~* (regular expression (string))
+func (p *RegexParser) SetFilters(filters []string) *RegexParser {
+	p.filters = filters
+	return p
+}
+
 // SetLineHandler sets the function responsible for processing each line of log data.
-// If handler is nil, it defaults to no operation.
-func (p *RegexParser) SetLineHandler(handler LineHandler) {
+func (p *RegexParser) SetLineHandler(handler LineHandler) *RegexParser {
 	if handler == nil {
-		return
+		return p
 	}
 	p.lineHandler = handler
+	return p
 }
 
 // Parse processes log data from an io.Reader, applying configured patterns and handlers.
 // It supports context cancellation, prefixing, and exclusion of lines.
-func (p *RegexParser) Parse(ctx context.Context, reader io.Reader, keywords, labels []string, hasPrefix, disableUnmatch bool) (*Result, error) {
-	return parse(ctx, reader, p.writer, p.patterns, keywords, labels, hasPrefix, disableUnmatch, p.lineDecoder, p.lineHandler)
+func (p *RegexParser) Parse(reader io.Reader) (*Result, error) {
+	return parse(p.ctx, reader, p.writer, p.patterns, p.labels, p.filters, p.skipLines, p.hasPrefix, p.hasUnmatchLines, p.hasLineNumber, p.lineDecoder, p.lineHandler)
 }
 
 // ParseString processes a single log string, applying skip lines and line number handling.
 // It's a convenience method for quick string parsing with the configured parser instance.
-func (p *RegexParser) ParseString(s string, keywords, labels []string, skipLines []int, hasLineNumber bool) (*Result, error) {
-	return parseString(s, p.writer, p.patterns, keywords, labels, skipLines, hasLineNumber, p.lineDecoder, p.lineHandler)
+func (p *RegexParser) ParseString(s string) (*Result, error) {
+	return parseString(p.ctx, s, p.writer, p.patterns, p.labels, p.filters, p.skipLines, p.hasPrefix, p.hasUnmatchLines, p.hasLineNumber, p.lineDecoder, p.lineHandler)
 }
 
 // ParseFile processes log data from a file, applying skip lines and line number handling.
 // It leverages the parser's configured patterns and handlers for file-based log parsing.
-func (p *RegexParser) ParseFile(filePath string, keywords, labels []string, skipLines []int, hasLineNumber bool) (*Result, error) {
-	return parseFile(filePath, p.writer, p.patterns, keywords, labels, skipLines, hasLineNumber, p.lineDecoder, p.lineHandler)
+func (p *RegexParser) ParseFile(filePath string) (*Result, error) {
+	return parseFile(p.ctx, filePath, p.writer, p.patterns, p.labels, p.filters, p.skipLines, p.hasPrefix, p.hasUnmatchLines, p.hasLineNumber, p.lineDecoder, p.lineHandler)
 }
 
 // ParseGzip processes gzip-compressed log data, applying skip lines and line number handling.
 // It utilizes the parser's configurations for compressed log parsing.
-func (p *RegexParser) ParseGzip(gzipPath string, keywords, labels []string, skipLines []int, hasLineNumber bool) (*Result, error) {
-	return parseGzip(gzipPath, p.writer, p.patterns, keywords, labels, skipLines, hasLineNumber, p.lineDecoder, p.lineHandler)
+func (p *RegexParser) ParseGzip(gzipPath string) (*Result, error) {
+	return parseGzip(p.ctx, gzipPath, p.writer, p.patterns, p.labels, p.filters, p.skipLines, p.hasPrefix, p.hasUnmatchLines, p.hasLineNumber, p.lineDecoder, p.lineHandler)
 }
 
 // ParseZipEntries processes log data within zip archive entries, applying skip lines, line number handling,
 // and glob pattern matching. It extends the parser's capabilities to zip-compressed logs.
-func (p *RegexParser) ParseZipEntries(zipPath, globPattern string, keywords, labels []string, skipLines []int, hasLineNumber bool) (*Result, error) {
-	return parseZipEntries(zipPath, globPattern, p.writer, p.patterns, keywords, labels, skipLines, hasLineNumber, p.lineDecoder, p.lineHandler)
+func (p *RegexParser) ParseZipEntries(zipPath, globPattern string) (*Result, error) {
+	return parseZipEntries(p.ctx, zipPath, globPattern, p.writer, p.patterns, p.labels, p.filters, p.skipLines, p.hasPrefix, p.hasUnmatchLines, p.hasLineNumber, p.lineDecoder, p.lineHandler)
+}
+
+// Patterns returns the list of regular expression patterns currently configured in the parser.
+func (p *RegexParser) Patterns() []*regexp.Regexp {
+	return p.patterns
 }
 
 // AddPattern adds a new regular expression pattern to the parser's pattern list.
 // It validates the pattern to ensure it has named capture groups for structured parsing.
 func (p *RegexParser) AddPattern(pattern *regexp.Regexp) error {
 	if len(pattern.SubexpNames()) <= 1 {
-		return fmt.Errorf("invalid pattern detected: capture group not found")
+		return fmt.Errorf("invalid pattern: capture group not found")
 	}
 	for j, name := range pattern.SubexpNames() {
 		if j != 0 && name == "" {
-			return fmt.Errorf("invalid pattern detected: non-named capture group detected")
+			return fmt.Errorf("invalid pattern: non-named capture group detected")
 		}
 	}
 	p.patterns = append(p.patterns, pattern)
@@ -93,15 +165,11 @@ func (p *RegexParser) AddPatterns(patterns []*regexp.Regexp) error {
 	return nil
 }
 
-// GetPatterns returns the list of regular expression patterns currently configured in the parser.
-func (p *RegexParser) GetPatterns() []*regexp.Regexp {
-	return p.patterns
-}
-
 // NewApacheCLFRegexParser initializes a new RegexParser specifically for parsing Apache Common Log Format (CLF) logs.
 // It preconfigures the parser with regular expression patterns that match the Apache CLF log format.
-func NewApacheCLFRegexParser(writer io.Writer) *RegexParser {
+func NewApacheCLFRegexParser(ctx context.Context, writer io.Writer) *RegexParser {
 	return &RegexParser{
+		ctx:         ctx,
 		writer:      writer,
 		lineDecoder: regexLineDecoder,
 		lineHandler: JSONLineHandler,
@@ -116,8 +184,9 @@ func NewApacheCLFRegexParser(writer io.Writer) *RegexParser {
 
 // NewApacheCLFWithVHostRegexParser initializes a new RegexParser for parsing Apache logs with Virtual Host information.
 // It extends the Apache CLF parser to include patterns that also capture the virtual host of each log entry.
-func NewApacheCLFWithVHostRegexParser(writer io.Writer) *RegexParser {
+func NewApacheCLFWithVHostRegexParser(ctx context.Context, writer io.Writer) *RegexParser {
 	return &RegexParser{
+		ctx:         ctx,
 		writer:      writer,
 		lineDecoder: regexLineDecoder,
 		lineHandler: JSONLineHandler,
@@ -132,8 +201,9 @@ func NewApacheCLFWithVHostRegexParser(writer io.Writer) *RegexParser {
 
 // NewS3RegexParser initializes a new RegexParser for parsing Amazon S3 access logs.
 // It is preconfigured with patterns that match the S3 access log format, facilitating easy parsing of S3 logs.
-func NewS3RegexParser(writer io.Writer) *RegexParser {
+func NewS3RegexParser(ctx context.Context, writer io.Writer) *RegexParser {
 	return &RegexParser{
+		ctx:         ctx,
 		writer:      writer,
 		lineDecoder: regexLineDecoder,
 		lineHandler: JSONLineHandler,
@@ -149,8 +219,9 @@ func NewS3RegexParser(writer io.Writer) *RegexParser {
 
 // NewCFRegexParser initializes a new RegexParser for parsing Amazon CloudFront logs.
 // It keywords patterns tailored to the CloudFront log format, simplifying the parsing of CloudFront access logs.
-func NewCFRegexParser(writer io.Writer) *RegexParser {
+func NewCFRegexParser(ctx context.Context, writer io.Writer) *RegexParser {
 	return &RegexParser{
+		ctx:         ctx,
 		writer:      writer,
 		lineDecoder: regexLineDecoder,
 		lineHandler: JSONLineHandler,
@@ -162,8 +233,9 @@ func NewCFRegexParser(writer io.Writer) *RegexParser {
 
 // NewALBRegexParser initializes a new RegexParser for parsing AWS Application Load Balancer (ALB) access logs.
 // It comes preconfigured with patterns designed to parse ALB logs, making it easier to extract useful data from ALB logs.
-func NewALBRegexParser(writer io.Writer) *RegexParser {
+func NewALBRegexParser(ctx context.Context, writer io.Writer) *RegexParser {
 	return &RegexParser{
+		ctx:         ctx,
 		writer:      writer,
 		lineDecoder: regexLineDecoder,
 		lineHandler: JSONLineHandler,
@@ -175,8 +247,9 @@ func NewALBRegexParser(writer io.Writer) *RegexParser {
 
 // NewNLBRegexParser initializes a new RegexParser for parsing AWS Network Load Balancer (NLB) access logs.
 // This parser is equipped with patterns that are specifically designed for the NLB log format.
-func NewNLBRegexParser(writer io.Writer) *RegexParser {
+func NewNLBRegexParser(ctx context.Context, writer io.Writer) *RegexParser {
 	return &RegexParser{
+		ctx:         ctx,
 		writer:      writer,
 		lineDecoder: regexLineDecoder,
 		lineHandler: JSONLineHandler,
@@ -188,8 +261,9 @@ func NewNLBRegexParser(writer io.Writer) *RegexParser {
 
 // NewCLBRegexParser initializes a new RegexParser for parsing AWS Classic Load Balancer (CLB) access logs.
 // It provides patterns that are tailored to the CLB log format, enabling efficient parsing of CLB logs.
-func NewCLBRegexParser(writer io.Writer) *RegexParser {
+func NewCLBRegexParser(ctx context.Context, writer io.Writer) *RegexParser {
 	return &RegexParser{
+		ctx:         ctx,
 		writer:      writer,
 		lineDecoder: regexLineDecoder,
 		lineHandler: JSONLineHandler,
