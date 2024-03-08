@@ -117,7 +117,7 @@ func (r *Result) newSummaryTable(w io.Writer) (*mintab.Table, error) {
 	table := mintab.New(w, mintab.WithFormat(mintab.FormatText), mintab.WithIgnoreFields(i))
 	r.Errors = []Errors{}
 	if err := table.Load(r); err != nil {
-		return nil, fmt.Errorf("invalid parsing results: %w", err)
+		return nil, fmt.Errorf("%s: %w", resultError, err)
 	}
 	return table, nil
 }
@@ -134,7 +134,7 @@ func (r *Result) newErrorsTable(w io.Writer) (*mintab.Table, error) {
 	}
 	table := mintab.New(w, mintab.WithFormat(mintab.FormatText), mintab.WithIgnoreFields(i))
 	if err := table.Load(r.Errors); err != nil {
-		return nil, fmt.Errorf("invalid parsing results: %w", err)
+		return nil, fmt.Errorf("%s: %w", resultError, err)
 	}
 	return table, nil
 }

@@ -143,11 +143,11 @@ func (p *RegexParser) Patterns() []*regexp.Regexp {
 // It validates the pattern to ensure it has named capture groups for structured parsing.
 func (p *RegexParser) AddPattern(pattern *regexp.Regexp) error {
 	if len(pattern.SubexpNames()) <= 1 {
-		return fmt.Errorf("invalid pattern: capture group not found")
+		return fmt.Errorf("%s: capture group not found", regexPatternError)
 	}
 	for j, name := range pattern.SubexpNames() {
 		if j != 0 && name == "" {
-			return fmt.Errorf("invalid pattern: non-named capture group detected")
+			return fmt.Errorf("%s: non-named capture group detected", regexPatternError)
 		}
 	}
 	p.patterns = append(p.patterns, pattern)
