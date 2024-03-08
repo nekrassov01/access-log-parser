@@ -264,12 +264,12 @@ func TestLTSVParser_Parse_2(t *testing.T) {
 				lineDecoder:     tt.fields.lineDecoder,
 				lineHandler:     tt.fields.lineHandler,
 			}
-			p.SelectLabels([]string{}).
-				SetSkipLines([]int{}).
+			p.SelectLabels(nil).
+				SetSkipLines(nil).
 				EnablePrefix(true).
 				EnableUnmatchLines(true).
 				EnableLineNumber(true).
-				SetFilters([]string{})
+				SetFilters(nil)
 			got, err := p.Parse(tt.args.reader)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)

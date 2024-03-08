@@ -273,12 +273,15 @@ func TestRegexParser_Parse_2(t *testing.T) {
 				lineHandler:     tt.fields.lineHandler,
 				patterns:        tt.fields.patterns,
 			}
-			p.SelectLabels([]string{}).
-				SetSkipLines([]int{}).
+			p.SelectLabels(nil).
+				SetSkipLines(nil).
 				EnablePrefix(true).
 				EnableUnmatchLines(true).
 				EnableLineNumber(true).
-				SetFilters([]string{})
+				SetFilters(nil)
+			if err := p.AddPatterns(nil); err != nil {
+				t.Fatal(err)
+			}
 			got, err := p.Parse(tt.args.reader)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
