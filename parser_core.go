@@ -229,7 +229,7 @@ func parser(ctx context.Context, input io.Reader, output io.Writer, patterns []*
 				r.Excluded++
 				continue
 			}
-			ls, vs = applyLabels(opt.Labels, ls, vs)
+			ls, vs = selectLabels(opt.Labels, ls, vs)
 			line, err := opt.LineHandler(ls, vs, i, opt.LineNumber, isFirst)
 			if err != nil {
 				return nil, err
@@ -286,82 +286,8 @@ func ltsvLineDecoder(line string, _ []*regexp.Regexp) ([]string, []string, error
 	return ls, vs, nil
 }
 
-// handleFile opens a file for reading, ensuring it is properly closed after processing.
-// It abstracts file handling, providing a clean and reusable way to work with file resources.
-func handleFile(filePath string) (*os.File, func(), error) {
-	if filePath == "" {
-		return nil, nil, fmt.Errorf(emptyPathError)
-	}
-	f, err := os.Open(filepath.Clean(filePath))
-	if err != nil {
-		return nil, nil, fmt.Errorf("%s: %w", openFileError, err)
-	}
-	cleanup := func() {
-		f.Close()
-	}
-	return f, cleanup, nil
-}
-
-// handleGzip opens a gzip-compressed file and prepares it for reading, handling decompression transparently.
-// It simplifies working with gzip files, abstracting away the details of decompression.
-func handleGzip(gzipPath string) (*gzip.Reader, func(), error) {
-	if gzipPath == "" {
-		return nil, nil, fmt.Errorf(emptyPathError)
-	}
-	f, err := os.Open(filepath.Clean(gzipPath))
-	if err != nil {
-		return nil, nil, fmt.Errorf("%s: %w", openFileError, err)
-	}
-	g, err := gzip.NewReader(f)
-	if err != nil {
-		f.Close()
-		return nil, nil, err
-	}
-	cleanup := func() {
-		g.Close()
-		f.Close()
-	}
-	return g, cleanup, nil
-}
-
-// handleZipEntries iterates over entries in a zip file, applying a provided function to each matching entry.
-// It supports glob pattern matching for entry names, enabling selective processing of zip contents.
-func handleZipEntries(zipPath string, globPattern string, fn func(f *zip.File) error) error {
-	if zipPath == "" {
-		return fmt.Errorf(emptyPathError)
-	}
-	z, err := zip.OpenReader(zipPath)
-	if err != nil {
-		return fmt.Errorf("%s: %w", openFileError, err)
-	}
-	defer z.Close()
-	for _, f := range z.File {
-		matched, err := filepath.Match(globPattern, f.Name)
-		if err != nil {
-			return fmt.Errorf("%s: %w", globPatternError, err)
-		}
-		if !matched {
-			continue
-		}
-		if err := fn(f); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// applySkipLines generates a map indicating which line numbers should be skipped during parsing.
-// It takes a slice of line numbers to skip and returns a map with these line numbers as keys.
-func applySkipLines(skipLines []int) map[int]struct{} {
-	m := make(map[int]struct{}, len(skipLines))
-	for _, skipLine := range skipLines {
-		m[skipLine] = struct{}{}
-	}
-	return m
-}
-
-// applyLabels filters the given labels and values based on a list of target labels.
-func applyLabels(targets, labels, values []string) ([]string, []string) {
+// selectLabels filters the given labels and values based on a list of target labels.
+func selectLabels(targets, labels, values []string) ([]string, []string) {
 	if len(targets) == 0 {
 		return labels, values
 	}
@@ -378,6 +304,16 @@ func applyLabels(targets, labels, values []string) ([]string, []string) {
 		}
 	}
 	return ls, vs
+}
+
+// applySkipLines generates a map indicating which line numbers should be skipped during parsing.
+// It takes a slice of line numbers to skip and returns a map with these line numbers as keys.
+func applySkipLines(skipLines []int) map[int]struct{} {
+	m := make(map[int]struct{}, len(skipLines))
+	for _, skipLine := range skipLines {
+		m[skipLine] = struct{}{}
+	}
+	return m
 }
 
 // applyPrefix sets the play fix for log lines.
@@ -538,4 +474,68 @@ func getRegexFilter(operator, value string) (lineFilter, error) {
 	default:
 		return nil, fmt.Errorf("%s: \"%s\"", operatorError, operator)
 	}
+}
+
+// handleFile opens a file for reading, ensuring it is properly closed after processing.
+// It abstracts file handling, providing a clean and reusable way to work with file resources.
+func handleFile(filePath string) (*os.File, func(), error) {
+	if filePath == "" {
+		return nil, nil, fmt.Errorf(emptyPathError)
+	}
+	f, err := os.Open(filepath.Clean(filePath))
+	if err != nil {
+		return nil, nil, fmt.Errorf("%s: %w", openFileError, err)
+	}
+	cleanup := func() {
+		f.Close()
+	}
+	return f, cleanup, nil
+}
+
+// handleGzip opens a gzip-compressed file and prepares it for reading, handling decompression transparently.
+// It simplifies working with gzip files, abstracting away the details of decompression.
+func handleGzip(gzipPath string) (*gzip.Reader, func(), error) {
+	if gzipPath == "" {
+		return nil, nil, fmt.Errorf(emptyPathError)
+	}
+	f, err := os.Open(filepath.Clean(gzipPath))
+	if err != nil {
+		return nil, nil, fmt.Errorf("%s: %w", openFileError, err)
+	}
+	g, err := gzip.NewReader(f)
+	if err != nil {
+		f.Close()
+		return nil, nil, err
+	}
+	cleanup := func() {
+		g.Close()
+		f.Close()
+	}
+	return g, cleanup, nil
+}
+
+// handleZipEntries iterates over entries in a zip file, applying a provided function to each matching entry.
+// It supports glob pattern matching for entry names, enabling selective processing of zip contents.
+func handleZipEntries(zipPath string, globPattern string, fn func(f *zip.File) error) error {
+	if zipPath == "" {
+		return fmt.Errorf(emptyPathError)
+	}
+	z, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return fmt.Errorf("%s: %w", openFileError, err)
+	}
+	defer z.Close()
+	for _, f := range z.File {
+		matched, err := filepath.Match(globPattern, f.Name)
+		if err != nil {
+			return fmt.Errorf("%s: %w", globPatternError, err)
+		}
+		if !matched {
+			continue
+		}
+		if err := fn(f); err != nil {
+			return err
+		}
+	}
+	return nil
 }
