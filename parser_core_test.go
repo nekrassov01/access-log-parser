@@ -19,6 +19,14 @@ import (
 )
 
 var (
+	stringPattern                               string
+	stringInvalidCapturePattern                 string
+	stringCapturedGroupNotContainsPattern       string
+	stringNonNamedCapturedGroupContainsPattern  string
+	stringPatterns                              []string
+	stringCapturedGroupNotContainsPatterns      []string
+	stringNonNamedCapturedGroupContainsPatterns []string
+
 	regexPattern                               *regexp.Regexp
 	regexCapturedGroupNotContainsPattern       *regexp.Regexp
 	regexNonNamedCapturedGroupContainsPattern  *regexp.Regexp
@@ -85,16 +93,31 @@ func TestMain(m *testing.M) {
 }
 
 func setup() {
-	regexPattern = regexp.MustCompile(`^(?P<bucket_owner>[!-~]+) (?P<bucket>[!-~]+) (?P<time>\[[^\]]+\]) (?P<remote_ip>[!-~]+) (?P<requester>[!-~]+) (?P<request_id>[!-~]+) (?P<operation>[!-~]+) (?P<key>[!-~]+) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<http_status>\d{1,3}) (?P<error_code>[!-~]+) (?P<bytes_sent>[\d\-.]+) (?P<object_size>[\d\-.]+) (?P<total_time>[\d\-.]+) (?P<turn_around_time>[\d\-.]+) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)" (?P<version_id>[!-~]+)`)
-	regexCapturedGroupNotContainsPattern = regexp.MustCompile("[!-~]+")
-	regexNonNamedCapturedGroupContainsPattern = regexp.MustCompile("(?P<field1>[!-~]+) ([!-~]+) (?P<field3>[!-~]+)")
-	regexPatterns = []*regexp.Regexp{
-		regexp.MustCompile(`^(?P<bucket_owner>[!-~]+) (?P<bucket>[!-~]+) (?P<time>\[[^\]]+\]) (?P<remote_ip>[!-~]+) (?P<requester>[!-~]+) (?P<request_id>[!-~]+) (?P<operation>[!-~]+) (?P<key>[!-~]+) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<http_status>\d{1,3}) (?P<error_code>[!-~]+) (?P<bytes_sent>[\d\-.]+) (?P<object_size>[\d\-.]+) (?P<total_time>[\d\-.]+) (?P<turn_around_time>[\d\-.]+) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)" (?P<version_id>[!-~]+) (?P<host_id>[!-~]+) (?P<signature_version>[!-~]+) (?P<cipher_suite>[!-~]+) (?P<authentication_type>[!-~]+) (?P<host_header>[!-~]+) (?P<tls_version>[!-~]+) (?P<access_point_arn>[!-~]+) (?P<acl_required>[!-~]+)`),
-		regexp.MustCompile(`^(?P<bucket_owner>[!-~]+) (?P<bucket>[!-~]+) (?P<time>\[[^\]]+\]) (?P<remote_ip>[!-~]+) (?P<requester>[!-~]+) (?P<request_id>[!-~]+) (?P<operation>[!-~]+) (?P<key>[!-~]+) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<http_status>\d{1,3}) (?P<error_code>[!-~]+) (?P<bytes_sent>[\d\-.]+) (?P<object_size>[\d\-.]+) (?P<total_time>[\d\-.]+) (?P<turn_around_time>[\d\-.]+) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)" (?P<version_id>[!-~]+) (?P<host_id>[!-~]+) (?P<signature_version>[!-~]+) (?P<cipher_suite>[!-~]+) (?P<authentication_type>[!-~]+) (?P<host_header>[!-~]+) (?P<tls_version>[!-~]+) (?P<access_point_arn>[!-~]+)`),
-		regexp.MustCompile(`^(?P<bucket_owner>[!-~]+) (?P<bucket>[!-~]+) (?P<time>\[[^\]]+\]) (?P<remote_ip>[!-~]+) (?P<requester>[!-~]+) (?P<request_id>[!-~]+) (?P<operation>[!-~]+) (?P<key>[!-~]+) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<http_status>\d{1,3}) (?P<error_code>[!-~]+) (?P<bytes_sent>[\d\-.]+) (?P<object_size>[\d\-.]+) (?P<total_time>[\d\-.]+) (?P<turn_around_time>[\d\-.]+) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)" (?P<version_id>[!-~]+) (?P<host_id>[!-~]+) (?P<signature_version>[!-~]+) (?P<cipher_suite>[!-~]+) (?P<authentication_type>[!-~]+) (?P<host_header>[!-~]+) (?P<tls_version>[!-~]+)`),
-		regexp.MustCompile(`^(?P<bucket_owner>[!-~]+) (?P<bucket>[!-~]+) (?P<time>\[[^\]]+\]) (?P<remote_ip>[!-~]+) (?P<requester>[!-~]+) (?P<request_id>[!-~]+) (?P<operation>[!-~]+) (?P<key>[!-~]+) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<http_status>\d{1,3}) (?P<error_code>[!-~]+) (?P<bytes_sent>[\d\-.]+) (?P<object_size>[\d\-.]+) (?P<total_time>[\d\-.]+) (?P<turn_around_time>[\d\-.]+) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)" (?P<version_id>[!-~]+) (?P<host_id>[!-~]+) (?P<signature_version>[!-~]+) (?P<cipher_suite>[!-~]+) (?P<authentication_type>[!-~]+) (?P<host_header>[!-~]+)`),
-		regexp.MustCompile(`^(?P<bucket_owner>[!-~]+) (?P<bucket>[!-~]+) (?P<time>\[[^\]]+\]) (?P<remote_ip>[!-~]+) (?P<requester>[!-~]+) (?P<request_id>[!-~]+) (?P<operation>[!-~]+) (?P<key>[!-~]+) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<http_status>\d{1,3}) (?P<error_code>[!-~]+) (?P<bytes_sent>[\d\-.]+) (?P<object_size>[\d\-.]+) (?P<total_time>[\d\-.]+) (?P<turn_around_time>[\d\-.]+) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)" (?P<version_id>[!-~]+)`),
+	stringPattern = `^(?P<bucket_owner>[!-~]+) (?P<bucket>[!-~]+) (?P<time>\[[^\]]+\]) (?P<remote_ip>[!-~]+) (?P<requester>[!-~]+) (?P<request_id>[!-~]+) (?P<operation>[!-~]+) (?P<key>[!-~]+) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<http_status>\d{1,3}) (?P<error_code>[!-~]+) (?P<bytes_sent>[\d\-.]+) (?P<object_size>[\d\-.]+) (?P<total_time>[\d\-.]+) (?P<turn_around_time>[\d\-.]+) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)" (?P<version_id>[!-~]+)`
+	stringInvalidCapturePattern = "(?P<field.1>[!-~]+)"
+	stringCapturedGroupNotContainsPattern = "[!-~]+"
+	stringNonNamedCapturedGroupContainsPattern = "(?P<field1>[!-~]+) ([!-~]+) (?P<field3>[!-~]+)"
+	stringPatterns = []string{
+		`^(?P<bucket_owner>[!-~]+) (?P<bucket>[!-~]+) (?P<time>\[[^\]]+\]) (?P<remote_ip>[!-~]+) (?P<requester>[!-~]+) (?P<request_id>[!-~]+) (?P<operation>[!-~]+) (?P<key>[!-~]+) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<http_status>\d{1,3}) (?P<error_code>[!-~]+) (?P<bytes_sent>[\d\-.]+) (?P<object_size>[\d\-.]+) (?P<total_time>[\d\-.]+) (?P<turn_around_time>[\d\-.]+) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)" (?P<version_id>[!-~]+) (?P<host_id>[!-~]+) (?P<signature_version>[!-~]+) (?P<cipher_suite>[!-~]+) (?P<authentication_type>[!-~]+) (?P<host_header>[!-~]+) (?P<tls_version>[!-~]+) (?P<access_point_arn>[!-~]+) (?P<acl_required>[!-~]+)`,
+		`^(?P<bucket_owner>[!-~]+) (?P<bucket>[!-~]+) (?P<time>\[[^\]]+\]) (?P<remote_ip>[!-~]+) (?P<requester>[!-~]+) (?P<request_id>[!-~]+) (?P<operation>[!-~]+) (?P<key>[!-~]+) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<http_status>\d{1,3}) (?P<error_code>[!-~]+) (?P<bytes_sent>[\d\-.]+) (?P<object_size>[\d\-.]+) (?P<total_time>[\d\-.]+) (?P<turn_around_time>[\d\-.]+) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)" (?P<version_id>[!-~]+) (?P<host_id>[!-~]+) (?P<signature_version>[!-~]+) (?P<cipher_suite>[!-~]+) (?P<authentication_type>[!-~]+) (?P<host_header>[!-~]+) (?P<tls_version>[!-~]+) (?P<access_point_arn>[!-~]+)`,
+		`^(?P<bucket_owner>[!-~]+) (?P<bucket>[!-~]+) (?P<time>\[[^\]]+\]) (?P<remote_ip>[!-~]+) (?P<requester>[!-~]+) (?P<request_id>[!-~]+) (?P<operation>[!-~]+) (?P<key>[!-~]+) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<http_status>\d{1,3}) (?P<error_code>[!-~]+) (?P<bytes_sent>[\d\-.]+) (?P<object_size>[\d\-.]+) (?P<total_time>[\d\-.]+) (?P<turn_around_time>[\d\-.]+) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)" (?P<version_id>[!-~]+) (?P<host_id>[!-~]+) (?P<signature_version>[!-~]+) (?P<cipher_suite>[!-~]+) (?P<authentication_type>[!-~]+) (?P<host_header>[!-~]+) (?P<tls_version>[!-~]+)`,
+		`^(?P<bucket_owner>[!-~]+) (?P<bucket>[!-~]+) (?P<time>\[[^\]]+\]) (?P<remote_ip>[!-~]+) (?P<requester>[!-~]+) (?P<request_id>[!-~]+) (?P<operation>[!-~]+) (?P<key>[!-~]+) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<http_status>\d{1,3}) (?P<error_code>[!-~]+) (?P<bytes_sent>[\d\-.]+) (?P<object_size>[\d\-.]+) (?P<total_time>[\d\-.]+) (?P<turn_around_time>[\d\-.]+) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)" (?P<version_id>[!-~]+) (?P<host_id>[!-~]+) (?P<signature_version>[!-~]+) (?P<cipher_suite>[!-~]+) (?P<authentication_type>[!-~]+) (?P<host_header>[!-~]+)`,
+		`^(?P<bucket_owner>[!-~]+) (?P<bucket>[!-~]+) (?P<time>\[[^\]]+\]) (?P<remote_ip>[!-~]+) (?P<requester>[!-~]+) (?P<request_id>[!-~]+) (?P<operation>[!-~]+) (?P<key>[!-~]+) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<http_status>\d{1,3}) (?P<error_code>[!-~]+) (?P<bytes_sent>[\d\-.]+) (?P<object_size>[\d\-.]+) (?P<total_time>[\d\-.]+) (?P<turn_around_time>[\d\-.]+) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)" (?P<version_id>[!-~]+)`,
 	}
+	stringCapturedGroupNotContainsPatterns = append(append(stringCapturedGroupNotContainsPatterns, stringPatterns...), stringCapturedGroupNotContainsPattern)
+	stringNonNamedCapturedGroupContainsPatterns = append(append(stringNonNamedCapturedGroupContainsPatterns, stringPatterns...), stringNonNamedCapturedGroupContainsPattern)
+
+	regexPattern = regexp.MustCompile(stringPattern)
+	regexCapturedGroupNotContainsPattern = regexp.MustCompile(stringCapturedGroupNotContainsPattern)
+	regexNonNamedCapturedGroupContainsPattern = regexp.MustCompile(stringNonNamedCapturedGroupContainsPattern)
+	regexPatternsFunc := func() []*regexp.Regexp {
+		var patterns []*regexp.Regexp
+		for _, stringPattern := range stringPatterns {
+			patterns = append(patterns, regexp.MustCompile(stringPattern))
+		}
+		return patterns
+	}
+	regexPatterns = regexPatternsFunc()
 	regexCapturedGroupNotContainsPatterns = append(append(regexCapturedGroupNotContainsPatterns, regexPatterns...), regexCapturedGroupNotContainsPattern)
 	regexNonNamedCapturedGroupContainsPatterns = append(append(regexNonNamedCapturedGroupContainsPatterns, regexPatterns...), regexNonNamedCapturedGroupContainsPattern)
 
@@ -490,17 +513,11 @@ func assertResult(t *testing.T, want wantResult, got *Result) {
 
 func Test_parse(t *testing.T) {
 	type args struct {
-		ctx             context.Context
-		input           io.Reader
-		patterns        []*regexp.Regexp
-		labels          []string
-		skipLines       []int
-		hasPrefix       bool
-		hasUnmatchLines bool
-		hasLineNumber   bool
-		decoder         lineDecoder
-		handler         LineHandler
-		filter          []string
+		ctx      context.Context
+		input    io.Reader
+		decoder  lineDecoder
+		opt      Option
+		patterns []*regexp.Regexp
 	}
 	tests := []struct {
 		name       string
@@ -512,17 +529,19 @@ func Test_parse(t *testing.T) {
 		{
 			name: "regex: all match",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(regexAllMatchInput),
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				input:   strings.NewReader(regexAllMatchInput),
+				decoder: regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantOutput: strings.Join(regexAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -535,17 +554,19 @@ func Test_parse(t *testing.T) {
 		{
 			name: "ltsv: all match",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(ltsvAllMatchInput),
-				patterns:        nil,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         ltsvLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				input:   strings.NewReader(ltsvAllMatchInput),
+				decoder: ltsvLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -559,7 +580,7 @@ func Test_parse(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
-			got, err := parse(tt.args.ctx, tt.args.input, output, tt.args.patterns, tt.args.labels, tt.args.filter, tt.args.skipLines, tt.args.hasPrefix, tt.args.hasUnmatchLines, tt.args.hasLineNumber, tt.args.decoder, tt.args.handler)
+			got, err := parse(tt.args.ctx, tt.args.input, output, tt.args.patterns, tt.args.decoder, tt.args.opt)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
@@ -574,17 +595,11 @@ func Test_parse(t *testing.T) {
 
 func Test_parseString(t *testing.T) {
 	type args struct {
-		ctx             context.Context
-		s               string
-		patterns        []*regexp.Regexp
-		labels          []string
-		skipLines       []int
-		hasPrefix       bool
-		hasUnmatchLines bool
-		hasLineNumber   bool
-		decoder         lineDecoder
-		handler         LineHandler
-		filter          []string
+		ctx      context.Context
+		s        string
+		decoder  lineDecoder
+		opt      Option
+		patterns []*regexp.Regexp
 	}
 	tests := []struct {
 		name       string
@@ -596,17 +611,19 @@ func Test_parseString(t *testing.T) {
 		{
 			name: "regex: all match",
 			args: args{
-				ctx:             context.Background(),
-				s:               regexAllMatchInput,
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				s:       regexAllMatchInput,
+				decoder: regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantOutput: strings.Join(regexAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -619,17 +636,19 @@ func Test_parseString(t *testing.T) {
 		{
 			name: "ltsv: all match",
 			args: args{
-				ctx:             context.Background(),
-				s:               ltsvAllMatchInput,
-				patterns:        nil,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         ltsvLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				s:       ltsvAllMatchInput,
+				decoder: ltsvLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: nil,
 			},
 			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -642,19 +661,21 @@ func Test_parseString(t *testing.T) {
 		{
 			name: "regex: line handler returns error",
 			args: args{
-				ctx:             context.Background(),
-				s:               regexAllMatchInput,
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler: func(_, _ []string, _ int, _, _ bool) (string, error) {
-					return "", fmt.Errorf("error")
+				ctx:     context.Background(),
+				s:       regexAllMatchInput,
+				decoder: regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler: func(_, _ []string, _ int, _, _ bool) (string, error) {
+						return "", fmt.Errorf("error")
+					},
 				},
-				filter: nil,
+				patterns: regexPatterns,
 			},
 			wantResult: wantResult{
 				result:    nil,
@@ -667,7 +688,7 @@ func Test_parseString(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
-			got, err := parseString(tt.args.ctx, tt.args.s, output, tt.args.patterns, tt.args.labels, tt.args.filter, tt.args.skipLines, tt.args.hasPrefix, tt.args.hasUnmatchLines, tt.args.hasLineNumber, tt.args.decoder, tt.args.handler)
+			got, err := parseString(tt.args.ctx, tt.args.s, output, tt.args.patterns, tt.args.decoder, tt.args.opt)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
@@ -682,17 +703,11 @@ func Test_parseString(t *testing.T) {
 
 func Test_parseFile(t *testing.T) {
 	type args struct {
-		ctx             context.Context
-		filePath        string
-		patterns        []*regexp.Regexp
-		labels          []string
-		skipLines       []int
-		hasPrefix       bool
-		hasUnmatchLines bool
-		hasLineNumber   bool
-		decoder         lineDecoder
-		handler         LineHandler
-		filter          []string
+		ctx      context.Context
+		filePath string
+		decoder  lineDecoder
+		opt      Option
+		patterns []*regexp.Regexp
 	}
 	tests := []struct {
 		name       string
@@ -704,17 +719,19 @@ func Test_parseFile(t *testing.T) {
 		{
 			name: "regex: all match",
 			args: args{
-				ctx:             context.Background(),
-				filePath:        filepath.Join("testdata", "sample_s3_all_match.log"),
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:      context.Background(),
+				filePath: filepath.Join("testdata", "sample_s3_all_match.log"),
+				decoder:  regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantOutput: strings.Join(regexAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -727,17 +744,19 @@ func Test_parseFile(t *testing.T) {
 		{
 			name: "ltsv: all match",
 			args: args{
-				ctx:             context.Background(),
-				filePath:        filepath.Join("testdata", "sample_s3_all_match.log"),
-				patterns:        nil,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         ltsvLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:      context.Background(),
+				filePath: filepath.Join("testdata", "sample_s3_all_match.log"),
+				decoder:  ltsvLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: nil,
 			},
 			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -750,19 +769,21 @@ func Test_parseFile(t *testing.T) {
 		{
 			name: "regex: line handler returns error",
 			args: args{
-				ctx:             context.Background(),
-				filePath:        filepath.Join("testdata", "sample_s3_all_match.log"),
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler: func(_, _ []string, _ int, _, _ bool) (string, error) {
-					return "", fmt.Errorf("error")
+				ctx:      context.Background(),
+				filePath: filepath.Join("testdata", "sample_s3_all_match.log"),
+				decoder:  regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler: func(_, _ []string, _ int, _, _ bool) (string, error) {
+						return "", fmt.Errorf("error")
+					},
 				},
-				filter: nil,
+				patterns: regexPatterns,
 			},
 			wantResult: wantResult{
 				result:    nil,
@@ -774,17 +795,19 @@ func Test_parseFile(t *testing.T) {
 		{
 			name: "regex: input file does not exists",
 			args: args{
-				ctx:             context.Background(),
-				filePath:        filepath.Join("testdata", "sample_ltsv_all_match.log.dummy"),
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:      context.Background(),
+				filePath: filepath.Join("testdata", "sample_ltsv_all_match.log.dummy"),
+				decoder:  regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantResult: wantResult{
 				result:    nil,
@@ -796,17 +819,19 @@ func Test_parseFile(t *testing.T) {
 		{
 			name: "regex: input path is directory not file",
 			args: args{
-				ctx:             context.Background(),
-				filePath:        "testdata",
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:      context.Background(),
+				filePath: "testdata",
+				decoder:  regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantResult: wantResult{
 				result:    nil,
@@ -819,7 +844,7 @@ func Test_parseFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
-			got, err := parseFile(tt.args.ctx, tt.args.filePath, output, tt.args.patterns, tt.args.labels, tt.args.filter, tt.args.skipLines, tt.args.hasPrefix, tt.args.hasUnmatchLines, tt.args.hasLineNumber, tt.args.decoder, tt.args.handler)
+			got, err := parseFile(tt.args.ctx, tt.args.filePath, output, tt.args.patterns, tt.args.decoder, tt.args.opt)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
@@ -831,17 +856,11 @@ func Test_parseFile(t *testing.T) {
 
 func Test_parseGzip(t *testing.T) {
 	type args struct {
-		ctx             context.Context
-		gzipPath        string
-		patterns        []*regexp.Regexp
-		labels          []string
-		skipLines       []int
-		hasPrefix       bool
-		hasUnmatchLines bool
-		hasLineNumber   bool
-		decoder         lineDecoder
-		handler         LineHandler
-		filter          []string
+		ctx      context.Context
+		gzipPath string
+		decoder  lineDecoder
+		opt      Option
+		patterns []*regexp.Regexp
 	}
 	tests := []struct {
 		name       string
@@ -853,17 +872,19 @@ func Test_parseGzip(t *testing.T) {
 		{
 			name: "regex: all match",
 			args: args{
-				ctx:             context.Background(),
-				gzipPath:        filepath.Join("testdata", "sample_s3_all_match.log.gz"),
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:      context.Background(),
+				gzipPath: filepath.Join("testdata", "sample_s3_all_match.log.gz"),
+				decoder:  regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantOutput: strings.Join(regexAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -876,17 +897,19 @@ func Test_parseGzip(t *testing.T) {
 		{
 			name: "ltsv: all match",
 			args: args{
-				ctx:             context.Background(),
-				gzipPath:        filepath.Join("testdata", "sample_ltsv_all_match.log.gz"),
-				patterns:        nil,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         ltsvLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:      context.Background(),
+				gzipPath: filepath.Join("testdata", "sample_ltsv_all_match.log.gz"),
+				decoder:  ltsvLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: nil,
 			},
 			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -899,19 +922,21 @@ func Test_parseGzip(t *testing.T) {
 		{
 			name: "regex: line handler returns error",
 			args: args{
-				ctx:             context.Background(),
-				gzipPath:        filepath.Join("testdata", "sample_s3_all_match.log.gz"),
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler: func(_, _ []string, _ int, _, _ bool) (string, error) {
-					return "", fmt.Errorf("error")
+				ctx:      context.Background(),
+				gzipPath: filepath.Join("testdata", "sample_s3_all_match.log.gz"),
+				decoder:  regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler: func(_, _ []string, _ int, _, _ bool) (string, error) {
+						return "", fmt.Errorf("error")
+					},
 				},
-				filter: nil,
+				patterns: regexPatterns,
 			},
 			wantResult: wantResult{
 				result:    nil,
@@ -923,17 +948,19 @@ func Test_parseGzip(t *testing.T) {
 		{
 			name: "regex: input file does not exists",
 			args: args{
-				ctx:             context.Background(),
-				gzipPath:        filepath.Join("testdata", "sample_ltsv_all_match.log.gz.dummy"),
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:      context.Background(),
+				gzipPath: filepath.Join("testdata", "sample_ltsv_all_match.log.gz.dummy"),
+				decoder:  regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantResult: wantResult{
 				result:    nil,
@@ -945,17 +972,19 @@ func Test_parseGzip(t *testing.T) {
 		{
 			name: "regex: input path is directory not file",
 			args: args{
-				ctx:             context.Background(),
-				gzipPath:        "testdata",
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:      context.Background(),
+				gzipPath: "testdata",
+				decoder:  regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantResult: wantResult{
 				result:    nil,
@@ -967,17 +996,19 @@ func Test_parseGzip(t *testing.T) {
 		{
 			name: "regex: input file is not gzip",
 			args: args{
-				ctx:             context.Background(),
-				gzipPath:        filepath.Join("testdata", "sample_s3_all_match.log"),
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:      context.Background(),
+				gzipPath: filepath.Join("testdata", "sample_s3_all_match.log"),
+				decoder:  regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantResult: wantResult{
 				result:    nil,
@@ -990,7 +1021,7 @@ func Test_parseGzip(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
-			got, err := parseGzip(tt.args.ctx, tt.args.gzipPath, output, tt.args.patterns, tt.args.labels, tt.args.filter, tt.args.skipLines, tt.args.hasPrefix, tt.args.hasUnmatchLines, tt.args.hasLineNumber, tt.args.decoder, tt.args.handler)
+			got, err := parseGzip(tt.args.ctx, tt.args.gzipPath, output, tt.args.patterns, tt.args.decoder, tt.args.opt)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
@@ -1002,18 +1033,12 @@ func Test_parseGzip(t *testing.T) {
 
 func Test_parseZipEntries(t *testing.T) {
 	type args struct {
-		ctx             context.Context
-		zipPath         string
-		globPattern     string
-		patterns        []*regexp.Regexp
-		labels          []string
-		skipLines       []int
-		hasPrefix       bool
-		hasUnmatchLines bool
-		hasLineNumber   bool
-		decoder         lineDecoder
-		handler         LineHandler
-		filter          []string
+		ctx         context.Context
+		zipPath     string
+		globPattern string
+		decoder     lineDecoder
+		opt         Option
+		patterns    []*regexp.Regexp
 	}
 	tests := []struct {
 		name       string
@@ -1025,18 +1050,20 @@ func Test_parseZipEntries(t *testing.T) {
 		{
 			name: "regex: all match",
 			args: args{
-				ctx:             context.Background(),
-				zipPath:         filepath.Join("testdata", "sample_s3_all_match.log.zip"),
-				globPattern:     "*",
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:         context.Background(),
+				zipPath:     filepath.Join("testdata", "sample_s3_all_match.log.zip"),
+				globPattern: "*",
+				decoder:     regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantOutput: strings.Join(regexAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -1049,17 +1076,20 @@ func Test_parseZipEntries(t *testing.T) {
 		{
 			name: "ltsv: all match",
 			args: args{
-				ctx:             context.Background(),
-				zipPath:         filepath.Join("testdata", "sample_ltsv_all_match.log.zip"),
-				globPattern:     "*",
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         ltsvLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:         context.Background(),
+				zipPath:     filepath.Join("testdata", "sample_ltsv_all_match.log.zip"),
+				globPattern: "*",
+				decoder:     ltsvLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: nil,
 			},
 			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -1072,20 +1102,22 @@ func Test_parseZipEntries(t *testing.T) {
 		{
 			name: "regex: line handler returns error",
 			args: args{
-				ctx:             context.Background(),
-				zipPath:         filepath.Join("testdata", "sample_s3_all_match.log.zip"),
-				globPattern:     "*",
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler: func(_, _ []string, _ int, _, _ bool) (string, error) {
-					return "", fmt.Errorf("error")
+				ctx:         context.Background(),
+				zipPath:     filepath.Join("testdata", "sample_s3_all_match.log.zip"),
+				globPattern: "*",
+				decoder:     regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler: func(_, _ []string, _ int, _, _ bool) (string, error) {
+						return "", fmt.Errorf("error")
+					},
 				},
-				filter: nil,
+				patterns: regexPatterns,
 			},
 			wantOutput: "",
 			wantResult: wantResult{
@@ -1098,18 +1130,20 @@ func Test_parseZipEntries(t *testing.T) {
 		{
 			name: "regex: input path is directory not file",
 			args: args{
-				ctx:             context.Background(),
-				zipPath:         "testdata",
-				globPattern:     "*",
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:         context.Background(),
+				zipPath:     "testdata",
+				globPattern: "*",
+				decoder:     regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantOutput: "",
 			wantResult: wantResult{
@@ -1122,18 +1156,20 @@ func Test_parseZipEntries(t *testing.T) {
 		{
 			name: "regex: input file is not zip",
 			args: args{
-				ctx:             context.Background(),
-				zipPath:         filepath.Join("testdata", "sample_s3_all_match.log.gz"),
-				globPattern:     "*",
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:         context.Background(),
+				zipPath:     filepath.Join("testdata", "sample_s3_all_match.log.gz"),
+				globPattern: "*",
+				decoder:     regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantOutput: "",
 			wantResult: wantResult{
@@ -1146,18 +1182,20 @@ func Test_parseZipEntries(t *testing.T) {
 		{
 			name: "regex: input file does not exists",
 			args: args{
-				ctx:             context.Background(),
-				zipPath:         filepath.Join("testdata", "sample_s3_all_match.log.zip.dummy"),
-				globPattern:     "*",
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:         context.Background(),
+				zipPath:     filepath.Join("testdata", "sample_s3_all_match.log.zip.dummy"),
+				globPattern: "*",
+				decoder:     regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantOutput: "",
 			wantResult: wantResult{
@@ -1170,18 +1208,20 @@ func Test_parseZipEntries(t *testing.T) {
 		{
 			name: "regex: multi entries",
 			args: args{
-				ctx:             context.Background(),
-				zipPath:         filepath.Join("testdata", "sample_s3.zip"),
-				globPattern:     "*",
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:         context.Background(),
+				zipPath:     filepath.Join("testdata", "sample_s3.zip"),
+				globPattern: "*",
+				decoder:     regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantOutput: `{"bucket_owner":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","bucket":"awsrandombucket43","time":"[16/Feb/2019:11:23:45 +0000]","remote_ip":"192.0.2.132","requester":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a","request_id":"3E57427F3EXAMPLE","operation":"REST.GET.VERSIONING","key":"-","method":"GET","request_uri":"/awsrandombucket43?versioning","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"113","object_size":"-","total_time":"7","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"s9lzHYrFp76ZVxRcpX9+5cjAnEH2ROuNkd2BHfIa6UkFVdtjf5mKR3/eTPFvsiP/XV/VLi31234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket43.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1","access_point_arn":"-"}
 {"bucket_owner":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","bucket":"awsrandombucket59","time":"[24/Feb/2019:07:45:11 +0000]","remote_ip":"192.0.2.45","requester":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23","request_id":"891CE47D2EXAMPLE","operation":"REST.GET.LOGGING_STATUS","key":"-","method":"GET","request_uri":"/awsrandombucket59?logging","protocol":"HTTP/1.1","http_status":"200","error_code":"-","bytes_sent":"242","object_size":"-","total_time":"11","turn_around_time":"-","referer":"-","user_agent":"S3Console/0.4","version_id":"-","host_id":"9vKBE6vMhrNiWHZmb2L0mXOcqPGzQOI5XLnCtZNPxev+Hf+7tpT6sxDwDty4LHBUOZJG96N1234=","signature_version":"SigV2","cipher_suite":"ECDHE-RSA-AES128-GCM-SHA256","authentication_type":"AuthHeader","host_header":"awsrandombucket59.s3.us-west-1.amazonaws.com","tls_version":"TLSV1.1"}
@@ -1248,18 +1288,20 @@ func Test_parseZipEntries(t *testing.T) {
 		{
 			name: "regex: multi entries and glob pattern filtering",
 			args: args{
-				ctx:             context.Background(),
-				zipPath:         filepath.Join("testdata", "sample_s3.zip"),
-				globPattern:     "*all_match*",
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:         context.Background(),
+				zipPath:     filepath.Join("testdata", "sample_s3.zip"),
+				globPattern: "*all_match*",
+				decoder:     regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantOutput: strings.Join(regexAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -1272,18 +1314,20 @@ func Test_parseZipEntries(t *testing.T) {
 		{
 			name: "regex: multi entries and glob pattern returns error",
 			args: args{
-				ctx:             context.Background(),
-				zipPath:         filepath.Join("testdata", "log.zip"),
-				globPattern:     "[",
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:         context.Background(),
+				zipPath:     filepath.Join("testdata", "log.zip"),
+				globPattern: "[",
+				decoder:     regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantOutput: "",
 			wantResult: wantResult{
@@ -1297,7 +1341,7 @@ func Test_parseZipEntries(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
-			got, err := parseZipEntries(tt.args.ctx, tt.args.zipPath, tt.args.globPattern, output, tt.args.patterns, tt.args.labels, tt.args.filter, tt.args.skipLines, tt.args.hasPrefix, tt.args.hasUnmatchLines, tt.args.hasLineNumber, tt.args.decoder, tt.args.handler)
+			got, err := parseZipEntries(tt.args.ctx, tt.args.zipPath, tt.args.globPattern, output, tt.args.patterns, tt.args.decoder, tt.args.opt)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return
@@ -1312,17 +1356,11 @@ func Test_parseZipEntries(t *testing.T) {
 
 func Test_parser(t *testing.T) {
 	type args struct {
-		ctx             context.Context
-		input           io.Reader
-		patterns        []*regexp.Regexp
-		labels          []string
-		skipLines       []int
-		hasPrefix       bool
-		hasUnmatchLines bool
-		hasLineNumber   bool
-		decoder         lineDecoder
-		handler         LineHandler
-		filter          []string
+		ctx      context.Context
+		input    io.Reader
+		decoder  lineDecoder
+		opt      Option
+		patterns []*regexp.Regexp
 	}
 	tests := []struct {
 		name       string
@@ -1334,17 +1372,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "regex: all match",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(regexAllMatchInput),
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				input:   strings.NewReader(regexAllMatchInput),
+				decoder: regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantOutput: strings.Join(regexAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -1355,17 +1395,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "regex: contains unmatch",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(regexContainsUnmatchInput),
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				input:   strings.NewReader(regexContainsUnmatchInput),
+				decoder: regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantOutput: strings.Join(regexContainsUnmatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -1376,17 +1418,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "regex: contains skip flag",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(regexAllMatchInput),
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       regexContainsSkipLines,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   true,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				input:   strings.NewReader(regexAllMatchInput),
+				decoder: regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    regexContainsSkipLines,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   true,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantOutput: strings.Join(regexContainsSkipData, "\n") + "\n",
 			wantResult: wantResult{
@@ -1397,17 +1441,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "regex: all unmatch",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(regexAllUnmatchInput),
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   true,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				input:   strings.NewReader(regexAllUnmatchInput),
+				decoder: regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   true,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantOutput: "",
 			wantResult: wantResult{
@@ -1418,17 +1464,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "regex: all skip",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(regexAllMatchInput),
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       regexAllSkipLines,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   true,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				input:   strings.NewReader(regexAllMatchInput),
+				decoder: regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    regexAllSkipLines,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   true,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantOutput: "",
 			wantResult: wantResult{
@@ -1439,17 +1487,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "regex: mixed",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(regexContainsUnmatchInput),
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       regexMixedSkipLines,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   true,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          regexMixedFilter,
+				ctx:      context.Background(),
+				input:    strings.NewReader(regexContainsUnmatchInput),
+				patterns: regexPatterns,
+				decoder:  regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      regexMixedFilter,
+					SkipLines:    regexMixedSkipLines,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   true,
+					LineHandler:  JSONLineHandler,
+				},
 			},
 			wantOutput: strings.Join(regexMixedData, "\n") + "\n",
 			wantResult: wantResult{
@@ -1460,17 +1510,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "regex: with filter",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(regexAllMatchInput),
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          regexContainsFilter,
+				ctx:     context.Background(),
+				input:   strings.NewReader(regexAllMatchInput),
+				decoder: regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      regexContainsFilter,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantOutput: strings.Join(regexContainsFilterData, "\n") + "\n",
 			wantResult: wantResult{
@@ -1481,17 +1533,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "regex: nil input",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(""),
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   true,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				input:   strings.NewReader(""),
+				decoder: regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   true,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantOutput: "",
 			wantResult: wantResult{
@@ -1502,19 +1556,21 @@ func Test_parser(t *testing.T) {
 		{
 			name: "regex: line handler returns error",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(regexAllMatchInput),
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   true,
-				decoder:         regexLineDecoder,
-				handler: func(_, _ []string, _ int, _, _ bool) (string, error) {
-					return "", fmt.Errorf("error")
+				ctx:     context.Background(),
+				input:   strings.NewReader(regexAllMatchInput),
+				decoder: regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   true,
+					LineHandler: func(_, _ []string, _ int, _, _ bool) (string, error) {
+						return "", fmt.Errorf("error")
+					},
 				},
-				filter: nil,
+				patterns: regexPatterns,
 			},
 			wantOutput: "",
 			wantResult: wantResult{
@@ -1525,17 +1581,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "regex: nil pattern",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(regexAllMatchInput),
-				patterns:        nil,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   true,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				input:   strings.NewReader(regexAllMatchInput),
+				decoder: regexLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   true,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: nil,
 			},
 			wantOutput: "",
 			wantResult: wantResult{
@@ -1546,17 +1604,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "ltsv: all match",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(ltsvAllMatchInput),
-				patterns:        nil,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         ltsvLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				input:   strings.NewReader(ltsvAllMatchInput),
+				decoder: ltsvLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: nil,
 			},
 			wantOutput: strings.Join(ltsvAllMatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -1567,17 +1627,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "ltsv: contains unmatch",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(ltsvContainsUnmatchInput),
-				patterns:        nil,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   true,
-				decoder:         ltsvLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				input:   strings.NewReader(ltsvContainsUnmatchInput),
+				decoder: ltsvLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   true,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: nil,
 			},
 			wantOutput: strings.Join(ltsvContainsUnmatchData, "\n") + "\n",
 			wantResult: wantResult{
@@ -1588,17 +1650,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "ltsv: contains skip flag",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(ltsvAllMatchInput),
-				patterns:        nil,
-				labels:          nil,
-				skipLines:       ltsvContainsSkipLines,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   true,
-				decoder:         ltsvLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				input:   strings.NewReader(ltsvAllMatchInput),
+				decoder: ltsvLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    ltsvContainsSkipLines,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   true,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: nil,
 			},
 			wantOutput: strings.Join(ltsvContainsSkipData, "\n") + "\n",
 			wantResult: wantResult{
@@ -1609,17 +1673,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "regex: select by columns",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(regexAllMatchInput),
-				patterns:        regexPatterns,
-				labels:          []string{"no", "bucket_owner"},
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   true,
-				decoder:         regexLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				input:   strings.NewReader(regexAllMatchInput),
+				decoder: regexLineDecoder,
+				opt: Option{
+					Labels:       []string{"no", "bucket_owner"},
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   true,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: regexPatterns,
 			},
 			wantOutput: `{"no":"1","bucket_owner":"a19b12df90c456a18e96d34c56d23c56a78f0d89a45f6a78901b23c45d67ef8a"}
 {"no":"2","bucket_owner":"3b24c35d67a89f01b23c45d67890a12b345c67d89a0b12c3d45e67fa89b01c23"}
@@ -1635,17 +1701,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "ltsv: all unmatch",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(ltsvAllUnmatchInput),
-				patterns:        nil,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   true,
-				decoder:         ltsvLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				input:   strings.NewReader(ltsvAllUnmatchInput),
+				decoder: ltsvLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   true,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: nil,
 			},
 			wantOutput: "",
 			wantResult: wantResult{
@@ -1656,17 +1724,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "ltsv: all skip",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(ltsvAllUnmatchInput),
-				patterns:        nil,
-				labels:          nil,
-				skipLines:       ltsvAllSkipLines,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   true,
-				decoder:         ltsvLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				input:   strings.NewReader(ltsvAllUnmatchInput),
+				decoder: ltsvLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    ltsvAllSkipLines,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   true,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: nil,
 			},
 			wantOutput: "",
 			wantResult: wantResult{
@@ -1677,17 +1747,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "ltsv: mixed",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(ltsvContainsUnmatchInput),
-				patterns:        nil,
-				labels:          nil,
-				skipLines:       ltsvMixedSkipLines,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   true,
-				decoder:         ltsvLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          ltsvMixedFilter,
+				ctx:     context.Background(),
+				input:   strings.NewReader(ltsvContainsUnmatchInput),
+				decoder: ltsvLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      ltsvMixedFilter,
+					SkipLines:    ltsvMixedSkipLines,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   true,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: nil,
 			},
 			wantOutput: strings.Join(ltsvMixedData, "\n") + "\n",
 			wantResult: wantResult{
@@ -1698,17 +1770,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "ltsv: with filter",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(ltsvAllMatchInput),
-				patterns:        nil,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         ltsvLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          ltsvContainsFilter,
+				ctx:     context.Background(),
+				input:   strings.NewReader(ltsvAllMatchInput),
+				decoder: ltsvLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      ltsvContainsFilter,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: nil,
 			},
 			wantOutput: strings.Join(ltsvContainsFilterData, "\n") + "\n",
 			wantResult: wantResult{
@@ -1719,17 +1793,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "ltsv: nil input",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(""),
-				patterns:        nil,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   true,
-				decoder:         ltsvLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				input:   strings.NewReader(""),
+				decoder: ltsvLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   true,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: nil,
 			},
 			wantOutput: "",
 			wantResult: wantResult{
@@ -1740,19 +1816,21 @@ func Test_parser(t *testing.T) {
 		{
 			name: "ltsv: line handler returns error",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(ltsvAllMatchInput),
-				patterns:        regexPatterns,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   true,
-				decoder:         ltsvLineDecoder,
-				handler: func(_, _ []string, _ int, _, _ bool) (string, error) {
-					return "", fmt.Errorf("error")
+				ctx:     context.Background(),
+				input:   strings.NewReader(ltsvAllMatchInput),
+				decoder: ltsvLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   true,
+					LineHandler: func(_, _ []string, _ int, _, _ bool) (string, error) {
+						return "", fmt.Errorf("error")
+					},
 				},
-				filter: nil,
+				patterns: regexPatterns,
 			},
 			wantOutput: "",
 			wantResult: wantResult{
@@ -1763,17 +1841,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "ltsv: select by columns",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(ltsvAllMatchInput),
-				patterns:        nil,
-				labels:          []string{"no", "remote_host"},
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   true,
-				decoder:         ltsvLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				input:   strings.NewReader(ltsvAllMatchInput),
+				decoder: ltsvLineDecoder,
+				opt: Option{
+					Labels:       []string{"no", "remote_host"},
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   true,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: nil,
 			},
 			wantOutput: `{"no":"1","remote_host":"192.168.1.1"}
 {"no":"2","remote_host":"172.16.0.2"}
@@ -1789,17 +1869,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "ltsv: with prefix",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(ltsvAllMatchInput),
-				patterns:        nil,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       true,
-				hasUnmatchLines: false,
-				hasLineNumber:   true,
-				decoder:         ltsvLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				input:   strings.NewReader(ltsvAllMatchInput),
+				decoder: ltsvLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       true,
+					UnmatchLines: false,
+					LineNumber:   true,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: nil,
 			},
 			wantOutput: strings.Join(ltsvAllMatchDataWithPrefix, "\n") + "\n",
 			wantResult: wantResult{
@@ -1810,17 +1892,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "ltsv: with unmatch lines",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(ltsvContainsUnmatchInput),
-				patterns:        nil,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       true,
-				hasUnmatchLines: true,
-				hasLineNumber:   true,
-				decoder:         ltsvLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				input:   strings.NewReader(ltsvContainsUnmatchInput),
+				decoder: ltsvLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       true,
+					UnmatchLines: true,
+					LineNumber:   true,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: nil,
 			},
 			wantOutput: strings.Join(ltsvContainsUnmatchDataWithPrefix, "\n") + "\n",
 			wantResult: wantResult{
@@ -1831,17 +1915,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "ltsv: with invalid filter",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(ltsvContainsUnmatchInput),
-				patterns:        nil,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       true,
-				hasUnmatchLines: true,
-				hasLineNumber:   true,
-				decoder:         ltsvLineDecoder,
-				handler:         JSONLineHandler,
-				filter:          []string{"aaa := bbb"},
+				ctx:     context.Background(),
+				input:   strings.NewReader(ltsvContainsUnmatchInput),
+				decoder: ltsvLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      []string{"aaa := bbb"},
+					SkipLines:    nil,
+					Prefix:       true,
+					UnmatchLines: true,
+					LineNumber:   true,
+					LineHandler:  JSONLineHandler,
+				},
+				patterns: nil,
 			},
 			wantOutput: "",
 			wantResult: wantResult{},
@@ -1850,17 +1936,19 @@ func Test_parser(t *testing.T) {
 		{
 			name: "ltsv: with tsv handler",
 			args: args{
-				ctx:             context.Background(),
-				input:           strings.NewReader(ltsvAllMatchInput),
-				patterns:        nil,
-				labels:          nil,
-				skipLines:       nil,
-				hasPrefix:       false,
-				hasUnmatchLines: false,
-				hasLineNumber:   false,
-				decoder:         ltsvLineDecoder,
-				handler:         TSVLineHandler,
-				filter:          nil,
+				ctx:     context.Background(),
+				input:   strings.NewReader(ltsvAllMatchInput),
+				decoder: ltsvLineDecoder,
+				opt: Option{
+					Labels:       nil,
+					Filters:      nil,
+					SkipLines:    nil,
+					Prefix:       false,
+					UnmatchLines: false,
+					LineNumber:   false,
+					LineHandler:  TSVLineHandler,
+				},
+				patterns: nil,
 			},
 			wantOutput: `remote_host	remote_logname	remote_user	datetime	request	status	size	referer	user_agent
 192.168.1.1	-	john	[12/Mar/2023:10:55:36 +0000]	GET /index.html HTTP/1.1	200	1024	http://www.example.com/	Mozilla/5.0 (Windows NT 10.0; Win64; x64)
@@ -1878,7 +1966,7 @@ func Test_parser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
-			got, err := parser(tt.args.ctx, tt.args.input, output, tt.args.patterns, tt.args.labels, tt.args.filter, tt.args.skipLines, tt.args.hasPrefix, tt.args.hasUnmatchLines, tt.args.hasLineNumber, tt.args.decoder, tt.args.handler)
+			got, err := parser(tt.args.ctx, tt.args.input, output, tt.args.patterns, tt.args.decoder, tt.args.opt)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
 				return

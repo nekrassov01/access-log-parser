@@ -17,10 +17,21 @@ func ExampleParser_Parse() {
 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 awsrandombucket89 [03/Feb/2019:03:54:33 +0000] 192.0.2.76 d45e67fa89b012c3a45678901b234c56d78a90f12b3456789a012345c6789d01 7B4A0FABBEXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket89?versioning HTTP/1.1" 200 - 113 - 33 - "-" "S3Console/0.4"
 01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f awsrandombucket77 [28/Feb/2019:14:12:59 +0000] 192.0.2.213 01b23c45d67890a12b345c6789d01a23b45c67d89012a34b5678c90d1234e56f 3E57427F3EXAMPLE REST.GET.VERSIONING - "GET /awsrandombucket77?versioning HTTP/1.1" 200 - 113 - 7 - "-" "S3Console/0.4" -
 `
-	p := parser.NewS3RegexParser(ctx, os.Stdout).
-		EnablePrefix(true).
-		EnableUnmatchLines(true).
-		SetLineHandler(parser.JSONLineHandler)
+	r := []string{
+		`^(?P<bucket_owner>[!-~]+) (?P<bucket>[!-~]+) (?P<time>\[[^\]]+\]) (?P<remote_ip>[!-~]+) (?P<requester>[!-~]+) (?P<request_id>[!-~]+) (?P<operation>[!-~]+) (?P<key>[!-~]+) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<http_status>\d{1,3}) (?P<error_code>[!-~]+) (?P<bytes_sent>[\d\-.]+) (?P<object_size>[\d\-.]+) (?P<total_time>[\d\-.]+) (?P<turn_around_time>[\d\-.]+) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)" (?P<version_id>[!-~]+) (?P<host_id>[!-~]+) (?P<signature_version>[!-~]+) (?P<cipher_suite>[!-~]+) (?P<authentication_type>[!-~]+) (?P<host_header>[!-~]+) (?P<tls_version>[!-~]+) (?P<access_point_arn>[!-~]+) (?P<acl_required>[!-~]+)`,
+		`^(?P<bucket_owner>[!-~]+) (?P<bucket>[!-~]+) (?P<time>\[[^\]]+\]) (?P<remote_ip>[!-~]+) (?P<requester>[!-~]+) (?P<request_id>[!-~]+) (?P<operation>[!-~]+) (?P<key>[!-~]+) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<http_status>\d{1,3}) (?P<error_code>[!-~]+) (?P<bytes_sent>[\d\-.]+) (?P<object_size>[\d\-.]+) (?P<total_time>[\d\-.]+) (?P<turn_around_time>[\d\-.]+) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)" (?P<version_id>[!-~]+) (?P<host_id>[!-~]+) (?P<signature_version>[!-~]+) (?P<cipher_suite>[!-~]+) (?P<authentication_type>[!-~]+) (?P<host_header>[!-~]+) (?P<tls_version>[!-~]+) (?P<access_point_arn>[!-~]+)`,
+		`^(?P<bucket_owner>[!-~]+) (?P<bucket>[!-~]+) (?P<time>\[[^\]]+\]) (?P<remote_ip>[!-~]+) (?P<requester>[!-~]+) (?P<request_id>[!-~]+) (?P<operation>[!-~]+) (?P<key>[!-~]+) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<http_status>\d{1,3}) (?P<error_code>[!-~]+) (?P<bytes_sent>[\d\-.]+) (?P<object_size>[\d\-.]+) (?P<total_time>[\d\-.]+) (?P<turn_around_time>[\d\-.]+) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)" (?P<version_id>[!-~]+) (?P<host_id>[!-~]+) (?P<signature_version>[!-~]+) (?P<cipher_suite>[!-~]+) (?P<authentication_type>[!-~]+) (?P<host_header>[!-~]+) (?P<tls_version>[!-~]+)`,
+		`^(?P<bucket_owner>[!-~]+) (?P<bucket>[!-~]+) (?P<time>\[[^\]]+\]) (?P<remote_ip>[!-~]+) (?P<requester>[!-~]+) (?P<request_id>[!-~]+) (?P<operation>[!-~]+) (?P<key>[!-~]+) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<http_status>\d{1,3}) (?P<error_code>[!-~]+) (?P<bytes_sent>[\d\-.]+) (?P<object_size>[\d\-.]+) (?P<total_time>[\d\-.]+) (?P<turn_around_time>[\d\-.]+) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)" (?P<version_id>[!-~]+) (?P<host_id>[!-~]+) (?P<signature_version>[!-~]+) (?P<cipher_suite>[!-~]+) (?P<authentication_type>[!-~]+) (?P<host_header>[!-~]+)`,
+		`^(?P<bucket_owner>[!-~]+) (?P<bucket>[!-~]+) (?P<time>\[[^\]]+\]) (?P<remote_ip>[!-~]+) (?P<requester>[!-~]+) (?P<request_id>[!-~]+) (?P<operation>[!-~]+) (?P<key>[!-~]+) \"(?P<method>[A-Z]+) (?P<request_uri>[^ \"]+) (?P<protocol>HTTP/[0-9.]+)\" (?P<http_status>\d{1,3}) (?P<error_code>[!-~]+) (?P<bytes_sent>[\d\-.]+) (?P<object_size>[\d\-.]+) (?P<total_time>[\d\-.]+) (?P<turn_around_time>[\d\-.]+) "(?P<referer>[^\"]*)" "(?P<user_agent>[^\"]*)" (?P<version_id>[!-~]+)`,
+	}
+	p := parser.NewRegexParser(ctx, os.Stdout, parser.Option{
+		Prefix:       true,
+		UnmatchLines: true,
+		LineHandler:  parser.JSONLineHandler,
+	})
+	if err := p.AddPatterns(r); err != nil {
+		log.Fatal(err)
+	}
 	if _, err := p.Parse(strings.NewReader(s)); err != nil {
 		log.Fatal(err)
 	}
@@ -41,10 +52,11 @@ remote_host:10.0.0.3	remote_logname:-	remote_user:mike	datetime:[12/Mar/2023:10:
 remote_host:192.168.1.4	remote_logname:-	remote_user:anna	datetime:[12/Mar/2023:10:58:24 +0000]	request:GET /products HTTP/1.1	status:404	size:0
 remote_host:192.168.1.10	remote_logname:-	remote_user:chris	datetime:[12/Mar/2023:11:04:16 +0000]	request:DELETE /account HTTP/1.1	status:200	size:204
 `
-	p := parser.NewLTSVParser(ctx, os.Stdout).
-		EnableLineNumber(true).
-		SetFilters([]string{"size == 1024"}).
-		SetLineHandler(parser.PrettyJSONLineHandler)
+	p := parser.NewLTSVParser(ctx, os.Stdout, parser.Option{
+		LineNumber:  true,
+		Filters:     []string{"size == 1024"},
+		LineHandler: parser.PrettyJSONLineHandler,
+	})
 	if _, err := p.ParseString(s); err != nil {
 		log.Fatal(err)
 	}
@@ -66,10 +78,11 @@ remote_host:192.168.1.10	remote_logname:-	remote_user:chris	datetime:[12/Mar/202
 
 func ExampleParser_ParseFile() {
 	ctx := context.Background()
-	p := parser.NewS3RegexParser(ctx, os.Stdout).
-		SelectLabels([]string{"bucket", "method", "request_uri", "protocol"}).
-		SetSkipLines([]int{1}).
-		EnableLineNumber(true)
+	p := parser.NewS3RegexParser(ctx, os.Stdout, parser.Option{
+		Labels:     []string{"bucket", "method", "request_uri", "protocol"},
+		SkipLines:  []int{1},
+		LineNumber: true,
+	})
 	if _, err := p.ParseFile("testdata/sample_s3_contains_unmatch.log"); err != nil {
 		log.Fatal(err)
 	}
@@ -82,10 +95,11 @@ func ExampleParser_ParseFile() {
 
 func ExampleParser_ParseGzip() {
 	ctx := context.Background()
-	p := parser.NewS3RegexParser(ctx, os.Stdout).
-		SetLineHandler(parser.TSVLineHandler).
-		SelectLabels([]string{"bucket", "method", "request_uri", "protocol"}).
-		EnableLineNumber(true)
+	p := parser.NewS3RegexParser(ctx, os.Stdout, parser.Option{
+		Labels:      []string{"bucket", "method", "request_uri", "protocol"},
+		LineNumber:  true,
+		LineHandler: parser.TSVLineHandler,
+	})
 	if _, err := p.ParseGzip("testdata/sample_s3_contains_unmatch.log.gz"); err != nil {
 		log.Fatal(err)
 	}
@@ -100,12 +114,13 @@ func ExampleParser_ParseGzip() {
 
 func ExampleParser_ParseZipEntries() {
 	ctx := context.Background()
-	p := parser.NewS3RegexParser(ctx, os.Stdout).
-		SelectLabels([]string{"bucket", "method", "request_uri", "protocol"}).
-		EnablePrefix(true).
-		EnableUnmatchLines(true).
-		SetFilters([]string{"error_code != NoSuchBucketPolicy"}).
-		SetLineHandler(parser.LTSVLineHandler)
+	p := parser.NewS3RegexParser(ctx, os.Stdout, parser.Option{
+		Labels:       []string{"bucket", "method", "request_uri", "protocol"},
+		Filters:      []string{"error_code != NoSuchBucketPolicy"},
+		Prefix:       true,
+		UnmatchLines: true,
+		LineHandler:  parser.LTSVLineHandler,
+	})
 	if _, err := p.ParseZipEntries("testdata/sample_s3.zip", "*.log"); err != nil {
 		log.Fatal(err)
 	}

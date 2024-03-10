@@ -71,7 +71,7 @@ Total     : Total number of log line processed
 Matched   : Number of log line that successfully matched pattern
 Unmatched : Number of log line that did not match any pattern
 Excluded  : Number of log line that did not extract by filter expressions
-Skipped   : Number of log line that skipped by line number (disabled in stream mode)
+Skipped   : Number of log line that skipped by line number
 
 /* UNMATCH LINES */
 
@@ -91,14 +91,15 @@ Line       : Raw log line that did not match any pattern
 Customize
 ---------
 
-The processing of each matched row can be overridden by a setter method if a `LineHandler` type function is implemented.
+The processing of each matched row can be overridden.
 
 ```go
-p = parser.NewRegexParser(os.Stdout)
-p.SetLineHandler(yourCustomLineHandler),
+p := parser.NewRegexParser(ctx, os.Stdout, parser.Option{
+	LineHandler: yourCustomLineHandler,
+})
 ```
 
-Set your function with the following signature:
+The following function type must be followed:
 
 ```go
 // LineHandler is a function type that processes each matched line.
