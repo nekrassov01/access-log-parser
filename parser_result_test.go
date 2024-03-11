@@ -231,11 +231,56 @@ func TestResult_String(t *testing.T) {
 			want: "\n\n" +
 				"/* SUMMARY */" +
 				"\n\n" +
-				"+-------+---------+-----------+----------+-------------+\n" +
-				"| Total | Matched | Unmatched | Excluded | ElapsedTime |\n" +
-				"+-------+---------+-----------+----------+-------------+\n" +
-				"|     2 |       1 |         1 |        0 | 1h0m0s      |\n" +
-				"+-------+---------+-----------+----------+-------------+\n" +
+				"+-------+---------+-----------+----------+---------+-------------+\n" +
+				"| Total | Matched | Unmatched | Excluded | Skipped | ElapsedTime |\n" +
+				"+-------+---------+-----------+----------+---------+-------------+\n" +
+				"|     2 |       1 |         1 |        0 |       0 | 1h0m0s      |\n" +
+				"+-------+---------+-----------+----------+---------+-------------+\n" +
+				"\n" +
+				"Total     : Total number of log line processed\n" +
+				"Matched   : Number of log line that successfully matched pattern\n" +
+				"Unmatched : Number of log line that did not match any pattern\n" +
+				"Excluded  : Number of log line that did not extract by filter expressions\n" +
+				"Skipped   : Number of log line that skipped by line number\n" +
+				"\n" +
+				"/* UNMATCH LINES */" +
+				"\n\n" +
+				"+------+\n" +
+				"| Line |\n" +
+				"+------+\n" +
+				"| aaa  |\n" +
+				"+------+\n" +
+				"\n" +
+				"LineNumber : Line number of the log that did not match any pattern\n" +
+				"Line       : Raw log line that did not match any pattern\n",
+		},
+		{
+			name: "string",
+			fields: fields{
+				Total:       2,
+				Matched:     1,
+				Unmatched:   1,
+				Excluded:    0,
+				Skipped:     0,
+				ElapsedTime: time.Hour,
+				Source:      "",
+				ZipEntries:  nil,
+				Errors: []Errors{
+					{
+						LineNumber: 2,
+						Line:       "aaa",
+					},
+				},
+				inputType: inputTypeString,
+			},
+			want: "\n" +
+				"/* SUMMARY */" +
+				"\n\n" +
+				"+-------+---------+-----------+----------+---------+-------------+\n" +
+				"| Total | Matched | Unmatched | Excluded | Skipped | ElapsedTime |\n" +
+				"+-------+---------+-----------+----------+---------+-------------+\n" +
+				"|     2 |       1 |         1 |        0 |       0 | 1h0m0s      |\n" +
+				"+-------+---------+-----------+----------+---------+-------------+\n" +
 				"\n" +
 				"Total     : Total number of log line processed\n" +
 				"Matched   : Number of log line that successfully matched pattern\n" +

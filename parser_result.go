@@ -104,14 +104,12 @@ Line       : Raw log line that did not match any pattern
 func (r *Result) newSummaryTable(w io.Writer) (*mintab.Table, error) {
 	var i []int
 	switch r.inputType {
-	case inputTypeStream:
-		i = []int{4, 6, 7, 8, 9, 10}
-	case inputTypeString:
-		i = []int{6, 7, 8, 9, 10}
+	case inputTypeStream, inputTypeString:
+		i = []int{6, 7, 8, 9}
 	case inputTypeFile, inputTypeGzip:
-		i = []int{7, 8, 9, 10}
+		i = []int{7, 8, 9}
 	case inputTypeZip:
-		i = []int{8, 9, 10}
+		i = []int{8, 9}
 	default:
 	}
 	table := mintab.New(w, mintab.WithFormat(mintab.FormatText), mintab.WithIgnoreFields(i))
@@ -127,6 +125,8 @@ func (r *Result) newSummaryTable(w io.Writer) (*mintab.Table, error) {
 func (r *Result) newErrorsTable(w io.Writer) (*mintab.Table, error) {
 	var i []int
 	switch r.inputType {
+	case inputTypeStream:
+		i = []int{0, 1}
 	case inputTypeZip:
 		i = []int{}
 	default:
