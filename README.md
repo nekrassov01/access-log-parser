@@ -136,6 +136,12 @@ Sample
 
 [__alpen__](https://github.com/nekrassov01/alpen) is an application for parsing and encoding various access logs.
 
+Todo
+----
+
+- Support for time in filter expressions like: `time < 1710141640`
+- Refine the specification to allow `KeyValuePairLineHandler` to be used as logfmt
+
 Author
 ------
 
