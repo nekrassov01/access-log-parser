@@ -23,7 +23,7 @@ Features
 Usage
 -----
 
-[Example](https://github.com/nekrassov01/access-log-parser/blob/main/examples_test.go)
+[Example](https://github.com/nekrassov01/access-log-parser/blob/main/example_test.go)
 
 Output format
 -------------
