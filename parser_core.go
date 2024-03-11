@@ -340,8 +340,11 @@ func applyFilter(labels, values, filters []string) (bool, error) {
 	for i, label := range labels {
 		if filter, ok := m[label]; ok {
 			f, err := filter(values[i])
-			if err != nil || !f {
+			if err != nil {
 				return false, err
+			}
+			if !f {
+				return false, nil
 			}
 		}
 	}

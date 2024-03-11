@@ -2192,6 +2192,16 @@ func Test_applyFilter(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "invalid numeric comparison",
+			args: args{
+				labels:  []string{"age"},
+				values:  []string{"dummy"},
+				filters: []string{"age < 25"},
+			},
+			want:    false,
+			wantErr: true,
+		},
+		{
 			name: "unknown operator in filter",
 			args: args{
 				labels:  []string{"status"},
