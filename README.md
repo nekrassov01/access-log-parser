@@ -103,7 +103,7 @@ The following function type must be followed:
 
 ```go
 // LineHandler is a function type that processes each matched line.
-// It takes the matches, their corresponding fields, and the line index, and returns processed string data.
+// It takes the matches, their corresponding fields, and the line number, and returns processed string data.
 type LineHandler func(labels, values []string, lineNumber int, hasLineNumber, isFirst bool) (string, error)
 ```
 
