@@ -1,6 +1,3 @@
-// Package parser provides utilities for parsing various types of logs (plain text, gzip, zip)
-// and converting them into structured formats such as JSON or LTSV. It supports pattern matching,
-// result extraction, and error handling to facilitate log analysis and data extraction.
 package parser
 
 import (
