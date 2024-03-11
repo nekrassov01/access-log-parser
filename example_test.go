@@ -53,8 +53,8 @@ remote_host:192.168.1.4	remote_logname:-	remote_user:anna	datetime:[12/Mar/2023:
 remote_host:192.168.1.10	remote_logname:-	remote_user:chris	datetime:[12/Mar/2023:11:04:16 +0000]	request:DELETE /account HTTP/1.1	status:200	size:204
 `
 	p := parser.NewLTSVParser(ctx, os.Stdout, parser.Option{
-		LineNumber:  true,
 		Filters:     []string{"size == 1024"},
+		LineNumber:  true,
 		LineHandler: parser.PrettyJSONLineHandler,
 	})
 	if _, err := p.ParseString(s); err != nil {
