@@ -12,7 +12,7 @@ BIN_GOBUMP := github.com/x-motemen/gobump/cmd/gobump@latest
 export GO111MODULE=on
 
 .PHONY: check
-check: test cover golangci-lint govulncheck
+check: test cover bench golangci-lint govulncheck
 
 .PHONY: deps
 deps: deps-lint deps-govulncheck deps-gobump
@@ -42,6 +42,10 @@ test:
 .PHONY: cover
 cover:
 	go tool cover -html=cover.out -o cover.html
+
+.PHONY: bench
+bench:
+	go test -run=^$$ -bench=. -benchmem -cpuprofile=cpu.pprof -memprofile=mem.pprof
 
 .PHONY: golangci-lint
 golangci-lint: deps-lint
@@ -74,4 +78,4 @@ publish: deps-gobump check-git
 .PHONY: clean
 clean:
 	go clean
-	rm -f cover.out cover.html
+	rm -f cover.out cover.html cpu.pprof mem.pprof access-log-parser.test
