@@ -45,7 +45,7 @@ cover:
 
 .PHONY: bench
 bench:
-	go test -run=^$$ -bench=. -benchmem -cpuprofile=cpu.pprof -memprofile=mem.pprof
+	go test -run=^$$ -bench=. -benchmem -count 5 -cpuprofile=cpu.prof -memprofile=mem.prof
 
 .PHONY: golangci-lint
 golangci-lint: deps-lint

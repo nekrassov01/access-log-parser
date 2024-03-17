@@ -24,4 +24,4 @@ go.work
 *.[Bb]ackup
 cover.*
 *.test
-*.pprof
+*.prof
