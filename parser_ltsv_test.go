@@ -12,11 +12,8 @@ import (
 
 func TestNewLTSVParser(t *testing.T) {
 	type handlerArgs struct {
-		labels        []string
-		values        []string
-		lineNumber    int
-		hasLineNumber bool
-		isFirst       bool
+		labels []string
+		values []string
 	}
 	tests := []struct {
 		name        string
@@ -25,25 +22,10 @@ func TestNewLTSVParser(t *testing.T) {
 		wantWriter  string
 	}{
 		{
-			name: "with lineNumber",
+			name: "basic",
 			handlerArgs: handlerArgs{
-				labels:        []string{"label1", "label2", "label3"},
-				values:        []string{"value1", "value2", "value3"},
-				lineNumber:    1,
-				hasLineNumber: true,
-			}, want: &LTSVParser{
-				writer:  &bytes.Buffer{},
-				decoder: ltsvLineDecoder,
-			},
-			wantWriter: `{"no":"1","label1":"value1","label2":"value2","label3":"value3"}`,
-		},
-		{
-			name: "with no lineNumber",
-			handlerArgs: handlerArgs{
-				labels:        []string{"label1", "label2", "label3"},
-				values:        []string{"value1", "value2", "value3"},
-				lineNumber:    1,
-				hasLineNumber: false,
+				labels: []string{"label1", "label2", "label3"},
+				values: []string{"value1", "value2", "value3"},
 			}, want: &LTSVParser{
 				writer:  &bytes.Buffer{},
 				decoder: ltsvLineDecoder,
@@ -54,7 +36,7 @@ func TestNewLTSVParser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := NewLTSVParser(context.Background(), &bytes.Buffer{}, Option{})
-			got, err := p.opt.LineHandler(tt.handlerArgs.labels, tt.handlerArgs.values, tt.handlerArgs.lineNumber, tt.handlerArgs.hasLineNumber, tt.handlerArgs.isFirst)
+			got, err := p.opt.LineHandler(tt.handlerArgs.labels, tt.handlerArgs.values, false)
 			if err != nil {
 				t.Fatal(err)
 			}

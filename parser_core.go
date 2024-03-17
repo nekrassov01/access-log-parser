@@ -73,7 +73,7 @@ type lineFilter func(v string) (bool, error)
 
 // LineHandler is a function type that processes each matched line.
 // It takes the matches, their corresponding fields, and the line number, and returns processed string data.
-type LineHandler func(labels []string, values []string, lineNumber int, hasLineNumber, isFirst bool) (string, error)
+type LineHandler func(labels []string, values []string, isFirst bool) (string, error)
 
 // parse orchestrates the parsing process, applying keyword filters and regular expression patterns to log data from an io.Reader.
 // It supports dynamic handling of line processing, error collection, and pattern matching for efficient log analysis.
@@ -226,8 +226,13 @@ func parser(ctx context.Context, input io.Reader, output io.Writer, patterns []*
 				r.Excluded++
 				continue
 			}
-			ls, vs = selectLabels(opt.Labels, ls, vs)
-			line, err := opt.LineHandler(ls, vs, i, opt.LineNumber, isFirst)
+			if len(opt.Labels) > 0 {
+				ls, vs = selectLabels(opt.Labels, ls, vs)
+			}
+			if opt.LineNumber {
+				ls, vs = addLineNumber(ls, vs, i)
+			}
+			line, err := opt.LineHandler(ls, vs, isFirst)
 			if err != nil {
 				return nil, err
 			}
@@ -285,9 +290,6 @@ func ltsvLineDecoder(line string, _ []*regexp.Regexp) ([]string, []string, error
 
 // selectLabels filters the given labels and values based on a list of target labels.
 func selectLabels(targets, labels, values []string) ([]string, []string) {
-	if len(targets) == 0 {
-		return labels, values
-	}
 	m := make(map[string]struct{}, len(targets))
 	for _, target := range targets {
 		m[target] = struct{}{}
@@ -301,6 +303,11 @@ func selectLabels(targets, labels, values []string) ([]string, []string) {
 		}
 	}
 	return ls, vs
+}
+
+// addLineNumber prepends the line number to labels and values.
+func addLineNumber(labels []string, values []string, lineNumber int) ([]string, []string) {
+	return append([]string{"no"}, labels...), append([]string{strconv.Itoa(lineNumber)}, values...)
 }
 
 // applySkipLines generates a map indicating which line numbers should be skipped during parsing.

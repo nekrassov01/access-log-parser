@@ -8,14 +8,9 @@ import (
 	"github.com/mattn/go-isatty"
 )
 
-const lineNumberLabel = "no"
-
 // JSONLineHandler serializes log lines into JSON (NDJSON) format. It keywords the line number if specified.
 // Labels and values are combined into key-value pairs, and the result is a single JSON object.
-func JSONLineHandler(labels []string, values []string, lineNumber int, hasLineNumber, _ bool) (string, error) {
-	if hasLineNumber {
-		labels, values = addLineNumber(labels, values, lineNumber)
-	}
+func JSONLineHandler(labels []string, values []string, _ bool) (string, error) {
 	b := &strings.Builder{}
 	b.WriteString("{")
 	for i, value := range values {
@@ -34,10 +29,7 @@ func JSONLineHandler(labels []string, values []string, lineNumber int, hasLineNu
 }
 
 // PrettyJSONLineHandler enhances JSONLineHandler by formatting the output for readability. It uses indentation and new lines.
-func PrettyJSONLineHandler(labels []string, values []string, lineNumber int, hasLineNumber, _ bool) (string, error) {
-	if hasLineNumber {
-		labels, values = addLineNumber(labels, values, lineNumber)
-	}
+func PrettyJSONLineHandler(labels []string, values []string, _ bool) (string, error) {
 	b := &strings.Builder{}
 	b.WriteString("{\n")
 	for i, value := range values {
@@ -56,10 +48,7 @@ func PrettyJSONLineHandler(labels []string, values []string, lineNumber int, has
 }
 
 // KeyValuePairLineHandler converts log lines into a space-separated string of key-value pairs.
-func KeyValuePairLineHandler(labels []string, values []string, lineNumber int, hasLineNumber, _ bool) (string, error) {
-	if hasLineNumber {
-		labels, values = addLineNumber(labels, values, lineNumber)
-	}
+func KeyValuePairLineHandler(labels []string, values []string, _ bool) (string, error) {
 	b := &strings.Builder{}
 	for i, value := range values {
 		if i < len(labels) {
@@ -75,10 +64,7 @@ func KeyValuePairLineHandler(labels []string, values []string, lineNumber int, h
 }
 
 // LTSVLineHandler formats log lines as LTSV (Labeled Tab-separated Values).
-func LTSVLineHandler(labels []string, values []string, lineNumber int, hasLineNumber, _ bool) (string, error) {
-	if hasLineNumber {
-		labels, values = addLineNumber(labels, values, lineNumber)
-	}
+func LTSVLineHandler(labels []string, values []string, _ bool) (string, error) {
 	b := &strings.Builder{}
 	for i, value := range values {
 		if i < len(labels) {
@@ -98,10 +84,7 @@ func LTSVLineHandler(labels []string, values []string, lineNumber int, hasLineNu
 }
 
 // TSVLineHandler formats log lines as TSV (Tab-separated Values).
-func TSVLineHandler(labels []string, values []string, lineNumber int, hasLineNumber, isFirst bool) (string, error) {
-	if hasLineNumber {
-		labels, values = addLineNumber(labels, values, lineNumber)
-	}
+func TSVLineHandler(labels []string, values []string, isFirst bool) (string, error) {
 	b := &strings.Builder{}
 	if isFirst {
 		header := strings.Join(labels, "\t")
@@ -124,9 +107,4 @@ func TSVLineHandler(labels []string, values []string, lineNumber int, hasLineNum
 		}
 	}
 	return b.String(), nil
-}
-
-// addLineNumber prepends the line number to labels and values.
-func addLineNumber(labels []string, values []string, lineNumber int) ([]string, []string) {
-	return append([]string{lineNumberLabel}, labels...), append([]string{strconv.Itoa(lineNumber)}, values...)
 }

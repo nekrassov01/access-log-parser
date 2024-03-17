@@ -671,7 +671,7 @@ func Test_parseString(t *testing.T) {
 					Prefix:       false,
 					UnmatchLines: false,
 					LineNumber:   false,
-					LineHandler: func(_, _ []string, _ int, _, _ bool) (string, error) {
+					LineHandler: func(_, _ []string, _ bool) (string, error) {
 						return "", fmt.Errorf("error")
 					},
 				},
@@ -779,7 +779,7 @@ func Test_parseFile(t *testing.T) {
 					Prefix:       false,
 					UnmatchLines: false,
 					LineNumber:   false,
-					LineHandler: func(_, _ []string, _ int, _, _ bool) (string, error) {
+					LineHandler: func(_, _ []string, _ bool) (string, error) {
 						return "", fmt.Errorf("error")
 					},
 				},
@@ -932,7 +932,7 @@ func Test_parseGzip(t *testing.T) {
 					Prefix:       false,
 					UnmatchLines: false,
 					LineNumber:   false,
-					LineHandler: func(_, _ []string, _ int, _, _ bool) (string, error) {
+					LineHandler: func(_, _ []string, _ bool) (string, error) {
 						return "", fmt.Errorf("error")
 					},
 				},
@@ -1113,7 +1113,7 @@ func Test_parseZipEntries(t *testing.T) {
 					Prefix:       false,
 					UnmatchLines: false,
 					LineNumber:   false,
-					LineHandler: func(_, _ []string, _ int, _, _ bool) (string, error) {
+					LineHandler: func(_, _ []string, _ bool) (string, error) {
 						return "", fmt.Errorf("error")
 					},
 				},
@@ -1566,7 +1566,7 @@ func Test_parser(t *testing.T) {
 					Prefix:       false,
 					UnmatchLines: false,
 					LineNumber:   true,
-					LineHandler: func(_, _ []string, _ int, _, _ bool) (string, error) {
+					LineHandler: func(_, _ []string, _ bool) (string, error) {
 						return "", fmt.Errorf("error")
 					},
 				},
@@ -1826,7 +1826,7 @@ func Test_parser(t *testing.T) {
 					Prefix:       false,
 					UnmatchLines: false,
 					LineNumber:   true,
-					LineHandler: func(_, _ []string, _ int, _, _ bool) (string, error) {
+					LineHandler: func(_, _ []string, _ bool) (string, error) {
 						return "", fmt.Errorf("error")
 					},
 				},
