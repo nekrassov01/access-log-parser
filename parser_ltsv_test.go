@@ -27,8 +27,8 @@ func TestNewLTSVParser(t *testing.T) {
 				labels: []string{"label1", "label2", "label3"},
 				values: []string{"value1", "value2", "value3"},
 			}, want: &LTSVParser{
-				writer:  &bytes.Buffer{},
-				decoder: ltsvLineDecoder,
+				w:           &bytes.Buffer{},
+				lineDecoder: ltsvLineDecoder,
 			},
 			wantWriter: `{"label1":"value1","label2":"value2","label3":"value3"}`,
 		},
@@ -49,9 +49,9 @@ func TestNewLTSVParser(t *testing.T) {
 
 func TestLTSVParser_Parse(t *testing.T) {
 	type fields struct {
-		ctx     context.Context
-		decoder lineDecoder
-		opt     Option
+		ctx         context.Context
+		lineDecoder lineDecoder
+		opt         Option
 	}
 	type args struct {
 		reader io.Reader
@@ -67,8 +67,8 @@ func TestLTSVParser_Parse(t *testing.T) {
 		{
 			name: "ltsv: all match",
 			fields: fields{
-				ctx:     context.Background(),
-				decoder: ltsvLineDecoder,
+				ctx:         context.Background(),
+				lineDecoder: ltsvLineDecoder,
 				opt: Option{
 					Labels:       nil,
 					SkipLines:    nil,
@@ -94,10 +94,10 @@ func TestLTSVParser_Parse(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
 			p := &LTSVParser{
-				ctx:     tt.fields.ctx,
-				writer:  output,
-				decoder: ltsvLineDecoder,
-				opt:     tt.fields.opt,
+				ctx:         tt.fields.ctx,
+				w:           output,
+				lineDecoder: ltsvLineDecoder,
+				opt:         tt.fields.opt,
 			}
 			got, err := p.Parse(tt.args.reader)
 			if (err != nil) != tt.wantErr {
@@ -114,9 +114,9 @@ func TestLTSVParser_Parse(t *testing.T) {
 
 func TestLTSVParser_ParseString(t *testing.T) {
 	type fields struct {
-		ctx     context.Context
-		decoder lineDecoder
-		opt     Option
+		ctx         context.Context
+		lineDecoder lineDecoder
+		opt         Option
 	}
 	type args struct {
 		s string
@@ -132,8 +132,8 @@ func TestLTSVParser_ParseString(t *testing.T) {
 		{
 			name: "ltsv: all match",
 			fields: fields{
-				ctx:     context.Background(),
-				decoder: ltsvLineDecoder,
+				ctx:         context.Background(),
+				lineDecoder: ltsvLineDecoder,
 				opt: Option{
 					Labels:       nil,
 					SkipLines:    nil,
@@ -159,10 +159,10 @@ func TestLTSVParser_ParseString(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
 			p := &LTSVParser{
-				ctx:     tt.fields.ctx,
-				writer:  output,
-				decoder: tt.fields.decoder,
-				opt:     tt.fields.opt,
+				ctx:         tt.fields.ctx,
+				w:           output,
+				lineDecoder: tt.fields.lineDecoder,
+				opt:         tt.fields.opt,
 			}
 			got, err := p.ParseString(tt.args.s)
 			if (err != nil) != tt.wantErr {
@@ -179,9 +179,9 @@ func TestLTSVParser_ParseString(t *testing.T) {
 
 func TestLTSVParser_ParseFile(t *testing.T) {
 	type fields struct {
-		ctx     context.Context
-		decoder lineDecoder
-		opt     Option
+		ctx         context.Context
+		lineDecoder lineDecoder
+		opt         Option
 	}
 	type args struct {
 		filePath string
@@ -197,8 +197,8 @@ func TestLTSVParser_ParseFile(t *testing.T) {
 		{
 			name: "ltsv: all match",
 			fields: fields{
-				ctx:     context.Background(),
-				decoder: ltsvLineDecoder,
+				ctx:         context.Background(),
+				lineDecoder: ltsvLineDecoder,
 				opt: Option{
 					Labels:       nil,
 					SkipLines:    nil,
@@ -224,10 +224,10 @@ func TestLTSVParser_ParseFile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
 			p := &LTSVParser{
-				ctx:     tt.fields.ctx,
-				writer:  output,
-				decoder: tt.fields.decoder,
-				opt:     tt.fields.opt,
+				ctx:         tt.fields.ctx,
+				w:           output,
+				lineDecoder: tt.fields.lineDecoder,
+				opt:         tt.fields.opt,
 			}
 			got, err := p.ParseFile(tt.args.filePath)
 			if (err != nil) != tt.wantErr {
@@ -244,9 +244,9 @@ func TestLTSVParser_ParseFile(t *testing.T) {
 
 func TestLTSVParser_ParseGzip(t *testing.T) {
 	type fields struct {
-		ctx     context.Context
-		decoder lineDecoder
-		opt     Option
+		ctx         context.Context
+		lineDecoder lineDecoder
+		opt         Option
 	}
 	type args struct {
 		gzipPath string
@@ -262,8 +262,8 @@ func TestLTSVParser_ParseGzip(t *testing.T) {
 		{
 			name: "ltsv: all match",
 			fields: fields{
-				ctx:     context.Background(),
-				decoder: ltsvLineDecoder,
+				ctx:         context.Background(),
+				lineDecoder: ltsvLineDecoder,
 				opt: Option{
 					Labels:       nil,
 					SkipLines:    nil,
@@ -289,10 +289,10 @@ func TestLTSVParser_ParseGzip(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
 			p := &LTSVParser{
-				ctx:     tt.fields.ctx,
-				writer:  output,
-				decoder: tt.fields.decoder,
-				opt:     tt.fields.opt,
+				ctx:         tt.fields.ctx,
+				w:           output,
+				lineDecoder: tt.fields.lineDecoder,
+				opt:         tt.fields.opt,
 			}
 			got, err := p.ParseGzip(tt.args.gzipPath)
 			if (err != nil) != tt.wantErr {
@@ -309,9 +309,9 @@ func TestLTSVParser_ParseGzip(t *testing.T) {
 
 func TestLTSVParser_ParseZipEntries(t *testing.T) {
 	type fields struct {
-		ctx     context.Context
-		decoder lineDecoder
-		opt     Option
+		ctx         context.Context
+		lineDecoder lineDecoder
+		opt         Option
 	}
 	type args struct {
 		zipPath     string
@@ -328,8 +328,8 @@ func TestLTSVParser_ParseZipEntries(t *testing.T) {
 		{
 			name: "ltsv: all match",
 			fields: fields{
-				ctx:     context.Background(),
-				decoder: ltsvLineDecoder,
+				ctx:         context.Background(),
+				lineDecoder: ltsvLineDecoder,
 				opt: Option{
 					Labels:       nil,
 					SkipLines:    nil,
@@ -356,10 +356,10 @@ func TestLTSVParser_ParseZipEntries(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
 			p := &LTSVParser{
-				ctx:     tt.fields.ctx,
-				writer:  output,
-				decoder: tt.fields.decoder,
-				opt:     tt.fields.opt,
+				ctx:         tt.fields.ctx,
+				w:           output,
+				lineDecoder: tt.fields.lineDecoder,
+				opt:         tt.fields.opt,
 			}
 			got, err := p.ParseZipEntries(tt.args.zipPath, tt.args.globPattern)
 			if (err != nil) != tt.wantErr {

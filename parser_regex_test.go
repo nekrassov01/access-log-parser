@@ -28,8 +28,8 @@ func TestNewRegexParser(t *testing.T) {
 				labels: []string{"label1", "label2", "label3"},
 				values: []string{"value1", "value2", "value3"},
 			}, want: &RegexParser{
-				writer:  &bytes.Buffer{},
-				decoder: regexLineDecoder,
+				w:           &bytes.Buffer{},
+				lineDecoder: regexLineDecoder,
 			},
 			wantWriter: `{"label1":"value1","label2":"value2","label3":"value3"}`,
 		},
@@ -50,10 +50,10 @@ func TestNewRegexParser(t *testing.T) {
 
 func TestRegexParser_Parse(t *testing.T) {
 	type fields struct {
-		ctx      context.Context
-		decoder  lineDecoder
-		opt      Option
-		patterns []*regexp.Regexp
+		ctx         context.Context
+		lineDecoder lineDecoder
+		opt         Option
+		patterns    []*regexp.Regexp
 	}
 	type args struct {
 		reader io.Reader
@@ -69,8 +69,8 @@ func TestRegexParser_Parse(t *testing.T) {
 		{
 			name: "regex: all match",
 			fields: fields{
-				ctx:     context.Background(),
-				decoder: regexLineDecoder,
+				ctx:         context.Background(),
+				lineDecoder: regexLineDecoder,
 				opt: Option{
 					Labels:       nil,
 					SkipLines:    nil,
@@ -97,11 +97,11 @@ func TestRegexParser_Parse(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
 			p := &RegexParser{
-				ctx:      tt.fields.ctx,
-				writer:   output,
-				decoder:  regexLineDecoder,
-				opt:      tt.fields.opt,
-				patterns: tt.fields.patterns,
+				ctx:         tt.fields.ctx,
+				w:           output,
+				lineDecoder: regexLineDecoder,
+				opt:         tt.fields.opt,
+				patterns:    tt.fields.patterns,
 			}
 			got, err := p.Parse(tt.args.reader)
 			if (err != nil) != tt.wantErr {
@@ -118,10 +118,10 @@ func TestRegexParser_Parse(t *testing.T) {
 
 func TestRegexParser_ParseString(t *testing.T) {
 	type fields struct {
-		ctx      context.Context
-		decoder  lineDecoder
-		opt      Option
-		patterns []*regexp.Regexp
+		ctx         context.Context
+		lineDecoder lineDecoder
+		opt         Option
+		patterns    []*regexp.Regexp
 	}
 	type args struct {
 		s string
@@ -137,8 +137,8 @@ func TestRegexParser_ParseString(t *testing.T) {
 		{
 			name: "regex: all match",
 			fields: fields{
-				ctx:     context.Background(),
-				decoder: regexLineDecoder,
+				ctx:         context.Background(),
+				lineDecoder: regexLineDecoder,
 				opt: Option{
 					Labels:       nil,
 					SkipLines:    nil,
@@ -165,11 +165,11 @@ func TestRegexParser_ParseString(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
 			p := &RegexParser{
-				ctx:      tt.fields.ctx,
-				writer:   output,
-				decoder:  tt.fields.decoder,
-				opt:      tt.fields.opt,
-				patterns: tt.fields.patterns,
+				ctx:         tt.fields.ctx,
+				w:           output,
+				lineDecoder: tt.fields.lineDecoder,
+				opt:         tt.fields.opt,
+				patterns:    tt.fields.patterns,
 			}
 			got, err := p.ParseString(tt.args.s)
 			if (err != nil) != tt.wantErr {
@@ -186,10 +186,10 @@ func TestRegexParser_ParseString(t *testing.T) {
 
 func TestRegexParser_ParseFile(t *testing.T) {
 	type fields struct {
-		ctx      context.Context
-		decoder  lineDecoder
-		opt      Option
-		patterns []*regexp.Regexp
+		ctx         context.Context
+		lineDecoder lineDecoder
+		opt         Option
+		patterns    []*regexp.Regexp
 	}
 	type args struct {
 		filePath string
@@ -205,8 +205,8 @@ func TestRegexParser_ParseFile(t *testing.T) {
 		{
 			name: "regex: all match",
 			fields: fields{
-				ctx:     context.Background(),
-				decoder: regexLineDecoder,
+				ctx:         context.Background(),
+				lineDecoder: regexLineDecoder,
 				opt: Option{
 					Labels:       nil,
 					SkipLines:    nil,
@@ -233,11 +233,11 @@ func TestRegexParser_ParseFile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
 			p := &RegexParser{
-				ctx:      tt.fields.ctx,
-				writer:   output,
-				decoder:  tt.fields.decoder,
-				opt:      tt.fields.opt,
-				patterns: tt.fields.patterns,
+				ctx:         tt.fields.ctx,
+				w:           output,
+				lineDecoder: tt.fields.lineDecoder,
+				opt:         tt.fields.opt,
+				patterns:    tt.fields.patterns,
 			}
 			got, err := p.ParseFile(tt.args.filePath)
 			if (err != nil) != tt.wantErr {
@@ -254,10 +254,10 @@ func TestRegexParser_ParseFile(t *testing.T) {
 
 func TestRegexParser_ParseGzip(t *testing.T) {
 	type fields struct {
-		ctx      context.Context
-		decoder  lineDecoder
-		opt      Option
-		patterns []*regexp.Regexp
+		ctx         context.Context
+		lineDecoder lineDecoder
+		opt         Option
+		patterns    []*regexp.Regexp
 	}
 	type args struct {
 		gzipPath string
@@ -273,8 +273,8 @@ func TestRegexParser_ParseGzip(t *testing.T) {
 		{
 			name: "regex: all match",
 			fields: fields{
-				ctx:     context.Background(),
-				decoder: regexLineDecoder,
+				ctx:         context.Background(),
+				lineDecoder: regexLineDecoder,
 				opt: Option{
 					Labels:       nil,
 					SkipLines:    nil,
@@ -301,11 +301,11 @@ func TestRegexParser_ParseGzip(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
 			p := &RegexParser{
-				ctx:      tt.fields.ctx,
-				writer:   output,
-				decoder:  tt.fields.decoder,
-				opt:      tt.fields.opt,
-				patterns: tt.fields.patterns,
+				ctx:         tt.fields.ctx,
+				w:           output,
+				lineDecoder: tt.fields.lineDecoder,
+				opt:         tt.fields.opt,
+				patterns:    tt.fields.patterns,
 			}
 			got, err := p.ParseGzip(tt.args.gzipPath)
 			if (err != nil) != tt.wantErr {
@@ -322,10 +322,10 @@ func TestRegexParser_ParseGzip(t *testing.T) {
 
 func TestRegexParser_ParseZipEntries(t *testing.T) {
 	type fields struct {
-		ctx      context.Context
-		decoder  lineDecoder
-		opt      Option
-		patterns []*regexp.Regexp
+		ctx         context.Context
+		lineDecoder lineDecoder
+		opt         Option
+		patterns    []*regexp.Regexp
 	}
 	type args struct {
 		zipPath     string
@@ -342,8 +342,8 @@ func TestRegexParser_ParseZipEntries(t *testing.T) {
 		{
 			name: "regex: all match",
 			fields: fields{
-				ctx:     context.Background(),
-				decoder: regexLineDecoder,
+				ctx:         context.Background(),
+				lineDecoder: regexLineDecoder,
 				opt: Option{
 					Labels:       nil,
 					SkipLines:    nil,
@@ -371,11 +371,11 @@ func TestRegexParser_ParseZipEntries(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			output := &bytes.Buffer{}
 			p := &RegexParser{
-				ctx:      tt.fields.ctx,
-				writer:   output,
-				decoder:  tt.fields.decoder,
-				opt:      tt.fields.opt,
-				patterns: tt.fields.patterns,
+				ctx:         tt.fields.ctx,
+				w:           output,
+				lineDecoder: tt.fields.lineDecoder,
+				opt:         tt.fields.opt,
+				patterns:    tt.fields.patterns,
 			}
 			got, err := p.ParseZipEntries(tt.args.zipPath, tt.args.globPattern)
 			if (err != nil) != tt.wantErr {
@@ -392,8 +392,8 @@ func TestRegexParser_ParseZipEntries(t *testing.T) {
 
 func TestRegexParser_AddPattern(t *testing.T) {
 	type fields struct {
-		writer  io.Writer
-		decoder lineDecoder
+		w           io.Writer
+		lineDecoder lineDecoder
 	}
 	type args struct {
 		pattern string
@@ -441,8 +441,8 @@ func TestRegexParser_AddPattern(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &RegexParser{
-				writer:  tt.fields.writer,
-				decoder: tt.fields.decoder,
+				w:           tt.fields.w,
+				lineDecoder: tt.fields.lineDecoder,
 			}
 			if err := p.AddPattern(tt.args.pattern); (err != nil) != tt.wantErr {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
@@ -453,8 +453,8 @@ func TestRegexParser_AddPattern(t *testing.T) {
 
 func TestRegexParser_AddPatterns(t *testing.T) {
 	type fields struct {
-		writer  io.Writer
-		decoder lineDecoder
+		w           io.Writer
+		lineDecoder lineDecoder
 	}
 	type args struct {
 		patterns []string
@@ -504,8 +504,8 @@ func TestRegexParser_AddPatterns(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &RegexParser{
-				writer:  tt.fields.writer,
-				decoder: tt.fields.decoder,
+				w:           tt.fields.w,
+				lineDecoder: tt.fields.lineDecoder,
 			}
 			if err := p.AddPatterns(tt.args.patterns); (err != nil) != tt.wantErr {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", err, tt.wantErr)
@@ -516,8 +516,8 @@ func TestRegexParser_AddPatterns(t *testing.T) {
 
 func TestRegexParser_Patterns(t *testing.T) {
 	type fields struct {
-		decoder  lineDecoder
-		patterns []*regexp.Regexp
+		lineDecoder lineDecoder
+		patterns    []*regexp.Regexp
 	}
 	tests := []struct {
 		name   string
@@ -527,8 +527,8 @@ func TestRegexParser_Patterns(t *testing.T) {
 		{
 			name: "basic",
 			fields: fields{
-				decoder:  regexLineDecoder,
-				patterns: regexPatterns,
+				lineDecoder: regexLineDecoder,
+				patterns:    regexPatterns,
 			},
 			want: regexPatterns,
 		},
@@ -536,8 +536,8 @@ func TestRegexParser_Patterns(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p := &RegexParser{
-				decoder:  tt.fields.decoder,
-				patterns: tt.fields.patterns,
+				lineDecoder: tt.fields.lineDecoder,
+				patterns:    tt.fields.patterns,
 			}
 			if got := p.Patterns(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", got, tt.want)
@@ -605,13 +605,13 @@ func TestNewApacheCLFRegexParser(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			writer := &bytes.Buffer{}
-			p := NewApacheCLFRegexParser(context.Background(), writer, Option{})
+			w := &bytes.Buffer{}
+			p := NewApacheCLFRegexParser(context.Background(), w, Option{})
 			_, err := p.ParseString(tt.parserArgs.input)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := writer.String(); !reflect.DeepEqual(got, tt.want) {
+			if got := w.String(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", got, tt.want)
 			}
 		})
@@ -677,13 +677,13 @@ func TestNewApacheCLFWithVHostRegexParser(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			writer := &bytes.Buffer{}
-			p := NewApacheCLFWithVHostRegexParser(context.Background(), writer, Option{})
+			w := &bytes.Buffer{}
+			p := NewApacheCLFWithVHostRegexParser(context.Background(), w, Option{})
 			_, err := p.ParseString(tt.parserArgs.input)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := writer.String(); !reflect.DeepEqual(got, tt.want) {
+			if got := w.String(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", got, tt.want)
 			}
 		})
@@ -749,13 +749,13 @@ func TestNewS3RegexParser(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			writer := &bytes.Buffer{}
-			p := NewS3RegexParser(context.Background(), writer, Option{})
+			w := &bytes.Buffer{}
+			p := NewS3RegexParser(context.Background(), w, Option{})
 			_, err := p.ParseString(tt.parserArgs.input)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := writer.String(); !reflect.DeepEqual(got, tt.want) {
+			if got := w.String(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", got, tt.want)
 			}
 		})
@@ -789,13 +789,13 @@ func TestNewCFRegexParser(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			writer := &bytes.Buffer{}
-			p := NewCFRegexParser(context.Background(), writer, Option{})
+			w := &bytes.Buffer{}
+			p := NewCFRegexParser(context.Background(), w, Option{})
 			_, err := p.ParseString(tt.parserArgs.input)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := writer.String(); !reflect.DeepEqual(got, tt.want) {
+			if got := w.String(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", got, tt.want)
 			}
 		})
@@ -829,13 +829,13 @@ func TestNewALBRegexParser(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			writer := &bytes.Buffer{}
-			p := NewALBRegexParser(context.Background(), writer, Option{})
+			w := &bytes.Buffer{}
+			p := NewALBRegexParser(context.Background(), w, Option{})
 			_, err := p.ParseString(tt.parserArgs.input)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := writer.String(); !reflect.DeepEqual(got, tt.want) {
+			if got := w.String(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", got, tt.want)
 			}
 		})
@@ -869,13 +869,13 @@ func TestNewNLBRegexParser(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			writer := &bytes.Buffer{}
-			p := NewNLBRegexParser(context.Background(), writer, Option{})
+			w := &bytes.Buffer{}
+			p := NewNLBRegexParser(context.Background(), w, Option{})
 			_, err := p.ParseString(tt.parserArgs.input)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := writer.String(); !reflect.DeepEqual(got, tt.want) {
+			if got := w.String(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", got, tt.want)
 			}
 		})
@@ -917,13 +917,13 @@ func TestNewCLBRegexParser(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			writer := &bytes.Buffer{}
-			p := NewCLBRegexParser(context.Background(), writer, Option{})
+			w := &bytes.Buffer{}
+			p := NewCLBRegexParser(context.Background(), w, Option{})
 			_, err := p.ParseString(tt.parserArgs.input)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := writer.String(); !reflect.DeepEqual(got, tt.want) {
+			if got := w.String(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("\ngot:\n%v\nwant:\n%v\n", got, tt.want)
 			}
 		})
