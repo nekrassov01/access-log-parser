@@ -72,7 +72,7 @@ type lineDecoder func(line string, patterns []*regexp.Regexp) ([]string, []strin
 type lineFilter func(v string) (bool, error)
 
 // LineHandler is a function type that processes each matched line.
-type LineHandler func(labels []string, values []string, isFirst bool) (string, error)
+type LineHandler func(labels, values []string, isFirst bool) (string, error)
 
 // parse orchestrates the parsing process, applying keyword filters and regular expression patterns to log data from an io.Reader.
 // It supports dynamic handling of line processing, error collection, and pattern matching for efficient log analysis.
