@@ -20,6 +20,22 @@ Features
 - Various preset constructors for well-known log formats
 - LTSV format support
 
+Supported log format
+--------------------
+
+> [!NOTE]
+> Various AWS log formats are supported by default.
+
+- Apache common/combined log format
+- Apache common/combined log format with virtual host
+- Amazon S3 access log format
+- Amazon CloudFront access log format
+- AWS Application Load Balancer access log format
+- AWS Network Load Balancer access log format
+- AWS Classic Load Balancer access log format
+- LTSV format
+- TSV format
+
 Usage
 -----
 
